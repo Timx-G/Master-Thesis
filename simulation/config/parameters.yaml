@@ -1,0 +1,86 @@
+# =====================================================================
+# V2X-MEC 仿真参数配置
+# 基于文档: docs/01_系统模型.md
+# 参数来源已标注
+# =====================================================================
+
+# 网络参数 (3GPP TR 37.885)
+network:
+  road_length: 3000.0          # [3GPP TR 37.885] Urban scenario
+  num_lanes: 4                 # 标准双向道路
+  lane_width: 3.5              # [ISO标准] 车道宽度
+  rsu_count: 5                 # 适中密度
+  rsu_coverage_radius: 400.0   # [3GPP TR 37.885] V2I range
+  rsu_spacing: 600.0           # 确保覆盖重叠
+
+# 车辆参数
+vehicle:
+  count: 50                    # [文献范围: 20-100]
+  speed_mean: 25.0             # 90 km/h (城市快速路)
+  speed_std: 5.0               # 合理波动
+  speed_min: 10.0              # 36 km/h
+  speed_max: 35.0              # 126 km/h
+  local_cpu_freq: 2.0e9        # [文献] 车载处理器
+
+# RSU/MEC参数
+rsu:
+  cpu_capacity: 20.0e9         # [文献] Intel Xeon级别
+  backhaul_bandwidth: 1.0e9    # 1 Gbps光纤
+
+# CPM任务参数 (ETSI TS 103 324 + 协作感知论文)
+cpm:
+  # 触发条件 [ETSI TS 103 324 §6.1.3]
+  T_check: 0.1                 # 100 ms
+  pos_threshold: 4.0           # 4 m
+  speed_threshold: 0.5         # 0.5 m/s
+  heading_threshold: 4.0       # 4 degrees
+  T_max: 1.0                   # 1000 ms
+  
+  # 任务大小 
+  # 参考: IEEE TVT 2023 "Cooperative Perception for Connected Vehicles"
+  data_base: 4.0e6             # 500 KB = 0.5 MB (点云+图像压缩)
+  data_per_object: 1.6e5       # 20 KB per object (特征数据)
+  
+  # 计算负载 [文献: YOLO + 跟踪算法]
+  compute_base: 1.0e8          # 100 MCycles (目标检测)
+  compute_per_object: 2.0e7    # 20 MCycles (特征提取)
+  
+  num_objects_mean: 15         # 城市场景平均目标数
+  num_objects_std: 5           # 合理波动
+  deadline: 0.08               # 80 ms [论文常用值]
+  result_data_ratio: 0.1       # 10% (决策结果)
+
+# 通信参数 (3GPP TR 37.885 + C-V2X标准)
+communication:
+  carrier_freq: 5.9e9          # [FCC/ETSI] 5.9 GHz ITS频段
+  bandwidth: 20.0e6            # [3GPP TS 36.213] 20 MHz
+  tx_power_dbm: 23.0           # [FCC Part 95] 200 mW
+  noise_psd_dbm_hz: -174.0     # [物理常数] 热噪声
+  path_loss_exponent: 3.5      # [3GPP TR 37.885] Urban NLoS
+  shadowing_std: 4.0           # [3GPP TR 37.885] 阴影衰落
+  rician_factor_db: 6.0        # [3GPP TR 37.885] K-factor
+
+# 能耗参数 (CMOS功耗模型)
+energy:
+  kappa: 1.0e-27               # [文献] 45nm工艺
+  idle_power: 0.1              # [实测] 待机功耗
+
+# 仿真参数
+simulation:
+  duration: 100.0              # 100秒足够收集稳态数据
+  num_slots: 1000              # duration / T_check
+  dt: 0.1                      # = T_check
+  random_seed: 42              # 可复现
+  num_runs: 10                 # 统计置信区间
+
+# Lyapunov参数 (优化算法)
+lyapunov:
+  V: 1000                      # [文献范围: 100-2000]
+  queue_max: 100               # 防止队列溢出
+  
+# 优化目标权重 (安全优先场景)
+objective:
+  weight_aoi: 0.5              # AoI最重要
+  weight_energy: 0.1           # 能耗次要
+  weight_deadline: 0.4         # 截止时间约束
+
