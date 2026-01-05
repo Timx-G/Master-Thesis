@@ -9,9 +9,7 @@ CPM任务类定义
 """
 
 from dataclasses import dataclass, field  # 2. 自动生成类的工具
-from encodings.punycode import T
 from enum import Enum  # 4. 枚举类型
-from tkinter import NO
 from typing import Optional  # 3. 类型提示
 
 import numpy as np

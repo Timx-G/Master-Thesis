@@ -94,3 +94,18 @@ If you use this code in your research, please cite:
   year={2024}
 }
 ```
+
+# 进入仿真目录
+cd /home/ggmx/my_workspace/my_project/V2X_MEC_Offloading_Thesis
+
+# 测试 task.py (已完成)
+python3 -m simulation.core.task
+
+# 测试 vehicle.py
+python3 -m simulation.core.vehicle
+
+# 测试 rsu.py
+python3 -m simulation.core.rsu
+
+# 测试 channel.py
+python3 -m simulation.core.channel
