@@ -88,19 +88,21 @@ def run_quick_test(args):
 
     duration = args.duration or 10.0
 
-    config = SimulatorConfig(
-        num_vehicles=args.num_vehicles,
-        num_rsus=args.num_rsus,
-        duration=duration,
-        warmup_time=min(2.0, duration * 0.1),
-        phase_method=PhaseAllocMethod(args.phase_method),
-        random_seed=args.seed,
-        verbose=args.verbose,
-        log_interval=10,
-    )
+    # 从YAML加载基础配置
+    config = SimulatorConfig.from_yaml()
+
+    # 覆盖命令行参数
+    config.num_vehicles = args.num_vehicles
+    config.num_rsus = args.num_rsus
+    config.duration = duration
+    config.warmup_time = min(2.0, duration * 0.1)
+    config.phase_method = PhaseAllocMethod(args.phase_method)
+    config.random_seed = args.seed
+    config.verbose = args.verbose
 
     print(f"\n配置: {config.num_vehicles}辆车, {config.num_rsus}个RSU, {duration}秒")
     print(f"相位方法: {config.phase_method.value}")
+    print(f"Deadline: {config.cpm_deadline * 1000:.0f} ms")
 
     sim = Simulator(config)
 

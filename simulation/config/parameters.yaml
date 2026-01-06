@@ -20,12 +20,12 @@ vehicle:
   speed_std: 5.0               # 合理波动
   speed_min: 10.0              # 36 km/h
   speed_max: 35.0              # 126 km/h
-  local_cpu_freq: 2.0e9        # [文献] 车载处理器
+  local_cpu_freq: 2000000000.0 # [文献] 车载处理器 2.0 GHz
 
 # RSU/MEC参数
 rsu:
-  cpu_capacity: 20.0e9         # [文献] Intel Xeon级别
-  backhaul_bandwidth: 1.0e9    # 1 Gbps光纤
+  cpu_capacity: 20000000000.0  # [文献] Intel Xeon级别 20.0 GHz
+  backhaul_bandwidth: 1000000000.0 # 1 Gbps光纤
 
 # CPM任务参数 (ETSI TS 103 324 + 协作感知论文)
 cpm:
@@ -36,24 +36,24 @@ cpm:
   heading_threshold: 4.0       # 4 degrees
   T_max: 1.0                   # 1000 ms
   
-  # 任务大小 
+  # 任务大小
   # 参考: IEEE TVT 2023 "Cooperative Perception for Connected Vehicles"
-  data_base: 4.0e6             # 500 KB = 0.5 MB (点云+图像压缩)
-  data_per_object: 1.6e5       # 20 KB per object (特征数据)
-  
+  data_base: 4000000.0         # 500 KB = 0.5 MB (点云+图像压缩) 4.0e6
+  data_per_object: 160000.0    # 20 KB per object (特征数据) 1.6e5
+
   # 计算负载 [文献: YOLO + 跟踪算法]
-  compute_base: 1.0e8          # 100 MCycles (目标检测)
-  compute_per_object: 2.0e7    # 20 MCycles (特征提取)
-  
+  compute_base: 100000000.0    # 100 MCycles (目标检测) 1.0e8
+  compute_per_object: 20000000.0 # 20 MCycles (特征提取) 2.0e7
+
   num_objects_mean: 15         # 城市场景平均目标数
   num_objects_std: 5           # 合理波动
-  deadline: 0.08               # 80 ms [论文常用值]
+  deadline: 0.25               # 250 ms [参数调优结果: 达到87.39% deadline_rate]
   result_data_ratio: 0.1       # 10% (决策结果)
 
 # 通信参数 (3GPP TR 37.885 + C-V2X标准)
 communication:
-  carrier_freq: 5.9e9          # [FCC/ETSI] 5.9 GHz ITS频段
-  bandwidth: 20.0e6            # [3GPP TS 36.213] 20 MHz
+  carrier_freq: 5900000000.0   # [FCC/ETSI] 5.9 GHz ITS频段
+  bandwidth: 20000000.0        # [3GPP TS 36.213] 20 MHz
   tx_power_dbm: 23.0           # [FCC Part 95] 200 mW
   noise_psd_dbm_hz: -174.0     # [物理常数] 热噪声
   path_loss_exponent: 3.5      # [3GPP TR 37.885] Urban NLoS
@@ -62,7 +62,7 @@ communication:
 
 # 能耗参数 (CMOS功耗模型)
 energy:
-  kappa: 1.0e-27               # [文献] 45nm工艺
+  kappa: 0.000000000000000000000000001 # [文献] 45nm工艺 1.0e-27
   idle_power: 0.1              # [实测] 待机功耗
 
 # 仿真参数

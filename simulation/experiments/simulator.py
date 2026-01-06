@@ -79,6 +79,15 @@ class SimulatorConfig:
     rsu_cpu_capacity: float = 20.0e9
     rsu_bandwidth: float = 20.0e6
 
+    # CPM任务参数
+    cpm_data_base: float = 4.0e6
+    cpm_data_per_object: float = 1.6e5
+    cpm_compute_base: float = 1.0e8
+    cpm_compute_per_object: float = 2.0e7
+    cpm_num_objects_mean: int = 15
+    cpm_num_objects_std: int = 5
+    cpm_deadline: float = 0.08  # 80ms
+
     # 算法选择
     phase_method: PhaseAllocMethod = PhaseAllocMethod.CPA
     use_lyapunov: bool = True
@@ -92,6 +101,63 @@ class SimulatorConfig:
     # 调试
     verbose: bool = False
     log_interval: int = 100  # 每多少时隙打印一次
+
+    @classmethod
+    def from_yaml(cls, path: str = "simulation/config/parameters.yaml") -> "SimulatorConfig":
+        """从YAML文件加载配置"""
+        import yaml
+
+        try:
+            with open(path, 'r', encoding='utf-8') as f:
+                config = yaml.safe_load(f)
+        except FileNotFoundError:
+            print(f"⚠  YAML配置文件未找到: {path}, 使用默认配置")
+            return cls()
+
+        # 字段映射：YAML -> SimulatorConfig
+        field_map = {
+            # network
+            "road_length": "road_length",
+            "num_lanes": "num_lanes",
+            "lane_width": "lane_width",
+            "rsu_count": "num_rsus",
+            "rsu_coverage_radius": "rsu_coverage",
+            "rsu_spacing": "rsu_spacing",
+            # vehicle
+            "count": "num_vehicles",
+            "speed_mean": "speed_mean",
+            "speed_std": "speed_std",
+            "speed_min": "speed_min",
+            "speed_max": "speed_max",
+            "local_cpu_freq": "local_cpu_freq",
+            # rsu
+            "cpu_capacity": "rsu_cpu_capacity",
+            "backhaul_bandwidth": "rsu_bandwidth",
+            # cpm
+            "data_base": "cpm_data_base",
+            "data_per_object": "cpm_data_per_object",
+            "compute_base": "cpm_compute_base",
+            "compute_per_object": "cpm_compute_per_object",
+            "num_objects_mean": "cpm_num_objects_mean",
+            "num_objects_std": "cpm_num_objects_std",
+            "deadline": "cpm_deadline",
+            # simulation
+            "duration": "duration",
+            "dt": "dt",
+            # lyapunov
+            "V": "lyapunov_V",
+        }
+
+        # 扁平化并映射
+        params = {}
+        for section, values in config.items():
+            if isinstance(values, dict):
+                for yaml_key, value in values.items():
+                    config_key = field_map.get(yaml_key)
+                    if config_key and hasattr(cls, config_key):
+                        params[config_key] = value
+
+        return cls(**params)
 
 
 @dataclass
@@ -141,31 +207,31 @@ class Simulator:
         self.rsus: List[RSU] = []
         self._init_entities()
 
-        # 初始化任务生成器 - 使用正确的类
+        # 初始化任务生成器 - 使用配置中的参数
         cpm_params = CPMParameters(
             T_check=config.dt,
             pos_threshold=4.0,
             speed_threshold=0.5,
             heading_threshold=4.0,
             T_max=1.0,
-            data_base=4.0e6,
-            data_per_object=1.6e5,
-            compute_base=1.0e8,
-            compute_per_object=2.0e7,
-            num_objects_mean=15,
-            num_objects_std=5,
-            deadline=0.08,
+            data_base=config.cpm_data_base,
+            data_per_object=config.cpm_data_per_object,
+            compute_base=config.cpm_compute_base,
+            compute_per_object=config.cpm_compute_per_object,
+            num_objects_mean=config.cpm_num_objects_mean,
+            num_objects_std=config.cpm_num_objects_std,
+            deadline=config.cpm_deadline,
         )
         self.task_generator = CPMTaskGenerator(params=cpm_params, random_seed=config.random_seed)
 
         # 初始化算法模块
         self._init_algorithms()
 
-        # 初始化指标收集器 - 使用正确的构造函数参数
+        # 初始化指标收集器 - 使用配置中的参数
         self.aoi_calculator = AoICalculator(num_vehicles=config.num_vehicles, dt=config.dt)
         self.energy_calculator = EnergyCalculator(num_vehicles=config.num_vehicles)
         self.deadline_calculator = DeadlineCalculator(
-            num_vehicles=config.num_vehicles, deadline=0.08
+            num_vehicles=config.num_vehicles, deadline=config.cpm_deadline
         )
 
         # 结果记录
