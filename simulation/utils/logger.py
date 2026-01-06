@@ -48,7 +48,9 @@ class ColoredFormatter(logging.Formatter):
         logging.CRITICAL: Colors.BOLD + Colors.RED,
     }
 
-    def __init__(self, fmt: str = None, datefmt: str = None, use_colors: bool = True):
+    def __init__(
+        self, fmt: Optional[str] = None, datefmt: Optional[str] = None, use_colors: bool = True
+    ):
         super().__init__(fmt, datefmt)
         self.use_colors = use_colors
 
@@ -125,17 +127,18 @@ def setup_logger(
 
     # 文件Handler
     if file_output:
+        log_path: Path
         if log_dir is None:
             # 默认日志目录
-            log_dir = Path(__file__).parent.parent.parent / "logs"
+            log_path = Path(__file__).parent.parent.parent / "logs"
         else:
-            log_dir = Path(log_dir)
+            log_path = Path(log_dir)
 
-        log_dir.mkdir(parents=True, exist_ok=True)
+        log_path.mkdir(parents=True, exist_ok=True)
 
         # 按日期命名
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        log_file = log_dir / f"{name}_{timestamp}.log"
+        log_file = log_path / f"{name}_{timestamp}.log"
 
         file_handler = logging.FileHandler(log_file, encoding="utf-8")
         file_handler.setLevel(level)

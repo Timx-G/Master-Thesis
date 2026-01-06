@@ -331,8 +331,8 @@ class Simulator:
             delays = [t.get_total_delay() for t in tasks if t.status == TaskStatus.COMPLETED]
             energies = [t.energy_consumption for t in tasks if t.status == TaskStatus.COMPLETED]
 
-            result.avg_delay = np.mean(delays) if delays else 0.0
-            result.avg_energy = np.mean(energies) if energies else 0.0
+            result.avg_delay = float(np.mean(delays)) if delays else 0.0
+            result.avg_energy = float(np.mean(energies)) if energies else 0.0
 
             # 系统平均AoI
             aoi_stats = self.aoi_calculator.get_statistics()

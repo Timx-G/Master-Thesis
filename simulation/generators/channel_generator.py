@@ -248,7 +248,7 @@ class ChannelStateGenerator:
 
                     # 更新信道状态
                     state = self.channel_manager.update_channel_state(
-                        vid, rid, distance, current_time
+                        vid, rid, float(distance), current_time
                     )
                     updated_states.append(state)
 

@@ -184,7 +184,7 @@ class AoICalculator:
 
         # 记录系统平均AoI
         avg_aoi = np.mean(list(current_aois.values()))
-        self.system_aoi_history.append(avg_aoi)
+        self.system_aoi_history.append(float(avg_aoi))
         self.current_slot += 1
 
         return current_aois

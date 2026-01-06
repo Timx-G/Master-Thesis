@@ -480,13 +480,16 @@ if __name__ == "__main__":
     # 测试5: 单个轨迹检查
     print("\n--- 测试5: 单个轨迹检查 ---")
     traj = generator.get_trajectory(0)
-    print(f"车辆0:")
-    print(f"  车道: {traj.lane_id}")
-    print(f"  方向: {traj.direction.name}")
-    print(f"  初始位置: {traj.positions[0]}")
-    print(f"  初始速度: {traj.speeds[0]:.2f} m/s")
-    print(f"  末位置: {traj.positions[-1]}")
-    print(f"  末速度: {traj.speeds[-1]:.2f} m/s")
+    if traj is not None:
+        print(f"车辆0:")
+        print(f"  车道: {traj.lane_id}")
+        print(f"  方向: {traj.direction.name}")
+        print(f"  初始位置: {traj.positions[0]}")
+        print(f"  初始速度: {traj.speeds[0]:.2f} m/s")
+        print(f"  末位置: {traj.positions[-1]}")
+        print(f"  末速度: {traj.speeds[-1]:.2f} m/s")
+    else:
+        print("车辆0轨迹未找到")
 
     # 测试6: 某时刻所有车辆位置
     print("\n--- 测试6: 时刻快照 ---")

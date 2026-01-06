@@ -289,7 +289,9 @@ class DistributedPhaseAdjuster:
 
         return new_phase
 
-    def _can_preserve_phase(self, rsu_id: int, phase: float, min_distance: float = None) -> bool:
+    def _can_preserve_phase(
+        self, rsu_id: int, phase: float, min_distance: float | None = None
+    ) -> bool:
         """
         检查相位是否可以保留（不与现有相位冲突）
 
@@ -422,7 +424,7 @@ class DistributedPhaseAdjuster:
             return 0.0
 
         gap_sizes = [gap[2] for gap in gaps]
-        return np.var(gap_sizes)
+        return float(np.var(gap_sizes))
 
     def get_competitive_ratio(self, rsu_id: int) -> float:
         """

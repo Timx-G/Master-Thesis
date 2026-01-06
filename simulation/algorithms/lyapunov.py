@@ -91,7 +91,7 @@ class VirtualQueue:
         """获取队列平均值"""
         if not self.history:
             return 0.0
-        return np.mean(self.history)
+        return float(np.mean(self.history))
 
     def reset(self):
         """重置队列"""
@@ -722,7 +722,7 @@ if __name__ == "__main__":
 
     # 测试5: V参数权衡分析
     print("\n【测试5】V参数权衡分析")
-    V_values = [100, 500, 1000, 2000, 5000]
+    V_values: List[float] = [100, 500, 1000, 2000, 5000]
     results = analyze_v_tradeoff(V_values, n_tasks=50)
 
     print(

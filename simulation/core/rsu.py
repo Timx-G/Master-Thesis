@@ -1,5 +1,5 @@
 """
-RSU (路边单元) 类定义
+RSU (路侧单元) 类定义
 文件: simulation/core/rsu.py
 
 参数来源: config/parameters.yaml 的 rsu 和 communication 部分
@@ -84,7 +84,7 @@ class RSU:
         来源: docs/01_系统模型.md §1.2
         """
         distance = np.linalg.norm(vehicle_position - self.position)
-        return distance <= self.coverage_radius
+        return bool(distance <= self.coverage_radius)
 
     def update_coverage(self, vehicles: List) -> Set[int]:
         """

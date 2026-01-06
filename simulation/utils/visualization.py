@@ -189,7 +189,7 @@ class SimulationVisualizer:
         # 平均线
         avg_aoi = np.mean(aoi_ms)
         ax.axhline(
-            y=avg_aoi,
+            y=float(avg_aoi),
             color=COLORS["error"],
             linestyle="--",
             linewidth=2,
@@ -235,7 +235,7 @@ class SimulationVisualizer:
         if non_zero:
             sizes, labels, colors, explode = zip(*non_zero)
 
-        wedges, texts, autotexts = ax.pie(
+        wedges, texts, *autotexts_list = ax.pie(
             sizes,
             explode=explode,
             labels=labels,
@@ -244,6 +244,8 @@ class SimulationVisualizer:
             shadow=False,
             startangle=90,
         )
+
+        autotexts = autotexts_list[0] if autotexts_list else []
 
         ax.set_title(title, fontsize=14)
         ax.axis("equal")
@@ -278,7 +280,7 @@ class SimulationVisualizer:
         )
 
         # 标记超时部分
-        for i, (patch, left_edge) in enumerate(zip(patches, bins[:-1])):
+        for i, (patch, left_edge) in enumerate(zip(patches, bins[:-1])):  # type: ignore
             if left_edge >= deadline_ms:
                 patch.set_facecolor(COLORS["error"])
 
@@ -318,7 +320,7 @@ class SimulationVisualizer:
     def plot_algorithm_comparison(
         self,
         results: Dict[str, Dict[str, float]],
-        metrics: List[str] = None,
+        metrics: Optional[List[str]] = None,
         title: str = "Algorithm Comparison",
         filename: str = "algorithm_comparison.png",
     ):
@@ -558,7 +560,7 @@ def create_summary_report(
     ax4.set_title("Delay Statistics")
 
     fig.suptitle("Simulation Summary Report", fontsize=16, fontweight="bold")
-    fig.tight_layout(rect=[0, 0, 1, 0.96])
+    fig.tight_layout(rect=(0, 0, 1, 0.96))
 
     filepath = Path(output_dir) / "summary_report.png"
     fig.savefig(filepath, bbox_inches="tight")

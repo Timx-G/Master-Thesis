@@ -482,7 +482,7 @@ class ChannelManager:
 
                 # 仅更新覆盖范围内的链路
                 if distance <= coverage_radius:
-                    state = self.update_channel_state(vid, rid, distance, timestamp)
+                    state = self.update_channel_state(vid, rid, float(distance), timestamp)
                     updated_states.append(state)
 
         # 更新统计

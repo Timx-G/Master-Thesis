@@ -331,7 +331,7 @@ class KinematicPredictor:
         if avg_interval <= 0:
             return 0.0
 
-        return 1.0 / avg_interval
+        return float(1.0 / avg_interval)
 
     def predict_load_next_slot(
         self, vehicle_ids: List[int], current_time: float, slot_duration: float = 0.1
@@ -545,7 +545,7 @@ class HistoricalLoadPredictor:
         """简单平均预测"""
         if history is None or len(history) == 0:
             return 0.0
-        return np.mean(list(history))
+        return float(np.mean(list(history)))
 
     def _predict_ema(self, key: str) -> float:
         """指数移动平均预测"""
@@ -568,7 +568,7 @@ class HistoricalLoadPredictor:
         denominator = sum((x[i] - x_mean) ** 2 for i in range(n))
 
         if denominator == 0:
-            return y_mean
+            return float(y_mean)
 
         slope = numerator / denominator
         intercept = y_mean - slope * x_mean
@@ -576,7 +576,7 @@ class HistoricalLoadPredictor:
         # 预测下一个点
         prediction = slope * n + intercept
 
-        return max(0, prediction)  # 非负
+        return float(max(0, prediction))  # 非负
 
     def predict_total_load(self, rsu_ids: List[int]) -> float:
         """
@@ -613,7 +613,7 @@ class HistoricalLoadPredictor:
             return False
 
         z_score = abs(current_load - mean) / std
-        return z_score > self.config.anomaly_threshold
+        return bool(z_score > self.config.anomaly_threshold)
 
     def get_statistics(self) -> dict:
         """获取统计信息"""
