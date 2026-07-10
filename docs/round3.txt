@@ -1,0 +1,146 @@
+ ---                                                                                                                                                                                                           
+  Round 3：实验组织与补强                                                                                                                                                                                       
+                                                                                                                                                                                                                
+  You are a systems paper experiment analyst and editor.          
+                                                                                                                                                                                                                
+  TARGET FILE: <MAIN_TEX_PATH>                                                                                                                                                                                  
+    (Use the Round 2 revised version as input.)                                                                                                                                                                 
+  TARGET CODEBASE: <PROJECT_ROOT>                                                                                                                                                                               
+  ROUND: 3 of 3 — Experiment section organization and enhancement.                                                                                                                                              
+                                                                                                                                                                                                                
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━                                                                                                                                                                    
+  STEP 0 — DIAGNOSE BEFORE EDITING (mandatory)                                                                                                                                                                  
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━                                                                                                                                                                    
+  Before any changes, produce:                                                                                                                                                                                  
+   
+  (1) Current Section V structure: mechanism-driven story or                                                                                                                                                    
+      result dump?                                                
+  (2) Which existing evidence is strongest?                                                                                                                                                                     
+  (3) Which sections are redundant or low-value?                                                                                                                                                                
+  (4) Which new experiments below can be run right now?                                                                                                                                                         
+  (5) Which require human author action?                                                                                                                                                                        
+                                                                                                                                                                                                                
+  Present this diagnosis BEFORE any edits.                                                                                                                                                                      
+                                                                                                                                                                                                                
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━                                                                                                                                                                    
+  THE ONLY RULE THAT MATTERS THIS ROUND                           
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━                                                                                                                                                                    
+  A result may appear in the manuscript ONLY if:                                                                                                                                                                
+    (a) It already exists from a verified experiment run, OR                                                                                                                                                    
+    (b) You can run the simulation code right now and get output.                                                                                                                                               
+                                                                                                                                                                                                                
+  If neither: insert [TODO: run experiment] design + placeholder.                                                                                                                                               
+  DO NOT write the number. This rule has no exceptions.                                                                                                                                                         
+                                                                                                                                                                                                                
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━                                                                                                                                                                    
+  TASK E0 — Fix parameter table (safe, no code needed)                                                                                                                                                          
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━                                                                                                                                                                    
+  The parameter table says "K: 2 (ext. 3)".                                                                                                                                                                     
+  K-scalability results already cover K=1–5.                                                                                                                                                                    
+  Fix to: "K: 2 (ext. K=1–5)"                                                                                                                                                                                   
+                                                                                                                                                                                                                
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━                                                                                                                                                                    
+  TASK E1 — Restructure Section V into 6-group narrative                                                                                                                                                        
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━                                                                                                                                                                    
+  Without changing any numbers, reorganize into:                                                                                                                                                                
+                                                                                                                                                                                                                
+  Group 1: Main comparison                                                                                                                                                                                      
+    Keep 15-baseline table. Add 1-sentence mechanism summary.                                                                                                                                                   
+                                                                                                                                                                                                                
+  Group 2: Mechanism ablation — CENTRAL EVIDENCE                                                                                                                                                                
+    Promote 2×2 table to its own subsection.                                                                                                                                                                    
+    Required conclusion sentence:                                                                                                                                                                               
+    "Cross-UAV topology alone contributes +0.4\,pp under the                                                                                                                                                    
+    bilateral criterion but +2.6\,pp under the global criterion,                                                                                                                                                
+    confirming that the global acceptance criterion is the critical                                                                                                                                             
+    enabler of the cross-UAV move benefit."                                                                                                                                                                     
+    Keep 0/660 explanation here (not in abstract).                                                                                                                                                              
+                                                                                                                                                                                                                
+  Group 3: Exact optimality validation                                                                                                                                                                          
+    Rewrite cautiously:                                                                                                                                                                                         
+    "94.8\% of exact optimum is empirical average-case evidence                                                                                                                                                 
+    on small (N=8) instances only; it does not constitute a                                                                                                                                                     
+    worst-case approximation guarantee."                                                                                                                                                                        
+                                                                                                                                                                                                                
+  Group 4: Scalability (N-scalability + K-scalability)                                                                                                                                                          
+                                                                                                                                                                                                                
+  Group 5: Robustness (new experiments — may contain [TODO])                                                                                                                                                    
+                                                                  
+  Group 6: Runtime (upgrade from point estimate if possible)                                                                                                                                                    
+                                                                  
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━                                                                                                                                                                    
+  NEW EXPERIMENTS — run if possible, plan if not                  
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━                                                                                                                                                                    
+  EXP-E2 (highest priority): Partial reuse sensitivity                                                                                                                                                          
+    r=0.0 (existing: 65.5%), r=0.5 (run needed), r=1.0 (existing: 73.4%)                                                                                                                                        
+    Implementation: S*r subcarriers shared (I_cross computed);                                                                                                                                                  
+    S*(1-r) dedicated (I_cross = 0). 20 seeds, N=20, K=2.                                                                                                                                                       
+    Expected: gap grows with r.                                                                                                                                                                                 
+    Placeholder:                                                                                                                                                                                                
+      "Table X shows the effect of reuse factor r ∈{0, 0.5, 1.0}.                                                                                                                                               
+      [TODO: run r=0.5, 20 seeds; expected: gap > r=0 case.]"                                                                                                                                                   
+                                                                                                                                                                                                                
+  EXP-E3: Task load sensitivity                                                                                                                                                                                 
+    Light:   D_i~U[0.2,1.0] Mbit, ω_i~U[300,600] cy/bit                                                                                                                                                         
+    Default: (existing)                                                                                                                                                                                         
+    Heavy:   D_i~U[0.8,3.0] Mbit, ω_i~U[800,1500] cy/bit                                                                                                                                                        
+    20 seeds each. Expected: larger gap under Heavy.                                                                                                                                                            
+    Placeholder: "[TODO: run Light/Heavy, 20 seeds each.]"                                                                                                                                                      
+                                                                                                                                                                                                                
+  EXP-E4: Power heterogeneity                                                                                                                                                                                   
+    p_i ~ U[0.8*p_max, p_max]. 20 seeds.                                                                                                                                                                        
+    Expected: gap stable.                                                                                                                                                                                       
+    Placeholder: "[TODO: run EXP-E4, 20 seeds.]"                                                                                                                                                                
+                                                                                                                                                                                                                
+  EXP-E5: Runtime distribution (from existing logs)                                                                                                                                                             
+    Extract from existing logs: mean, median, P95, max (ms),                                                                                                                                                    
+    iteration count histogram.                                                                                                                                                                                  
+    If available: replace "14 ms" with distribution summary.                                                                                                                                                    
+    If not: "[TODO: re-run with timing instrumentation.]"                                                                                                                                                       
+                                                                                                                                                                                                                
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━                                                                                                                                                                    
+  DRL SECTION — reframe, do not expand                                                                                                                                                                          
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━                                                                                                                                                                    
+  Label the DRL subsection clearly:                                                                                                                                                                             
+    "DRL as Architectural Reference (Not Performance Competitor)"                                                                                                                                               
+                                                                                                                                                                                                                
+  Opening sentence must state:                                                                                                                                                                                  
+  "Both DRL agents use a continuous cluster-weight action space                                                                                                                                                 
+  that cannot represent discrete per-user pairing; they are                                                                                                                                                     
+  included as architectural references, not algorithmic competitors."                                                                                                                                           
+                                                                                                                                                                                                                
+  Move DRL subsection to after Group 4 if currently embedded                                                                                                                                                    
+  in the main comparison narrative.                                                                                                                                                                             
+                                                                                                                                                                                                                
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━                                                                                                                                                                    
+  OUTPUT FORMAT                                                                                                                                                                                                 
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━                                                                                                                                                                    
+  PART A — Experiment diagnosis                                                                                                                                                                                 
+    Structure quality; available vs needed experiments.
+                                                                                                                                                                                                                
+  PART B — Revised experiment section                                                                                                                                                                           
+    Full revised Section V with:                                                                                                                                                                                
+    - E0 parameter fix                                                                                                                                                                                          
+    - E1 restructuring                                            
+    - New results (E2–E5 if obtained)                                                                                                                                                                           
+    - [TODO] placeholders clearly labeled                                                                                                                                                                       
+                                                                                                                                                                                                                
+    ⚠ Any subsection containing placeholder results must be                                                                                                                                                     
+    clearly labeled as [TODO: run experiment] and must NOT be                                                                                                                                                   
+    written in a way that could be mistaken for finalized                                                                                                                                                       
+    validated results.                                                                                                                                                                                          
+                                                                                                                                                                                                                
+  PART C — Experiment execution plan                                                                                                                                                                            
+    For each unrun experiment: exact parameter change, estimated  
+    run time, placeholder text ready to swap in.                                                                                                                                                                
+                                                                                                                                                                                                                
+  PART D — Paper integrity checklist                                                                                                                                                                            
+    □ No fabricated numbers added                                                                                                                                                                               
+    □ All CI values from real runs                                                                                                                                                                              
+    □ All [TODO] clearly labeled with what is needed                                                                                                                                                            
+    □ K parameter table fixed to K=1–5                                                                                                                                                                          
+    □ DRL labeled as architectural reference                                                                                                                                                                    
+    □ N=8 optimality claim cautiously worded                                                                                                                                                                    
+    □ No placeholder result written to look like finalized data                                                                                                                                                 
+                                                                                                                                                                                                                
+  ---                                                               

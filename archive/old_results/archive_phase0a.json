@@ -1,0 +1,36 @@
+{
+  "phase": "0A",
+  "date": "2026-04-12",
+  "environment": "fixed_cluster + kkt_optimizer, stationary_burst, no_mobility",
+  "gate_results": {
+    "T7_fixed_clusters": true,
+    "T1_kkt_accuracy": true,
+    "sanity_no_nan": true,
+    "sanity_no_diverge": true
+  },
+  "reward_stats": {
+    "min": 67.83576615474685,
+    "max": 80.12247163985532,
+    "mean": 74.03298954705852,
+    "std": 2.8293790412097297
+  },
+  "deadline_stats": {
+    "mean": 46.7,
+    "std": 2.0
+  },
+  "random_baseline_deadline_mean": 46.7,
+  "decision": "PASS",
+  "elapsed_seconds": 6.1,
+  "note": "PPO convergence check deferred (no gymnasium/torch training loop available offline). T7+T1 core logic verified.",
+  "t_max_adjustment": {
+    "original": 1.0,
+    "new": 0.65,
+    "reason": "Random 74.9% with t_max=1.0 indicated environment too easy. t_max=0.65 gives Random~47%, 11% margin over avg task delay 0.575s.",
+    "sweep": {
+      "0.60": 43.4,
+      "0.65": 46.7,
+      "0.70": 50.4,
+      "0.75": 54.6
+    }
+  }
+}

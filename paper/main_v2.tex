@@ -1,0 +1,1554 @@
+\documentclass[journal]{IEEEtran}
+
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{amsthm}
+\newtheorem{theorem}{Theorem}
+\newtheorem{proposition}{Proposition}
+\newtheorem{lemma}{Lemma}
+\newtheorem{corollary}{Corollary}
+\newtheorem{remark}{Remark}
+\newtheorem{definition}{Definition}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{cite}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+\usepackage{color}
+\usepackage{multirow}
+\usepackage{url}
+\usepackage{enumitem}
+\usepackage{microtype}
+
+\begin{document}
+
+\title{Interference-Aware User Pairing and Task Offloading for Grouped NOMA Multi-UAV MEC Networks}
+
+\author{Mingxi~Guan,~\IEEEmembership{}
+\thanks{This work was supported in part by the National Natural Science Foundation of China. }
+\thanks{M. Guan is with the School of Information Science and Technology, University of Science and Technology of China, Hefei, China (e-mail: mguan@mail.ustc.edu.cn).}}
+
+\maketitle
+
+\begin{abstract}
+In grouped non-orthogonal multiple access (NOMA) multi-UAV mobile edge computing (MEC)
+networks with full frequency reuse, user pairing decisions couple cross-UAV interference
+globally, making the offline pairing-selection core NP-complete.
+Existing approaches, including exchange-stable matching from single-cell NOMA, rely on
+bilateral acceptance criteria that appear insufficient in the presence of cross-UAV
+interference externalities: reassigning a user to a more distant UAV can be disfavored by
+bilateral evaluation, even when the global interference structure would improve.
+We propose an interference-aware cross-UAV swap algorithm initialized by per-UAV integer
+linear programming (ILP), with a global first-improvement acceptance criterion and a
+closed-form delay-equalization offloading ratio (derived from the unique piecewise-linear
+crossing-point condition), that accepts any swap strictly increasing
+the total deadline-met count across all UAVs.
+Experiments over 20 independent seeds against 15 baselines achieve 73.4\% deadline
+satisfaction, exceeding greedy pairing by +11.3\,pp, with the proposed algorithm
+running in 14\,ms per slot at $N\!=\!20$ (Python link-level simulation)
+within the 1\,s scheduling budget, and the advantage growing
+monotonically with network density.
+A $2\!\times\!2$ ablation (move topology $\times$ acceptance criterion) indicates that
+cross-UAV topology contributes +0.4\,pp under the bilateral criterion but +2.6\,pp under
+the global criterion, suggesting that both components are needed to realize the observed
+gain.
+\end{abstract}
+
+\begin{IEEEkeywords}
+Mobile edge computing, NOMA, user pairing, multi-UAV, task offloading, interference management
+\end{IEEEkeywords}
+
+% =====================================================================
+\section{Introduction}
+\label{sec:intro}
+
+The proliferation of Internet of Things (IoT) devices with stringent latency requirements
+has driven the adoption of mobile edge computing (MEC), which brings computation resources
+closer to end users~\cite{mao2017survey}.
+Unmanned aerial vehicles (UAVs) equipped with MEC servers offer flexible, on-demand
+coverage for emergency response, temporary events, and infrastructure-sparse
+regions~\cite{zeng2016uav}, where compute-intensive tasks---video frame analysis, object
+detection, activity recognition, and SLAM localization---require MEC offloading to meet
+processing latency constraints.
+
+While single-UAV MEC has been extensively studied, practical deployments increasingly
+require multiple cooperative UAVs to cover large areas~\cite{wu2018joint}.
+Most multi-UAV MEC works assume orthogonal frequency allocation among
+UAVs~\cite{ma2024dynamic,zhang2023cooperative,wu2018joint}, avoiding inter-UAV
+interference at the cost of spectral efficiency.
+Non-orthogonal multiple access (NOMA), applied as grouped NOMA~\cite{ali2016dynamic}
+with per-subcarrier 2-user SIC pairs, can substantially improve spectral efficiency;
+however, existing user pairing methods for NOMA focus on intra-cell
+settings~\cite{ali2016dynamic,altin2022hybrid,xu2025dynamic} and do not address the
+interference coupling that arises when multiple UAVs share the same spectrum.
+The closest prior work~\cite{li2023joint} assigns each UAV a distinct frequency band,
+eliminating cross-UAV interference and allowing independent per-UAV optimization, but
+this formulation does not extend to the full-frequency-reuse setting studied here.
+Existing studies have not jointly addressed multi-UAV full-spectrum NOMA, cross-UAV
+interference-aware user pairing, and MEC task offloading with a non-smooth deadline
+objective.
+
+When UAVs share all subcarriers (full frequency reuse, reuse factor~1), a pairing change
+on UAV~$k$ alters the interference experienced by users at UAV~$k'$, coupling pairing
+decisions globally.
+We establish NP-completeness of the offline pairing-selection core via reduction from Independent
+Set (Appendix~A), confirming the problem's inherent combinatorial intractability.
+The combinatorial pairing space and non-smooth deadline objective further preclude direct
+application of continuous relaxation or standard intra-cell matching approaches.
+
+A natural candidate is exchange-stable matching, which accepts a swap only when both
+involved pairs weakly improve~\cite{altin2022hybrid,di2017sub}.
+The behavior of bilateral stability criteria in environments with matching
+externalities---where a match between two agents alters payoffs of others---is a
+well-studied concern in matching theory~\cite{sasaki1996two,hamidouche2017matching}.
+Cross-UAV interference in our setting constitutes such an externality: reassigning a
+user to a more distant UAV can be disfavored by bilateral evaluation, even when it
+appears beneficial from the network-wide objective.
+This pattern is consistent with our empirical observations: across 20 seeds, cross-UAV
+swap moves under the bilateral criterion are never accepted (0/660 evaluated candidates),
+yielding only +0.4\,pp gain when such moves are added to exchange-stable matching
+(detailed in Section~\ref{sec:results}).
+
+We therefore propose a cross-UAV swap algorithm with a \emph{global first-improvement
+criterion}: starting from a per-UAV ILP initialization, the algorithm iteratively accepts
+any swap---including exchanges between different UAVs' subcarrier pairs---that strictly
+increases the total deadline-met count across the entire network.
+SIC feasibility is maintained throughout, and a closed-form delay-equalization formula
+provides the optimal per-user offloading ratio given the pairing.
+This framework is illustrated in Fig.~\ref{fig:system_model}, with a detailed comparison
+of representative prior works in Table~\ref{tab:comparison} (Section~\ref{sec:related}).
+
+The contributions of this paper are as follows:
+\begin{itemize}
+    \item[\textbf{C1}:] A global-improvement cross-UAV interference-aware user pairing
+    framework for full-frequency-reuse grouped NOMA multi-UAV MEC.
+    The critical algorithmic element is a cross-UAV swap with a global first-improvement
+    criterion, motivated by the empirically observed pattern in which bilateral criteria
+    yield negligible cross-UAV swap acceptance under cross-UAV interference externalities.
+    \item[\textbf{C2}:] A problem formulation with explicit cross-UAV interference
+    coupling; NP-completeness of the offline pairing-selection core; and a closed-form
+    delay-equalization offloading ratio.
+    \item[\textbf{C3}:] A $2\!\times\!2$ ablation (topology $\times$ acceptance
+    criterion), 15-baseline comparison, and exact small-scale optimality validation,
+    collectively showing that cross-UAV topology and the global objective are each
+    necessary to realize the observed gain, with neither alone sufficient.
+\end{itemize}
+
+The remainder of this paper is organized as follows.
+Section~\ref{sec:related} reviews related work.
+Section~\ref{sec:system} presents the system model and problem formulation.
+Section~\ref{sec:algorithm} describes the proposed algorithm.
+Section~\ref{sec:results} provides simulation results.
+Section~\ref{sec:conclusion} concludes the paper, and
+Appendix~A provides the NP-completeness proof of the offline configuration-selection core.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.95\columnwidth]{../figures/fig1_system_model.pdf}
+\caption{Multi-UAV grouped NOMA MEC scenario ($K\!=\!2$ UAVs, $N\!=\!20$ users, 800\,m$\times$800\,m, $H\!=\!100$\,m). Users are grouped into three clusters and paired on $S\!=\!3$ subcarriers (red/blue/green dots). Full frequency reuse creates persistent cross-UAV interference (red dashed arrow) that globally couples all pairing decisions.}
+\label{fig:system_model}
+\end{figure}
+
+% =====================================================================
+\section{Related Work}
+\label{sec:related}
+
+\subsection{Multi-UAV MEC with Orthogonalized Resources}
+
+Multi-UAV MEC works~\cite{wu2018joint,ma2024dynamic,zhang2023cooperative} jointly
+optimize trajectory and resource allocation for IoT task offloading, uniformly assuming
+orthogonal frequency allocation among UAVs so that each UAV occupies a distinct sub-band,
+avoiding inter-UAV interference.
+Recent works extend this framework to uplink NOMA scheduling~\cite{li2023joint} and
+energy-efficient edge offloading~\cite{lyu2024uav}, retaining the orthogonal-band
+assumption.
+
+The most closely related prior work is~\cite{li2023joint}, which addresses multi-UAV
+uplink NOMA-MEC with trajectory design and resource scheduling.
+However, their system model assigns each UAV a \emph{distinct} frequency band (orthogonal
+spectrum allocation, confirmed in Section~II of~\cite{li2023joint}), which eliminates
+cross-UAV interference from the SINR expressions entirely.
+This orthogonal-band assumption transforms the multi-UAV problem into $K$ independent
+single-UAV subproblems, each solvable with standard intra-cell NOMA pairing methods.
+In contrast, our full-frequency-reuse setting (reuse factor~1) creates \emph{persistent}
+cross-UAV interference on every subcarrier: a pairing change on UAV~$k$ changes the
+interference at UAV~$k'$, coupling the pairing decisions globally and making the
+offline pairing-selection core NP-complete.
+The decoupled per-UAV optimization of~\cite{li2023joint} therefore does not directly
+address the globally coupled interference structure considered here.
+
+Deep reinforcement learning approaches for multi-UAV MEC~\cite{zhou2024multiuav,sun2024drl}
+apply continuous actions for trajectory and resource allocation;
+Section~\ref{sec:results_drl} empirically shows that discrete user pairing requires
+combinatorial methods that continuous-action DRL does not directly support.
+
+Existing multi-UAV MEC works leave the interference-coupled user pairing problem under
+full frequency reuse unaddressed.
+
+\subsection{NOMA User Pairing in Intra-Cell Settings}
+
+NOMA user pairing has been extensively studied for single-cell and intra-cell scenarios.
+Ali et al.~\cite{ali2016dynamic} proposed channel-gain-based dynamic user clustering;
+Di et al.~\cite{di2017sub} applied intra-cell swap-matching for sub-channel allocation;
+Altin--Akar~\cite{altin2022hybrid} proposed exchange-stable (TES) matching for
+NOMA-MEC; Xu et al.~\cite{xu2025dynamic} applied Hungarian matching to RIS-aided
+single-cluster NOMA; Nguyen et al.~\cite{nguyen2024qos} used benefit-greedy pairing for
+QoS-constrained NOMA; and Ding et al.~\cite{ding2019impact} analyzed the fundamental
+impact of user pairing choices on NOMA performance.
+RIS can enhance channel gains in NOMA systems~\cite{liu2021ris,mu2021ris,zheng2022ris},
+but does not eliminate the combinatorial pairing subproblem; joint RIS-pairing
+optimization in full-reuse multi-UAV settings is an open extension.
+
+These intra-cell methods share a key assumption: pairing decisions at one cell do not
+alter the interference environment of other base stations.
+In our full-frequency-reuse multi-UAV setting, this assumption does not hold---a pairing
+change on any subcarrier at any UAV modifies the interference received at all other UAVs
+on that subcarrier.
+Intra-cell pairing methods do not directly extend to this globally coupled problem.
+
+\subsection{Externality-Aware Matching and Scheduling Theory}
+
+Bilateral stability notions are generally insufficient for efficiency when matches between
+agents alter payoffs of others (externalities), as established in matching
+theory~\cite{sasaki1996two,echenique2006theory,pycia2012stability}.
+Hamidouche et al.~\cite{hamidouche2017matching} applied this analysis to wireless
+networks, showing that bilateral stability criteria are inadequate when interference
+couples users' utilities.
+Shin et al.~\cite{shin2017non} analyzed inter-cell NOMA interference via stochastic
+geometry, characterizing how user pairing quality shapes the aggregate interference
+structure.
+Sun et al.~\cite{sun2022multi} and Zhu et al.~\cite{zhu2022multi} address interference
+management in multi-cell NOMA-MEC settings, but assume partial frequency reuse rather
+than the full-spectrum per-subcarrier coupling considered here.
+GNN-based resource allocation~\cite{cui2023gnn} can generalize scheduling policies
+across topologies but does not provide optimality guarantees for the combinatorial pairing
+subproblem.
+
+Cross-UAV interference in our problem constitutes such an externality: a pairing change
+on UAV~$k$ alters the SINR of users at UAV~$k'$.
+Our empirical observation (0/660 bilateral cross-UAV swap accepts) is consistent with
+this theoretical framework.
+The $2\!\times\!2$ ablation (Table~\ref{tab:2x2}) provides empirical separation of
+topology and acceptance criterion, integrating this matching-theoretic context into a
+complete combinatorially-hard MEC scheduling problem with 15-baseline validation.
+
+Existing studies have not jointly applied externality-aware analysis to deadline-driven
+grouped NOMA multi-UAV MEC scheduling.
+This work is the first to jointly address full-frequency-reuse multi-UAV NOMA, cross-UAV interference-coupled pairing, and MEC deadline optimization under a single framework.
+
+Table~\ref{tab:comparison} summarizes how our work differs from representative prior works along the above dimensions.
+
+\begin{table}[t]
+\centering
+\caption{Comparison with representative prior works.}
+\label{tab:comparison}
+\footnotesize
+\renewcommand{\arraystretch}{1.08}
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{lccccccc}
+\toprule
+\textbf{Work} & \textbf{Multi-} & \textbf{NOMA} & \textbf{X-UAV} & \textbf{User} & \textbf{MEC} & \textbf{UAV/Pwr} & \textbf{Complexity} \\
+ & \textbf{UAV} & & \textbf{Interf.} & \textbf{Pair} & & \textbf{Opt.} & \textbf{(pairing)} \\
+\midrule
+\cite{ma2024dynamic} & \checkmark & & & & \checkmark & Traj & -- \\
+\cite{wu2018joint} & \checkmark & & & & \checkmark & Traj & -- \\
+\cite{ding2019impact} & & \checkmark & & & \checkmark & Pwr & -- \\
+\cite{ali2016dynamic} & & \checkmark & & \checkmark & & Pwr & $O(N^2)$ \\
+\cite{liu2025multiuav} & \checkmark & \checkmark & & & \checkmark & Traj & -- \\
+\cite{zhou2024multiuav} & \checkmark & & & & \checkmark & Traj & DRL \\
+\cite{altin2022hybrid} & & \checkmark & & \checkmark & \checkmark & -- & $O(N^3)$ \\
+\cite{xu2025dynamic} & & \checkmark & & \checkmark & & Pwr & $O(N^2)$ \\
+\cite{li2023joint}$^\dagger$ & \checkmark & \checkmark & & \checkmark & & Traj & $O(N^2)$ \\
+\textbf{Ours} & \checkmark & \checkmark & \checkmark & \checkmark & \checkmark & Fix & $O(N^2)$ \\
+\bottomrule
+\multicolumn{8}{l}{\scriptsize $^\dagger$\,\cite{li2023joint}: intra-UAV pairing only; orthogonal bands eliminate cross-UAV interference.} \\
+\multicolumn{8}{l}{\scriptsize \cite{xu2025dynamic}: single-cluster RIS-aided; no multi-UAV scenario.} \\
+\multicolumn{8}{l}{\scriptsize Traj\,=\,trajectory; Pwr\,=\,power; Fix\,=\,fixed hover; --\,=\,not applicable.} \\
+\end{tabular}}
+\end{table}
+
+% =====================================================================
+\section{System Model and Problem Formulation}
+\label{sec:system}
+
+\begin{table}[t]
+\centering
+\caption{Summary of Key Notation}
+\label{tab:notation}
+\footnotesize
+\renewcommand{\arraystretch}{1.05}
+\begin{tabular}{lp{5.5cm}}
+\toprule
+\textbf{Symbol} & \textbf{Description} \\
+\midrule
+$K$, $N$, $S$ & Number of UAVs, users, subcarriers \\
+$H$, $B$, $B_s$ & Altitude; total / per-sub bandwidth \\
+$h_{i,k}$, $\tilde{h}_{m,k}$ & Channel to serving / non-serving UAV \\
+$p_{\max}$, $\varepsilon$ & Max Tx power; SIC residual factor \\
+$I_{\text{cross}}^{(s,k)}$ & Cross-UAV interf.\ on sub $s$ at UAV $k$ \\
+$\gamma_{i,k}^{(s)}$, $R_i$ & SINR; achievable rate of user $i$ \\
+$D_i$, $C_i$, $\alpha_i$ & Data size; computation; offloading ratio \\
+$f_{\text{UAV}}$, $f_{\text{local}}$ & MEC / local CPU frequency \\
+$f_{\text{alloc},i}$ & MEC compute per offloading user at UAV $k$ \\
+$\tau_i$, $t_{\max}$ & Task delay; deadline threshold \\
+$\boldsymbol{\pi}$, $w(c)$ & Pairing assignment; config.\ weight \\
+$\omega_i$ & Computational density (cycles/bit) \\
+$\rho$ & Result-to-input data ratio \\
+$\mathcal{S}_k$ & Set of users served by UAV $k$ \\
+$\mathcal{A}$ & Set of active users (with tasks) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Network Model}
+
+We consider an 800\,m $\times$ 800\,m area with $K$ UAVs hovering at fixed altitude $H = 100$\,m, serving $N = 20$ ground users distributed in 3 clusters.
+Each UAV is equipped with an MEC server with computing capacity $f_{\text{UAV}} = 4$\,GHz.
+UAV hover positions are fixed; at $H=100$\,m with LoS-dominant propagation, path-loss variation due to UAV hover-position changes within the service area is $\lesssim$5\,dB (compared to a $>$30\,dB channel-gain range across user distances), making trajectory optimization orthogonal to the interference-aware pairing problem studied here~\cite{wu2018joint}.
+
+We adopt a slot-averaged block fading model~\cite{alhourani2014optimal,mao2017survey}: at 2\,GHz with 2\,m/s pedestrians, the coherence time $T_c \approx 75$\,ms and users move $<$0.25\% of path-loss distance per slot, so LoS path-loss dominates and slot-averaging is accurate.
+SIC ordering depends on large-scale path loss, which is stable within a slot.
+
+Users move at 2\,m/s (pedestrian speed) with random walk mobility.
+Task arrivals follow a non-stationary burst pattern: one cluster experiences high arrival rate (0.9) while others have low rate (0.2), with the burst cluster switching randomly every 8--15 time slots.
+This models realistic IoT scenarios such as periodic sensor bursts (e.g., environmental monitoring, crowd events, emergency response) where spatial traffic is uneven and time-varying~\cite{mao2017survey}.
+
+\subsection{Grouped NOMA Communication Model}
+
+The total bandwidth $B = 5$\,MHz is divided into $S = 3$ OFDMA subcarriers, each with bandwidth $B_s = B/S$.
+On each subcarrier, two users form a NOMA pair decoded via SIC.
+Both UAVs share all $S$ subcarriers (full frequency reuse factor 1).
+\emph{Inter-carrier interference (ICI) assumption:} We assume ideal OFDM subcarrier orthogonality, so ICI between different subcarriers is zero ($I_{\text{ICI}} = 0$). This is standard for narrowband IoT with sufficient cyclic prefix and is justified at 2\,GHz with pedestrian-speed users ($v = 2$\,m/s, Doppler $f_d = v f_c/c \approx 13$\,Hz $\ll B_s = 1.667$\,MHz subcarrier spacing). Interference between users on the \emph{same} subcarrier is handled by SIC (intra-pair) and is irreducible cross-UAV (inter-UAV); both are explicitly modeled.
+This corresponds to a scenario where UAVs act as \emph{airborne small cells} within a single licensed spectrum block, analogous to dense urban micro-cell deployments where frequency coordination between cells is deliberately avoided to maximize spectral efficiency~\cite{shin2017non}.
+In 3GPP NR Release 16 sidelink and UAV-to-infrastructure contexts, full frequency reuse between adjacent radio nodes is the baseline assumption when interference management is handled at the scheduling layer~\cite{saito2013non}.
+
+The channel between user $i$ and UAV $k$ follows the probabilistic LoS model~\cite{alhourani2014optimal}.
+The LoS probability depends on the elevation angle $\theta_{i,k} = \arctan(H / d_{i,k}^{\text{h}})$ in degrees:
+\begin{equation}
+    P_{\text{LoS}}(\theta_{i,k}) = \frac{1}{1 + a_{\text{LoS}} \exp\!\left(-b_{\text{LoS}}(\theta_{i,k} - a_{\text{LoS}})\right)}
+\end{equation}
+where $a_{\text{LoS}} = 9.61$ and $b_{\text{LoS}} = 0.16$ are the \textbf{Suburban} environment parameters from~\cite{alhourani2014optimal} (Table~I therein, labeled ``Suburban''); $d_{i,k}^{\text{h}}$ is the horizontal distance between user $i$ and UAV $k$.
+The Suburban scenario models deployments with low-to-moderate building density (typical $\sim$10\% building fraction), consistent with a 800\,$\times$\,800\,m service area with mixed open and obstructed links.
+At 100\,m altitude, $P_{\text{LoS}}$ ranges from 0.17 (corner users, $\theta \approx 14^\circ$) to near 1.0 (users directly beneath the UAV).
+The average channel power gain from user $i$ to UAV $k$ is:
+\begin{equation}
+    h_{i,k} = \frac{1}{\mathrm{FSPL}(d_{i,k}) \cdot \bigl[P_{\text{LoS}} \eta_{\text{LoS}} + (1-P_{\text{LoS}}) \eta_{\text{NLoS}}\bigr]}
+    \label{eq:channel_gain}
+\end{equation}
+where $d_{i,k} = \sqrt{(d_{i,k}^{\text{h}})^2 + H^2}$ is the 3D distance, $\mathrm{FSPL}(d) = (4\pi f_c d/c)^2$ is the free-space path loss, and $\eta_{\text{LoS}} = 1$\,dB, $\eta_{\text{NLoS}} = 20$\,dB are the additional path-loss factors for LoS and NLoS links respectively~\cite{alhourani2014optimal}.
+This model is equivalent to the air-to-ground path-loss formula in 3GPP TR 36.777~\cite{3gpp36777} and ITU-R P.1410 at the suburban density assumed here.
+
+The same path-loss model~\eqref{eq:channel_gain} applies to the interference channel.
+Specifically, $\tilde{h}_{m,k}$ denotes the channel power gain from user $m$ (assigned to UAV $k' \neq k$) to the \emph{non-serving} UAV $k$:
+\begin{equation}
+    \tilde{h}_{m,k} = \frac{1}{\mathrm{FSPL}(\tilde{d}_{m,k}) \cdot \bar{P}_{m,k}}
+    \label{eq:interf_channel}
+\end{equation}
+where $\bar{P}_{m,k} = P_{\text{LoS}}(\tilde{\theta}_{m,k}) \eta_{\text{LoS}} + (1\!-\!P_{\text{LoS}}(\tilde{\theta}_{m,k})) \eta_{\text{NLoS}}$ and $\tilde{d}_{m,k}$ is the 3D distance from user $m$ to non-serving UAV $k$.
+In full-frequency-reuse scenarios, users transmitting to UAV $k'$ simultaneously interfere at UAV $k$ via the same channel physics; this cannot be removed by SIC since the decoder at UAV $k$ only knows its own users' codebooks.
+
+\emph{SIC decoding order and equal-power uplink:}
+All IoT devices transmit at equal power $p_{\max} = 0.2$\,W (23\,dBm, 3GPP Class~3).
+Equal power is the standard assumption for \emph{uplink} NOMA~\cite{saito2013non,di2017sub}, where channel-gain-based SIC ordering naturally arises from devices' distance-dependent path losses.
+The ``strong user'' is closer to the UAV and has higher received power; the ``weak user'' is farther away.
+While joint power-pairing optimization could yield further gains (discussed in Section~\ref{sec:conclusion}), equal-power simplification focuses on the pairing problem and is consistent with practical IoT constraints where devices lack power control feedback.
+We define the \emph{strong user}~$i$ (higher received power $p_{\max} h_{i,k} \geq p_{\max} h_{j,k}$, i.e., $h_{i,k} \geq h_{j,k}$) and \emph{weak user}~$j$ within each NOMA pair on subcarrier~$s$ at UAV~$k$.
+In \emph{uplink} NOMA, the receiver (UAV) decodes users in \emph{descending} order of received power to maximize achievable rates~\cite{ding2017survey,saito2013non}: the user with the highest received power is decoded first (with the others as interference), then subtracted via SIC, followed by the next strongest, and so on.
+This is the \emph{opposite} of downlink NOMA where the near (strong) user first decodes the far user's high-power signal; in uplink, no power superposition by the transmitter is involved---only the receive-side decoding order matters.
+The UAV receiver therefore first decodes user~$i$ (higher received power $p_{\max}h_{i,k}$) while treating user~$j$'s signal as interference, then subtracts user~$i$'s decoded signal via SIC to decode user~$j$ with residual factor~$\varepsilon$:
+\begin{equation}
+    \gamma_{i,k}^{(s)} = \frac{p_{\max} h_{i,k}}{p_{\max} h_{j,k} + I_{\text{cross}}^{(s,k)} + \sigma_s^2}
+    \label{eq:sinr_strong}
+\end{equation}
+\begin{equation}
+    \gamma_{j,k}^{(s)} = \frac{p_{\max} h_{j,k}}{\varepsilon \cdot p_{\max} h_{i,k} + I_{\text{cross}}^{(s,k)} + \sigma_s^2}
+    \label{eq:sinr_weak}
+\end{equation}
+\emph{SIC feasibility constraint:}
+A pair $(i, j)$ with $h_{i,k} \geq h_{j,k}$ requires minimum SINR for the strong user:
+\begin{equation}
+    \frac{p_{\max} h_{i,k}}{p_{\max} h_{j,k} + I_{\text{cross}}^{(s,k)} + \sigma_s^2} \geq \gamma_{\text{SIC,min}} = 1\;(0\,\text{dB})
+    \label{eq:sic_feasibility}
+\end{equation}
+Cross-UAV interference $I_{\text{cross}}^{(s,k)}$ \emph{cannot} be removed by SIC (the decoder at UAV $k$ does not know other UAVs' users' codebooks).
+We set $\gamma_{\text{SIC,min}} = 1$ (0\,dB), the Shannon information-theoretic floor for positive-rate decoding, consistent with our continuous-rate model.
+Robustness of results to $\gamma_{\text{SIC,min}} \in \{0, 3, 5\}$\,dB is characterized in Section~\ref{sec:results} (Table~\ref{tab:robustness}).
+
+\emph{Hard enforcement in algorithm:}
+The algorithm \emph{explicitly} filters pairs violating~\eqref{eq:sic_feasibility} in Stage~1 (both ILP benefit estimation and greedy benefit estimation): candidate pairs with $\gamma_{i,k}^{(s)} < \gamma_{\text{SIC,min}}$ are excluded from the initialization.
+In Stage~2, the swap evaluates each candidate move by fully recomputing all SINRs via~\eqref{eq:sinr_strong}--\eqref{eq:cross_interf}; moves that degrade SINRs produce lower rates and hence lower deadline counts, making them unlikely to be accepted under the global first-improvement criterion.
+Under our default parameters, the intra-pair channel disparity is at least 7\,dB, consistent with~\eqref{eq:sic_feasibility} being satisfied at the initialized pairing; accepted swaps are evaluated with the full SINR model, making moves that would violate the SIC condition unlikely to increase the deadline count.
+
+NOMA gains come from spectral multiplexing ($2S$ users vs.\ $S$ for OFDMA) and distance-diversity SIC.
+
+\begin{remark}[TDD Reciprocity and SIC Synchronization]
+UAV vibration introduces phase noise, but SIC ordering depends on $|h|^2$, not phase, and is thus robust.
+Control signaling requires $<$1\,ms; NOMA synchronization uses standard LTE/NR timing advance ($\sim$66\,$\mu$s).
+Full TDD reciprocity holds for TDD systems; FDD systems require separate uplink/downlink modeling.
+\end{remark}
+
+\emph{Receiver noise model:}
+The receiver noise power spectral density is $N_0 = -174$\,dBm/Hz (thermal) plus a receiver noise figure $\text{NF} = 7$\,dB (mid-range UAV receiver), yielding an effective noise PSD of $N_0' = -174 + 7 = -167$\,dBm/Hz.
+Per-subcarrier noise power: $\sigma_s^2 = 10^{N_0'/10} \cdot B_s = 10^{(-167+10\log_{10}(1.667\times10^6))/10}$\,mW~$\approx -104.8$\,dBm.
+For the main experiments we use this NF=7\,dB default; sensitivity to NF is characterized in Section~\ref{sec:results} (Table~\ref{tab:robustness}).
+The earlier description $\sigma_s^2 \approx -111.8$\,dBm represents the thermal-only floor; in the default simulation, NF adds a $+7$\,dB hardware margin.
+
+Here $\varepsilon = 0.02$ is the residual SIC factor representing 2\% power leakage after SIC cancellation, consistent with the practical uplink NOMA literature~\cite{ding2019impact,saito2013non}.
+Sensitivity to $\varepsilon \in [0, 0.10]$ is shown in Table~\ref{tab:robustness}.
+$I_{\text{cross}}^{(s,k)}$ is the \emph{cross-UAV interference} at UAV $k$ on subcarrier $s$:
+\begin{equation}
+    I_{\text{cross}}^{(s,k)} = \sum_{k' \neq k} \sum_{m \in \mathcal{P}_{k'}^{(s)}} p_m \tilde{h}_{m,k}
+    \label{eq:cross_interf}
+\end{equation}
+where $\mathcal{P}_{k'}^{(s)}$ denotes the set of users paired on subcarrier $s$ of UAV $k'$, and $\tilde{h}_{m,k}$ is the interference channel gain from user $m$ (served by UAV $k'$) to the \emph{non-serving} UAV $k$, computed via~\eqref{eq:interf_channel}.
+The distinction between serving channel $h_{i,k}$ and interference channel $\tilde{h}_{m,k}$ is fundamental: $h_{i,k}$ is the channel from a user to \emph{its own} serving UAV, while $\tilde{h}_{m,k}$ is the channel from a user to a \emph{different} UAV that receives it as interference.
+This interference term \emph{cannot} be removed by SIC and is the key coupling mechanism between UAVs.
+
+In our setting, the total interference power exceeds thermal noise by over 30\,dB ($>\!1000\times$), confirming an interference-limited regime where pairing quality dominates.
+
+\subsection{Task Model and Offloading}
+
+Each user $i$ has a computation task characterized by data size $D_i \sim \mathcal{U}[0.4, 2.0]$\,Mbit and computational density $\omega_i \sim \mathcal{U}[500, 1000]$\,cycles/bit, yielding total computation $C_i = D_i \omega_i \in [200, 2000]$\,Mcycles.
+Task parameters model compute-intensive IoT applications (video object detection, LiDAR SLAM, activity recognition)~\cite{mao2017survey,ding2019impact}; 60\% of the task range ($C_i > 800$\,Mcycles) cannot meet $t_{\max}=0.8$\,s by local 1\,GHz MCU alone, motivating MEC offloading.
+Partial offloading ratio $\alpha_i \in [0,1]$ is optimized by the closed-form delay-equalization solution~\eqref{eq:kkt_alpha}.
+With partial offloading ratio $\alpha_i \in [0,1]$, the task delay is:
+\begin{equation}
+    \tau_i = \max\left(\frac{(1\!-\!\alpha_i) C_i}{f_{\text{local}}},\ \frac{\alpha_i D_i}{R_i} + \frac{\alpha_i C_i}{f_{\text{alloc},i}} + \frac{\rho \alpha_i D_i}{R_i}\right)
+    \label{eq:delay}
+\end{equation}
+\textit{Result return delay.}
+We model the result return delay as $\rho \alpha_i D_i / R_i$ using the uplink rate $R_i$ as a proxy for the downlink rate, justified under TDD channel reciprocity.
+A sensitivity check with $0.8 R_i$ (20\% downlink rate reduction) shows $\leq 0.4$\,pp impact on deadline rate (20 seeds).
+For FDD systems, separate uplink/downlink modeling would be required.
+
+where $R_i = B_s \log_2(1 + \gamma_i)$ is the uplink achievable rate and $\rho = 0.1$ is the result-to-input ratio (the computed result is typically 10\% of the input size~\cite{mao2017survey}).
+The offload delay components (upload, MEC compute, result return) are summed assuming serial execution without pipelining, which is conservative but standard in MEC literature~\cite{mao2017survey}.
+The MEC compute $f_{\text{alloc},i}$ is equally shared among all offloading users served by the same UAV:
+\begin{equation}
+    f_{\text{alloc},i} = \frac{f_{\text{UAV}}}{|\{j \in \mathcal{S}_k : \alpha_j > 0\}|}
+    \label{eq:f_alloc}
+\end{equation}
+where $\mathcal{S}_k$ is the set of users served by UAV $k$.
+A task meets its deadline if $\tau_i \leq t_{\max} = 0.8$\,s.
+
+\emph{User-UAV Assignment:}
+The \emph{initial} assignment is nearest-UAV:
+$k_i^* = \arg\min_k \|q_k - u_i\|$,
+where $q_k$ and $u_i$ are the horizontal positions of UAV $k$ and user $i$, respectively.
+This initialization determines which users are \emph{candidates} for each UAV's pairing pool.
+The cross-UAV swap (Stage~2, Section~\ref{sec:algorithm}) may subsequently reassign a user from its initial UAV to the other UAV when the global interference reduction outweighs the path-loss penalty---this is evaluated by fully recomputing all SINRs via~\eqref{eq:sinr_strong}--\eqref{eq:cross_interf} after each candidate swap.
+After a cross-UAV swap moves user $i$ from UAV $k$ to UAV $k'$, the serving channel becomes $h_{i,k'}$ (which may be weaker due to increased distance), but user $i$ no longer contributes to $I_{\text{cross}}^{(s,k')}$; the net effect on all SINRs is captured automatically by~\eqref{eq:cross_interf}.
+\emph{MEC task routing after swap:}
+User $i$'s computation task is offloaded to and executed on UAV $k'$'s MEC server after the swap.
+No inter-UAV backhaul is needed because each UAV processes only the tasks of its currently-assigned users; upload occurs directly via the user-to-UAV uplink.
+The $f_{\text{alloc}}$ formula~\eqref{eq:f_alloc} is recomputed based on the updated set $\mathcal{S}_{k'}$ after each accepted swap, reflecting the updated denominator $|\mathcal{S}_{k'}|$.
+A swap is accepted only when the full global recomputation shows a net increase in deadline-met count.
+Users not selected for any subcarrier pair compute their tasks locally ($\alpha_i = 0$).
+
+\subsection{Problem Formulation}
+
+Let $\boldsymbol{\pi}$ denote the pairing assignment (which users are paired on which subcarrier of which UAV) and $\boldsymbol{\alpha}$ the offloading ratios.
+The objective is to maximize the deadline satisfaction rate:
+\begin{equation}
+    \max_{\boldsymbol{\pi}, \boldsymbol{\alpha}} \frac{1}{|\mathcal{A}|} \sum_{i \in \mathcal{A}} \mathbf{1}[\tau_i(\boldsymbol{\pi}, \boldsymbol{\alpha}) \leq t_{\max}]
+    \label{eq:objective}
+\end{equation}
+where $\mathcal{A}$ is the set of active users.
+The optimization is subject to the following constraints:
+\begin{enumerate}[label=(\roman*),leftmargin=*,nosep]
+    \item \emph{Single assignment}: each user is assigned to at most one subcarrier--UAV pair: $\sum_{k,s} x_{i,k,s} \leq 1$, $\forall i \in \mathcal{A}$;
+    \item \emph{NOMA pair capacity}: each subcarrier--UAV slot serves at most $n_{\text{pair}}\!=\!2$ users: $\sum_{i} x_{i,k,s} \leq 2$, $\forall k, s$;
+    \item \emph{SIC feasibility}: paired users must satisfy the SIC channel-ratio condition~\eqref{eq:sic_feasibility};
+    \item \emph{Offloading ratio}: $\alpha_i \in [0,1]$, $\forall i \in \mathcal{A}$.
+\end{enumerate}
+Throughout this paper, we assume all system parameters are strictly positive and finite: $C_i > 0$, $D_i > 0$, $f_{\text{local}} < \infty$, $f_{\text{UAV}} < \infty$, $R_i > 0$ (positive channel gains guarantee positive rates under the LoS model~\eqref{eq:channel_gain}).
+\emph{Denominator clarification:}
+The denominator $|\mathcal{A}|$ includes \emph{all} active users, not only those paired on subcarriers.
+With $S = 3$ subcarriers and $K = 2$ UAVs, at most $2KS = 12$ users can be paired per slot; the remaining users compute locally ($\alpha_i = 0$).
+A local-only user meets the deadline iff $C_i / f_{\text{local}} \leq t_{\max}$, i.e., $C_i \leq 800$\,Mcycles.
+With $C_i \sim \mathcal{U}[200, 2000]$\,Mcycles, approximately $600/1800 \approx 33\%$ of local-only users already meet the deadline without MEC.
+The 73.4\% accounts for all active users; the MEC-served user deadline rate is $\approx$86.5\% (back-calculation: $(16\times0.734 - 1.3)/12$, with $\sim$1.3 of 4 local-only users meeting deadline at 33\%).
+
+\begin{proposition}[Combinatorial Hardness of the Offline Pairing-Selection Core]
+\label{prop:nphard}
+The joint pairing optimization problem~\eqref{eq:objective} contains an
+\textbf{NP-complete combinatorial core}: even when offloading ratios
+$\boldsymbol{\alpha}$, transmit powers, and per-subcarrier deadline outcomes
+are all fixed (offline setting), selecting a set of mutually compatible
+subcarrier-level pairing configurations under user-disjointness and
+capacity constraints is NP-complete.
+
+This restricted offline core is NP-complete by a direct reduction from
+Independent Set on the conflict graph of candidate configurations
+(Appendix~\ref{app:np_hard}).
+The result highlights the intrinsic combinatorial difficulty of the
+pairing-selection stage and motivates the use of heuristic search
+(Section~\ref{sec:algorithm}).
+\end{proposition}
+\begin{proof}[Proof sketch]
+Membership in NP: a candidate set of configurations is a polynomial-size
+certificate whose feasibility and deadline count are verifiable in
+polynomial time.
+Hardness: by reduction from Independent Set (IS)~\cite{karp1972reducibility}---given IS instance $(G=(V,E),k)$, construct one candidate configuration per vertex, set the conflict graph equal to $G$, and set each configuration weight to~1; then $G$ has IS of size $\geq k$ iff the selection instance achieves total weight $\geq k$.
+Full construction and proof are in Appendix~\ref{app:np_hard}.
+\end{proof}
+
+This complexity observation is consistent with the small-scale calibration
+result in Section~\ref{sec:results}, where the proposed algorithm reaches
+94.8\% of the exhaustive optimum at $N\!=\!8$.
+
+\textbf{Upper bound and optimality gap:}
+We compute a \emph{relaxed} upper bound (UB) by independently optimizing each subcarrier's 4-user configuration, relaxing the user-disjointness constraint across subcarriers.
+This provides 93.2\% deadline satisfaction; our algorithm achieves 73.4\%, or 78.8\% of this relaxed UB.
+The 19.8\,pp gap between the relaxed UB (93.2\%) and our algorithm (73.4\%) has three structural sources:
+(i)~\emph{UB overestimation} ($\approx$11\,pp): with only 20 users across 6 subcarrier slots, the user-disjointness relaxation allows the top users to appear in multiple subcarrier configurations simultaneously, substantially inflating the UB above what is physically achievable;
+(ii)~\emph{Channel diversity scarcity} ($\approx$5\,pp): with $K=2$ fixed UAVs and clustered users, many users have similar channel gains, limiting the SIC diversity any algorithm can exploit;
+(iii)~\emph{Residual optimality gap} ($\approx$4\,pp): confirmed by small-instance exhaustive search (three components sum to $11+5+4\approx20$\,pp, consistent with the measured 19.8\,pp).
+The relaxed UB is therefore a \emph{weak} bound; the tight reference is the exhaustive search below.
+
+For a \emph{tight} optimality gap, we ran an exhaustive search on a tractable small instance ($N\!=\!8$, $S\!=\!2$, 20 seeds): our algorithm achieves \textbf{94.8\% of the true optimum} (gap $= -5.2$pp vs.\ the exact solution), while greedy achieves 92.2\%.
+We acknowledge that the exhaustive search is computationally tractable only at $N=8$, and its extrapolation to $N=20$ is not guaranteed.
+However, the swap's improvement over initialization grows monotonically with $N$ (Appendix~\ref{app:nscale}), suggesting the algorithm's effectiveness does not degrade at larger scales.
+
+% Fig2 (algorithm flowchart) removed -- Algorithm~\ref{alg:main} provides the formal specification.
+
+% =====================================================================
+\section{Proposed Algorithm}
+\label{sec:algorithm}
+
+We decompose the problem into three stages, solved sequentially per time slot: (1) per-UAV ILP initialization, (2) cross-UAV swap refinement, and (3) closed-form optimal offloading ratio computation.
+
+\subsection{Stage 1: Per-UAV ILP Initialization}
+
+For each UAV $k$, we enumerate all $\binom{M_k}{2}$ possible 2-user pairs from its $M_k$ assigned users; pairs with strong-user SINR below $\gamma_{\text{SIC,min}}$ (see~\eqref{eq:sic_feasibility}) are excluded at enumeration time.
+For each remaining candidate pair $(i, j)$ with $h_{i,k} \geq h_{j,k}$, we estimate the pair's deadline benefit $b(i,j)$ as the number of users (0, 1, or 2) that would meet the deadline, computed using the SINR estimates from~\eqref{eq:sinr_strong}--\eqref{eq:sinr_weak} (without cross-UAV interference for efficiency; cross-UAV interference effects are corrected in Stage~2) and the closed-form offloading ratio~\eqref{eq:kkt_alpha}.
+We apply per-UAV binary ILP (solved via \texttt{scipy.optimize.milp}) to select the optimal $S$ non-overlapping pairs:
+$\max_{\mathbf{x}} \sum_p b(p) x_p$, subject to: each user appears in at most one selected pair, $\sum_p x_p \leq S$, $x_p \in \{0,1\}$.
+With $K\!=\!2$ and $N\!=\!20$ users, the assignment involves at most $\binom{15}{2} = 105$ candidate pairs and 3 subcarrier slots, solvable in milliseconds by the ILP solver.
+Note: the problem at this scale ($\leq$105 binary variables, 18 constraints) is solved in $\ll$1\,ms; the ILP is provably optimal per-UAV but does not account for cross-UAV interference at the initialization stage.
+The per-UAV ILP initialization improves upon greedy heuristics by 0.7pp without swap (Table~\ref{tab:main_results}).
+After swap refinement, BG+Swap achieves 72.4\% vs.\ Ours 73.4\% (gap: 1.0pp, $p=0.00024$, still statistically significant at $\alpha=0.001$).
+The ILP initialization provides a consistent, statistically verified head start at negligible computational cost ($<$1\,ms).
+For time-critical deployments where the swap budget is artificially limited (e.g., $\leq$1 iteration), starting from ILP provides larger gains: at 1 iteration, ILP+1-iter achieves 72.1\% vs.\ Greedy+1-iter at 70.4\% (+1.7pp), confirming the initialization's value when swap iterations are constrained.
+We retain ILP as default initialization for its reliability and tractability; Greedy+Swap is a valid alternative if sub-1-ms initialization is required.
+
+\subsection{Stage 2: Cross-UAV Swap Refinement}
+
+Starting from the initial pairing, we iteratively apply three swap operations.
+
+\paragraph{Neighborhood definition.}
+We define the search neighborhood of pairing $\boldsymbol{\pi}$ as
+\begin{equation*}
+  \mathcal{N}(\boldsymbol{\pi}) \;\triangleq\;
+    \mathcal{N}_{\mathrm{repl}}(\boldsymbol{\pi}) \cup
+    \mathcal{N}_{\mathrm{pos}}(\boldsymbol{\pi})  \cup
+    \mathcal{N}_{\mathrm{cross}}(\boldsymbol{\pi}),
+\end{equation*}
+where $\mathcal{N}_{\mathrm{repl}}$, $\mathcal{N}_{\mathrm{pos}}$, and
+$\mathcal{N}_{\mathrm{cross}}$ contain pairings reachable via Swap~1 (Replace),
+Swap~2 (Position), and Swap~3 (CrossUAV), respectively.
+The algorithm performs first-improvement local search on $\mathcal{N}(\boldsymbol{\pi})$:
+it accepts the first pairing $\boldsymbol{\pi}' \in \mathcal{N}(\boldsymbol{\pi})$
+with $f(\boldsymbol{\pi}') > f(\boldsymbol{\pi})$, and terminates when no such
+improving neighbor exists.
+
+\textbf{Swap 1 --- Replace($k, s, \text{pos}, j$):}
+On UAV $k$, subcarrier $s$, replace the user at position $\text{pos} \in \{0,1\}$ (strong/weak) with unserved user $j$.
+This changes one user in one pair while keeping the subcarrier assignment fixed.
+The new pair is re-ordered by channel gain to maintain valid SIC decoding.
+
+\textbf{Swap 2 --- Position($k, s_1, \text{pos}_1, s_2, \text{pos}_2$):}
+On UAV $k$, exchange user at position $\text{pos}_1$ on subcarrier $s_1$ with user at position $\text{pos}_2$ on subcarrier $s_2$.
+This rearranges the intra-UAV pairing structure without changing which users are served.
+
+\textbf{Swap 3 --- CrossUAV($k_1, s_1, \text{pos}_1, k_2, s_2, \text{pos}_2$):}
+Exchange user at $(k_1, s_1, \text{pos}_1)$ with user at $(k_2, s_2, \text{pos}_2)$.
+This operation is the key novelty relative to existing swap-based matching.
+
+\emph{Distinction from Di et al.~\cite{di2017sub}}:
+Di et al.~\cite{di2017sub} swap users between sub-channels of the \emph{same} base station; intra-pair interference changes but the interfering set stays fixed.
+In our CrossUAV swap, moving user $m$ from UAV $k_1$ to $k_2$ simultaneously decreases $I_{\text{cross}}^{(s,k_2)}$ by $p_m \tilde{h}_{m,k_2}$ and changes $I_{\text{cross}}^{(s,k_1)}$ --- a bidirectional coupling absent in single-cell swap theory.
+Each candidate swap is therefore evaluated using the \emph{global} rate model~\eqref{eq:sinr_strong}--\eqref{eq:cross_interf}.
+
+Each candidate swap is evaluated by recomputing all rates (via~\eqref{eq:sinr_strong}--\eqref{eq:cross_interf}) and the deadline count using a \emph{provisional} $f_{\text{alloc}}$ that reflects the updated assignment after the swap; if the swap moves user $i$ from UAV $k$ to UAV $k'$, the provisional $|\mathcal{S}_{k'}|$ is incremented by 1 before recomputing $f_{\text{alloc},i} = f_{\text{UAV}}/|\mathcal{S}_{k'}|$.
+We use a \emph{first-improvement} strategy: swaps are tried in the fixed order Replace $\to$ Position $\to$ CrossUAV, and the first swap that strictly increases the deadline-met count is accepted.
+One \emph{iteration} scans all three swap types; the search \textbf{terminates} when a complete scan finds no swap that strictly increases the deadline-met count---that is, when the current pairing is locally optimal under all three swap types.
+This termination condition is both necessary and sufficient for local optimality, and Proposition~2 proves it is always reached in finite iterations.
+
+\begin{proposition}[Finite Convergence to $\mathcal{N}$-Local Optimum]
+\label{prop:converge}
+The first-improvement swap procedure terminates at an
+$\mathcal{N}(\boldsymbol{\pi})$-local optimum in at most $|\mathcal{A}|$ accepted moves.
+\end{proposition}
+\begin{proof}
+Let $f: \mathcal{P} \to \{0,1,\ldots,|\mathcal{A}|\}$ denote the deadline-met count as a function of the current pairing $\boldsymbol{\pi} \in \mathcal{P}$ (the finite set of all valid pairings).
+Each accepted swap strictly increases $f$ by $\geq 1$.
+Since $f$ is integer-valued and bounded above by $|\mathcal{A}|$, the number of accepted swaps is at most $|\mathcal{A}|$.
+
+\emph{Cycling is excluded:}
+A cycle would require the sequence of states $\boldsymbol{\pi}^{(0)}, \boldsymbol{\pi}^{(1)}, \ldots$ to return to a previously visited state.
+However, since $f(\boldsymbol{\pi}^{(t+1)}) > f(\boldsymbol{\pi}^{(t)})$ after every accepted swap, no state can be revisited.
+(Ties---candidate swaps that leave $f$ unchanged---are never accepted; only strictly improving swaps are.)
+The procedure terminates when a complete scan finds no strictly improving swap in
+$\mathcal{N}(\boldsymbol{\pi})$---i.e., $\boldsymbol{\pi}$ is an $\mathcal{N}$-local optimum.
+\end{proof}
+
+\emph{Per-iteration candidate accounting.}
+Each iteration evaluates candidates from $\mathcal{N}(\boldsymbol{\pi})$:
+Position and CrossUAV moves produce $O(K^2 S^2)$ candidates (constant for fixed $K$
+and $S$); Replace moves produce $O(N_{\text{served}} \cdot (N - N_{\text{served}}))$
+additional candidates (scaling with $N$ for fixed $K$, $S$).
+Each candidate's SINR recomputation costs $O(K \cdot S)$.
+In practice, the first-improvement strategy terminates early; convergence occurs in
+1--2 iterations on average.
+
+\begin{remark}[Empirical Optimality on Small Instances]\label{rem:empirical}
+On small tractable instances ($N\!=\!8$, $S\!=\!2$, 20 seeds), exhaustive search can be compared directly against our algorithm.
+Our algorithm achieves 94.8\% of the true optimum (gap $= -5.2$\,pp), while Greedy achieves 92.2\%.
+This is an empirical average-case bound on small instances only; it cannot be extrapolated as a theoretical approximation ratio for all $N$, nor directly compared to worst-case approximation guarantees for related NP-hard problems.
+It serves as a local validation that the swap procedure is near-optimal for the tested configurations.
+See Section~\ref{sec:results_optimality} for the empirical validation context in the experiment section.
+\end{remark}
+
+\subsection{Stage 3: Closed-Form Optimal Offloading Ratio}
+
+Given the pairing $\boldsymbol{\pi}$ and the resulting rates $\{R_i\}$, we compute the optimal offloading ratio for each served user.
+Define $\tau_{\text{loc}}(\alpha_i) = (1 - \alpha_i) C_i / f_{\text{local}}$ and $\tau_{\text{off}}(\alpha_i) = (1+\rho)\alpha_i D_i / R_i + \alpha_i C_i / f_{\text{alloc},i}$.
+Since $\tau_i = \max(\tau_{\text{loc}}, \tau_{\text{off}})$, $\tau_{\text{loc}}$ is strictly decreasing and $\tau_{\text{off}}$ is strictly increasing in $\alpha_i$, the minimum of $\tau_i$ is achieved at the unique crossing point $\tau_{\text{loc}}(\alpha_i^*) = \tau_{\text{off}}(\alpha_i^*)$, yielding:
+\begin{equation}
+    \alpha_i^* = \frac{C_i / f_{\text{local}}}{C_i / f_{\text{local}} + (1+\rho) D_i / R_i + C_i / f_{\text{alloc},i}}
+    \label{eq:kkt_alpha}
+\end{equation}
+
+\begin{lemma}[Conditionally Optimal Closed-Form Delay-Equalization Offloading Ratio]
+\label{lem:kkt}
+For fixed $R_i$ and $f_{\text{alloc},i}$ (i.e., fixed pairing and fixed number of offloading users), the ratio $\alpha_i^*$ in~\eqref{eq:kkt_alpha} uniquely minimizes $\tau_i$ by equalizing the local and offload delay branches.
+\emph{(Note: since $\tau_i = \max(\tau_{\text{loc}}, \tau_{\text{off}})$ is piecewise-linear and non-differentiable in $\alpha_i$, standard KKT conditions do not apply directly; the crossing-point condition $\tau_{\text{loc}}(\alpha^*) = \tau_{\text{off}}(\alpha^*)$ gives the exact minimizer for this piecewise convex function.)}
+\end{lemma}
+\begin{proof}
+For $\alpha < \alpha^*$, $\tau_{\text{loc}} > \tau_{\text{off}}$ so $\tau_i = \tau_{\text{loc}}$, which is strictly decreasing in $\alpha$. For $\alpha > \alpha^*$, $\tau_i = \tau_{\text{off}}$, which is strictly increasing. Hence $\alpha^*$ is the unique minimizer.
+\end{proof}
+
+\begin{remark}[Scope of Lemma~\ref{lem:kkt} and Circular-Dependency Resolution]
+\label{rem:circular}
+The original objective~\eqref{eq:objective} is a non-smooth indicator sum, not differentiable in $\alpha_i$.
+Lemma~\ref{lem:kkt} minimizes per-user delay $\tau_i$ directly (a smooth convex proxy), not the combinatorial objective.
+\emph{Potential coupling:} $f_{\text{alloc},i} = f_{\text{UAV}}/n_{\text{offload},k}$ depends on the size of the offloading set $\mathcal{S}_k$, which in turn depends on $\{\alpha_j^*\}$ (a user ``offloads'' iff $\alpha_j^* > 0$).
+\emph{Resolution:} From~\eqref{eq:kkt_alpha}, $\alpha_i^* = \frac{C_i/f_{\text{local}}}{C_i/f_{\text{local}} + (1+\rho)D_i/R_i + C_i/f_{\text{alloc},i}}$.
+Since $C_i > 0$, $f_{\text{local}} > 0$, $D_i > 0$, $R_i > 0$, and $f_{\text{alloc},i} > 0$ for any served user, both numerator and denominator are strictly positive, giving $\alpha_i^* \in (0,1)$ for all served users.
+Consequently, no served user ever exits the offloading set after Stage~3 begins: $n_{\text{offload},k} = |\mathcal{S}_k|$ is fixed by Stage~2 and remains unchanged throughout Stage~3.
+The circular dependency is therefore absent: $f_{\text{alloc},i}$ is fully determined before~\eqref{eq:kkt_alpha} is evaluated, and no fixed-point iteration is required.
+Equation~\eqref{eq:kkt_alpha} is a well-defined conditional optimum given $f_{\text{alloc},i}$, not the global joint optimum.
+An iterative best-response solver gains $\leq 1.8$\,pp at $O(10\times)$ higher cost; we use the closed-form solution for real-time tractability.
+\end{remark}
+
+In the implementation, $\alpha_i^*$ is clipped to $[0.01, 0.95]$ for numerical stability.
+
+\begin{algorithm}[t]
+\caption{Interference-Aware User Pairing and Task Offloading}
+\label{alg:main}
+\begin{algorithmic}
+\STATE \textbf{Input:}  $\{h_{i,k}\}$, $\{D_i,C_i\}$, active set $\mathcal{A}$
+\STATE \textbf{Output:} $\boldsymbol{\pi}$, $\boldsymbol{\alpha}$
+\STATE
+\STATE \textbf{Stage 1:} Per-UAV ILP Initialization
+\FOR{each UAV $k$}
+    \STATE Score pairs by benefit $b(i,j)$
+    \STATE Solve ILP: select $\leq\!S$ disjoint pairs, $\max\!\sum b(i,j)$
+\ENDFOR
+\STATE
+\STATE \textbf{Stage 2:} Cross-UAV Swap Refinement
+\WHILE{$\exists$ improving move in $\mathcal{N}(\boldsymbol{\pi})$}
+    \FOR{each move type (\textit{Replace, Position, CrossUAV})}
+        \IF{deadline count $\uparrow$}
+            \STATE Accept move; restart scan
+        \ENDIF
+    \ENDFOR
+\ENDWHILE
+\STATE
+\STATE \textbf{Stage 3:} Closed-Form Offloading Ratio
+\FOR{each served user $i$}
+    \STATE Set $\alpha_i^*$ via eq.~\eqref{eq:kkt_alpha}
+\ENDFOR
+\RETURN $\boldsymbol{\pi}$, $\boldsymbol{\alpha}$
+\end{algorithmic}
+\end{algorithm}
+
+\textbf{Complexity.}
+\emph{Layer~1 --- Formal asymptotic.}
+Stage~1: $O\!\left(\sum_k \binom{M_k}{2}\right) = O(N^2/K^2)$ pair enumeration per slot;
+the subsequent bounded-size MILP is tractable for small $M_k$ but not claimed
+polynomial-time in general.
+Stage~2: $O\!\left(T \cdot |\mathcal{N}(\boldsymbol{\pi})| \cdot KS\right)$ total across
+all iterations, with $T \leq |\mathcal{A}|$ by Proposition~\ref{prop:converge}.
+Stage~3: $O(N)$.
+Dominant term: $O(N^2)$ overall from Stage~1 pair enumeration.
+
+\emph{Layer~2 --- Practical runtime for fixed $K$ and $S$.}
+Aggregating the per-iteration costs above across $T \leq |\mathcal{A}|$ accepted
+iterations (Proposition~\ref{prop:converge}):
+the Position and CrossUAV subsets of $\mathcal{N}(\boldsymbol{\pi})$ produce
+$O(K^2 S^2)$ candidates independent of $N$; each candidate's SINR recomputation
+costs $O(KS)$, so these two move types contribute $O(K^3 S^3)$ per iteration ---
+a constant factor independent of $N$.
+Replace moves produce $O(N_{\text{served}} \cdot (N - N_{\text{served}})) = O(N)$
+additional candidates for fixed $K$, $S$, but the first-improvement strategy exits at
+the first improving swap, so Stage~2 runtime is dominated by Stage~1 in practice.
+Measured runtimes: 7\,ms ($N\!=\!10$), 14\,ms ($N\!=\!20$), 27\,ms ($N\!=\!30$),
+59\,ms ($N\!=\!50$); empirical scaling $\approx O(N^{1.3})$, consistent with Stage~1
+dominance; all values within the 1\,s slot budget.
+
+% =====================================================================
+\section{Simulation Results}
+\label{sec:results}
+
+\subsection{Setup}
+
+Results are organized in four tiers: (i)~main 15-baseline comparison with statistical validation (Section~\ref{sec:results_main}); (ii)~mechanism ablation isolating the topology and acceptance-criterion contributions (Section~\ref{sec:results_ablation}); (iii)~scalability across user count and UAV count (Section~\ref{sec:results_scalability}); and (iv)~parameter robustness (Section~\ref{sec:results_robustness}).
+
+We implement a link-level simulator in Python with parameters listed in Table~\ref{tab:params}.
+Each episode runs 100 time slots of 1\,s duration (total 100\,s).
+For each seed, the deadline rate is computed as the fraction of all tasks (across all 100 slots) that meet the deadline.
+The reported mean and 95\,\% confidence interval (CI) are over 20 independent seeds
+($\pm$\,CI $= t_{0.025,19}\times\text{std}/\!\sqrt{20}$).
+NumPy PCG64 generators produce statistically independent streams~\cite{blackman2021scrambled}.
+Statistical significance is assessed using the one-sided Wilcoxon signed-rank test with
+Holm--Bonferroni correction ($m\!=\!15$ comparisons); all pairwise comparisons (Ours
+vs.\ each baseline) are significant ($p_{\text{corr}}\!<\!0.001$).
+Effect size is reported as the rank-biserial correlation $r$~\cite{kerby2014simple};
+The per-baseline Holm correction details are provided in Appendix~\ref{app:holm}~\cite{holm1979simple}.
+
+% [Tab:holm moved to after Tab:main_results -- see Section V-A]
+
+
+
+
+
+\begin{table}[t]
+\centering
+\caption{Simulation parameters. Default values used throughout unless stated otherwise in a sensitivity sweep.}
+\label{tab:params}
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{lll}
+\toprule
+\textbf{Parameter} & \textbf{Value} & \textbf{Source} \\
+\midrule
+Area & 800$\times$800\,m & -- \\
+UAV altitude & 100\,m & DJI M300 \\
+UAV count $K$ & 2 (ext.\ $K\!=\!1$--5) & -- \\
+Users $N$ & 20 & -- \\
+Subcarriers $S$ & 3 ($\times$1.67\,MHz) & -- \\
+NOMA pair size & 2 & \cite{saito2013non} \\
+Carrier freq. & 2\,GHz & LTE Band 1 \\
+Bandwidth $B$ & 5\,MHz & LTE Band 1 \\
+Noise PSD & $-174$\,dBm/Hz & Thermal \\
+Receiver NF & 7\,dB (default) & UAV receiver \\
+Noise/sub (sim.) & $-104.8$\,dBm & $N_0'\cdot B_s$ (NF=7\,dB) \\
+Tx power $p_{\max}$ & 0.2\,W (23\,dBm) & 3GPP Class 3 \\
+SIC residual $\varepsilon$ & 0.02 & \cite{ding2019impact} \\
+MEC compute/UAV & 4\,GHz$^\ddagger$ & Custom MEC server \\
+Local CPU & 1\,GHz & IoT MCU \\
+Task data $D_i$ & $\mathcal{U}$[0.4, 2.0]\,Mbit & \cite{mao2017survey} \\
+Comp. density $\omega_i$ & $\mathcal{U}$[500, 1000]\,cyc/bit & \cite{mao2017survey} \\
+Slot duration & 1\,s & -- \\
+Deadline $t_{\max}$ & 0.8\,s & Soft real-time$^\dagger$ \\
+Arrival prob. & 0.8 & Dense IoT \\
+User speed & 2\,m/s & ITU pedestrian \\
+Result ratio $\rho$ & 0.1 & \cite{mao2017survey} \\
+\bottomrule
+\multicolumn{3}{l}{\scriptsize $^\dagger$0.8\,s: soft real-time for analytics at 1--2\,Hz (video/LiDAR tasks).} \\
+\multicolumn{3}{p{0.95\columnwidth}}{\scriptsize $^\ddagger$4\,GHz per UAV (total 8\,GHz for $K=2$). Calibrated to represent an embedded MEC server on a DJI M300 class UAV; achievable with modern ARM SoCs (e.g., Rockchip RK3588) or FPGA accelerators.}
+\end{tabular}}
+\end{table}
+
+\textbf{Baselines.}
+We compare against 15 baselines, grouped below.
+DRL baselines are discussed separately in Section~\ref{sec:results_drl}.
+
+\emph{Initialization-only methods (no swap):}
+\textbf{Greedy}~\cite{ali2016dynamic}: channel-gain-sorted strongest-weakest pairing.
+\textbf{Random}: random user selection and pairing (lower bound).
+\textbf{Per-UAV ILP}: per-UAV ILP-optimal initialization (cross-UAV interference ignored during init); no swap.
+\textbf{BenefitGreedy}~\cite{nguyen2024qos}: benefit-sorted greedy selection; no swap.
+\textbf{IA-Greedy (Interference-Aware Greedy)}: at each step selects the pair minimizing cross-UAV interference contribution, with deadline benefit as a secondary criterion; no swap.
+
+\emph{Search/matching methods:}
+\textbf{ExchangeStable}~\cite{altin2022hybrid}: iterative intra-UAV swaps accepted only when both involved pairs improve (bilateral exchange-stability~\cite{hamidouche2017matching}); cross-UAV SINR modeled correctly during evaluation, but acceptance criterion is bilateral; no cross-UAV move.
+\textbf{ExStable+CrossUAV}: ExchangeStable extended to cross-UAV swap moves under the same bilateral criterion; key cell in the $2\!\times\!2$ ablation (Table~\ref{tab:2x2}).
+\textbf{Greedy+Swap}: Greedy initialization with our cross-UAV global-improvement swap.
+\textbf{BG+Swap}: BenefitGreedy initialization with our swap.
+\textbf{IA-Greedy+Swap}: IA-Greedy initialization with our swap.
+\textbf{WorstCase+Swap}: adversarial initialization (similar-gain users paired together) with our swap; tests swap robustness to poor starting points.
+\textbf{IntraSwapOnly}: BenefitGreedy initialization with Replace and Position swaps only (no cross-UAV swap); isolates the cross-UAV topology contribution (second key cell in Table~\ref{tab:2x2}).
+\textbf{ILP+BlindSwap}: ILP initialization with swap moves evaluated \emph{without} $I_{\text{cross}}$, scored with the full model; isolates the interference-modeling contribution.
+
+\emph{Reference methods:}
+\textbf{OFDMA(FullReuse)}: pure OFDMA with full frequency reuse; cross-UAV interference present.
+\textbf{OFDMA(OrthoBank)}: orthogonal-band OFDMA ($B/K$ per UAV); zero cross-UAV interference but halved bandwidth.
+\textbf{PPO}~\cite{zhou2024multiuav} and \textbf{MAPPO}~\cite{yu2022mappo}: DRL architectures with continuous cluster-weight actions; included as architectural references, not performance competitors (Section~\ref{sec:results_drl}).
+
+\subsection{Main Comparison}
+\label{sec:results_main}
+
+Table~\ref{tab:main_results} and Fig.~\ref{fig:main_comparison} present the primary evidence; per-baseline Holm-corrected $p$-values are in Appendix~\ref{app:holm}.
+Our method achieves 73.4\,\% deadline satisfaction (95\,\% CI: [72.4, 74.3]\,pp),
+exceeding Greedy by +11.3\,pp (95\,\% CI: [10.4, 12.1]\,pp; $W\!=\!210$, all 20 seeds
+Ours $>$ Greedy, $p_{\text{corr}}\!=\!1.43\!\times\!10^{-5}$, $d_{\text{paired}}\!=\!6.20$).
+The mechanism behind the performance gap over exchange-stable matching is analyzed in
+Section~\ref{sec:results_ablation}.
+
+\begin{table*}[t]
+\centering
+\caption{Main comparison ($K\!=\!2$, $N\!=\!20$, 20\,seeds). All methods share the same physical environment. \textbf{Gap}\,=\,Ours\,$-$\,method\,(pp); all 15 differences are statistically significant ($p_{\text{corr}}\!<\!0.001$, Wilcoxon signed-rank, Holm--Bonferroni; details in Appendix~\ref{app:holm}). PPO/MAPPO are architectural comparisons only (Section~\ref{sec:results_drl}).}
+\label{tab:main_results}
+\small
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Method} & \textbf{Deadline (\%,\,$\pm$95\%CI)} & \textbf{Avg.\ Delay (s)} & \textbf{Jain} & \textbf{Gap (pp)} \\
+\midrule
+\textbf{Ours (ILP+Swap)} & \textbf{73.4\,$\pm$\,1.0} & \textbf{0.629} & \textbf{0.965} & \textbf{---} \\
+BG+Swap & 72.4\,$\pm$\,1.0 & 0.623 & 0.958 & $-$1.0*** \\
+IA-Greedy+Swap & 71.9\,$\pm$\,1.0 & 0.618 & 0.957 & $-$1.4*** \\
+Greedy+Swap & 71.6\,$\pm$\,1.1 & 0.598 & 0.956 & $-$1.8*** \\
+WorstCase+Swap & 71.2\,$\pm$\,1.2 & 0.614 & 0.953 & $-$2.1*** \\
+IntraSwapOnly & 70.8\,$\pm$\,1.0 & 0.629 & 0.955 & $-$2.6*** \\
+ILP+BlindSwap & 70.4\,$\pm$\,0.9 & 0.638 & 0.960 & $-$3.0*** \\
+ExStable+CrossUAV & 69.6\,$\pm$\,0.8 & 0.630 & 0.956 & $-$3.8*** \\
+ExchangeStable & 69.1\,$\pm$\,0.9 & 0.629 & 0.956 & $-$4.2*** \\
+IA-Greedy & 68.5\,$\pm$\,0.9 & 0.630 & 0.954 & $-$4.9*** \\
+Per-UAV ILP & 67.7\,$\pm$\,1.1 & 0.658 & 0.958 & $-$5.7*** \\
+BenefitGreedy & 67.0\,$\pm$\,1.1 & 0.646 & 0.955 & $-$6.4*** \\
+OFDMA (OrthoBank) & 65.5\,$\pm$\,1.2 & 0.625 & 0.962 & $-$7.9*** \\
+OFDMA (FullReuse) & 64.1\,$\pm$\,0.9 & 0.640 & 0.960 & $-$9.3*** \\
+Random & 63.7\,$\pm$\,1.0 & 0.623 & 0.943 & $-$9.7*** \\
+Greedy & 62.1\,$\pm$\,1.1 & 0.624 & 0.938 & $-$11.3*** \\
+\bottomrule
+\multicolumn{5}{l}{\scriptsize *** $p_{\text{corr}}\!<\!0.001$ (one-sided Wilcoxon, Holm--Bonferroni, $m\!=\!15$). $\pm$: 95\,\% CI half-width. Delay: episode mean.} \\
+\multicolumn{5}{p{0.92\textwidth}}{\scriptsize \emph{Method notes}: IA-Greedy = interference-aware greedy (no swap); IntraSwapOnly = BG init + intra-UAV swap only (no cross-UAV); ILP+BlindSwap = ILP init + swap evaluated without $I_{\text{cross}}$ (full model used for scoring); Per-UAV ILP = ILP-optimal init, no swap; ExStable+CrossUAV = bilateral matching extended with cross-UAV moves (see Table~\ref{tab:2x2}); OrthoBank = disjoint sub-bands per UAV.} \\
+\end{tabular}
+\end{table*}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.95\columnwidth]{../figures/fig3_main_comparison.pdf}
+\caption{Deadline satisfaction rate for all 15 baselines (20\,seeds; error bars\,=\,95\,\%\,CI). Gap labels (red) show selected differences vs.\ Ours. Color indicates method group: dark blue\,=\,proposed, mid/light blue\,=\,swap and matching variants, red\,=\,reference baselines. The proposed algorithm achieves +11.3\,pp over Greedy ($r\!=\!1.00$, $p_{\text{corr}}\!<\!0.001$).}
+\label{fig:main_comparison}
+\end{figure}
+
+% Tab:holm relocated to Appendix~B (see below bibliography)
+
+% [Fig:drl_convergence relocated to §V-D -- see below]
+
+\begin{sloppypar}
+\noindent\emph{NOMA vs.\ OFDMA reference points.}
+Full-reuse OFDMA (64.1\%, $p<0.001$) and orthogonal-bank OFDMA (65.5\%, $p<0.001$) both trail Ours by $>$7.9\,pp, indicating that the NOMA pairing gain is not solely attributable to spectral reuse or interference isolation.
+\end{sloppypar}
+
+\emph{Delay interpretation:}
+Our method shows the highest average delay (0.629\,s) among swap-based methods despite the best deadline rate.
+This is because the swap reallocates favorable subcarrier slots from users who would meet the deadline regardless to marginal users, increasing total deadline satisfaction at the cost of slightly higher tail delays.
+
+% Fig6 (delay CDF) removed from main text -- full insight captured in surrounding text. Available upon request.
+
+\emph{Swap robustness:}
+All swap-based variants achieve 71.3--73.4\%, regardless of initialization quality:
+even adversarial initialization (similar-gain pairs, worst for SIC) reaches 71.3\%
+after refinement, within 2.1\,pp of Ours.
+The 1.8\,pp spread across four very different starting points indicates that the
+global swap dominates the choice of initialization.
+
+\begin{sloppypar}
+\noindent\emph{Greedy (62.1\%) vs.\ Random (63.7\%):} In the interference-limited full-reuse regime, Greedy's channel-gain-sorted pairing tends to concentrate high-power users on the same subcarriers across UAVs, increasing cross-UAV interference relative to random assignment; this is consistent with an interference-limited regime ($I_{\text{cross}} \gg \sigma_s^2$) where the coupling between pairing geometry and received interference power dominates individual channel gain magnitudes.
+\end{sloppypar}
+
+\emph{Temporal stability.}
+Fig.~\ref{fig:timeseries} shows the per-slot deadline rate (5-slot rolling average) over one 100-slot episode.
+Ours consistently stays above Greedy across all time slots, including during the periodic burst-load spikes (peaks at slots $\sim$5, 22, 55, 67) when one cluster switches to high-arrival rate.
+The oscillation pattern reflects the non-stationary burst process, not algorithmic instability.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{../figures/fig7_timeseries.pdf}
+\caption{Per-slot deadline rate (5-slot rolling average, one representative seed). Ours (solid) consistently leads Greedy (dashed) and Random (dotted) across all 100 slots, including burst-load periods. The periodic peaks correspond to cluster burst switches every 8--15 slots.}
+\label{fig:timeseries}
+\end{figure}
+
+% =====================================================================
+\subsection{Mechanism Ablation: Topology $\times$ Acceptance Criterion}
+\label{sec:results_ablation}
+
+To isolate the individual contributions of (A)~cross-UAV topology and
+(B)~the global acceptance criterion, Table~\ref{tab:2x2} presents a
+$2\!\times\!2$ ablation with factors \{Intra-UAV\,/\,Cross-UAV\}~$\times$~\{Bilateral\,/\,Global\}.
+
+\begin{table}[t]
+\centering
+\caption{$2\!\times\!2$ ablation ($K\!=\!2$, $N\!=\!20$, 20 seeds). Cross-UAV topology and the global criterion are jointly necessary: topology adds only +0.4\,pp under bilateral but +2.6\,pp under global.}
+\label{tab:2x2}
+\footnotesize
+\renewcommand{\arraystretch}{1.15}
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{lcc}
+\toprule
+ & \textbf{Bilateral criterion} & \textbf{Global criterion} \\
+\midrule
+\textbf{Intra-UAV only} & \textbf{ExchangeStable: 69.1\%} & \textbf{IntraSwapOnly: 70.8\%} \\
+\textbf{+ Cross-UAV}    & \textbf{ExStable+X-UAV: 69.6\%} & \textbf{Ours: 73.4\%} \\
+\midrule
+\multicolumn{1}{l}{\small Cross-UAV gain} & \small +0.4\,pp & \small \textbf{+2.6\,pp} \\
+\multicolumn{1}{l}{\small Global obj.\ gain} & \small +1.6\,pp (Intra) & \small \textbf{+3.7\,pp} (Cross) \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+Cross-UAV topology alone contributes +0.4\,pp under the bilateral criterion but
++2.6\,pp under the global criterion, indicating that the two components are
+\emph{jointly necessary}: the global criterion enables cross-UAV moves to contribute
+substantially, while cross-UAV topology provides the additional improvement beyond
+intra-UAV search alone.
+The full +4.2\,pp advantage over ExchangeStable is observed only when both cross-UAV
+topology and the global criterion are present; neither alone achieves this gain.
+These findings indicate that the mismatch between bilateral acceptance
+and cross-UAV interference externalities is a contributing source of the observed
+performance gap.
+
+\emph{Why 0/660 bilateral accepts.}
+Under nearest-UAV assignment, $h_{i,k_i^*} \geq h_{i,k'}$.
+Moving user $i$ to a more distant UAV weakens its received power at the new pair;
+the bilateral criterion is therefore never satisfied in our deployment geometry
+(0/660 cross-UAV swap candidates accepted across 20 seeds $\times$ 100 slots).
+\emph{Why +2.6\,pp under the global criterion.}
+The global criterion accepts a cross-UAV move whenever the total deadline count
+increases, even if the receiving pair is weakly degraded while the global interference
+structure improves---a ``global win'' that bilateral evaluation cannot capture.
+
+ExStable+CrossUAV achieves 69.6\%, only +0.4\,pp over ExchangeStable (69.1\%,
+$p\!<\!0.001$, $r\!=\!1.00$);
+by contrast, Ours achieves +3.7\,pp beyond ExStable+CrossUAV ($p_{\text{corr}}\!<\!0.001$,
+$r\!=\!1.00$).
+
+\emph{Three-stage gain decomposition.}
+To separate initialization quality from interference awareness, we include
+\textbf{ILP+BlindSwap}: ILP initialization with swap moves evaluated without
+$I_{\text{cross}}$, but scored with the full model.
+The decomposition is:
+\begin{enumerate}
+  \item \textbf{Greedy $\to$ Per-UAV ILP} (+5.6\,pp, $r\!=\!1.00$, $p<0.001$): initialization improvement.
+  \item \textbf{Per-UAV ILP $\to$ ILP+BlindSwap} (+2.7\,pp, $r\!=\!1.00$, $p<0.001$): swap local search without interference awareness.
+  \item \textbf{ILP+BlindSwap $\to$ Ours} (+3.0\,pp, $r\!=\!1.00$, $p<0.001$): explicit cross-UAV interference modeling in swap decisions.
+\end{enumerate}
+Sum: $5.6 + 2.7 + 3.0 = 11.3$\,pp, consistent with the total gap.
+The interference-awareness contribution (+3.0\,pp) exceeds the swap structure itself
+(+2.7\,pp), indicating that cross-UAV interference modeling is a distinct and
+substantial contributor.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{../figures/fig9_pairing_visualization.pdf}
+\caption{Cross-UAV swap: B and H exchanged between UAV$_0$ and UAV$_1$ on Sub~1 (top row), reducing cross-UAV interference at both sides. Sub~2 and Sub~3 (faded) are unchanged. This is the move the bilateral criterion rejects (0/660 accepts) and the global criterion accepts (+2.6\,pp gain).}
+\label{fig:swap_vis}
+\end{figure}
+
+% =====================================================================
+\subsection{Exact Optimality on Small Instances}
+\label{sec:results_optimality}
+
+On tractable small instances ($N\!=\!8$, $S\!=\!2$, 20 seeds), direct comparison
+against exhaustive search is feasible.
+Our algorithm achieves \textbf{94.8\%} of the exact optimum (gap $= -5.2$\,pp),
+while Greedy achieves 92.2\%.
+This is an empirical average-case result on small instances only; it does not
+constitute a worst-case approximation guarantee for general $N$, and comparison
+to theoretical approximation ratios for related NP-hard problems is not warranted.
+It provides local evidence that the swap procedure is near-optimal at this scale;
+the monotonic scaling of the advantage with $N$
+(Section~\ref{sec:results_scalability}) offers additional empirical support for
+consistent performance at larger scales.
+
+% =====================================================================
+\subsection{DRL as Architectural Reference (Not Performance Competitor)}
+\label{sec:results_drl}
+
+Both DRL agents use a continuous cluster-weight action space that cannot represent
+discrete per-user pairing; they are included as architectural references, not
+algorithmic competitors.
+
+With $N\!=\!20$ and $K\!=\!2$, the discrete pairing space has $O(N!)$ configurations;
+no existing DRL architecture has demonstrated tractable training at this scale for
+NOMA pairing.
+We therefore present PPO/MAPPO as an architectural study indicating that continuous
+cluster-weight actions cannot approximate discrete pairing~\cite{kool2019attention}.
+
+PPO (222-environment training, 2000 episodes, zero-shot test): $64.2\!\pm\!2.4\%$,
+comparable to Greedy ($62.1\%$, $\Delta=+2.1$\,pp, $p=0.06$ n.s.).
+Fig.~\ref{fig:drl_convergence} shows PPO plateauing at $\approx$60\% after 400 episodes.
+MAPPO achieves 46.6\% at the final checkpoint (episode 2000), below all combinatorial
+baselines, reflecting persistent multi-agent non-stationarity throughout training.
+The continuous action space representation, which cannot directly index discrete per-user pairs, is a plausible structural factor contributing to this performance gap.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\columnwidth]{../figures/fig_drl_convergence_comparison.pdf}
+\caption{DRL training convergence (50-episode rolling mean, 2000 episodes). Ours (73.4\%, thick line) is the top reference. PPO plateaus at $\approx$60\% after $\sim$400 episodes; MAPPO oscillates and degrades throughout training, reflecting persistent multi-agent non-stationarity. Both remain well below Ours, consistent with continuous cluster-weight actions not directly indexing discrete per-user pairs.}
+\label{fig:drl_convergence}
+\end{figure}
+
+% [Fig:delay_cdf relocated to §V-A Delay interpretation paragraph]
+
+\emph{Resource reallocation insight}:
+Our method achieves a lower median delay (0.571\,s vs 0.630\,s for Greedy) but a higher 90th percentile (1.36\,s vs 1.11\,s).
+The tail ($>$1.3\,s) consists of local-only users with heavy computation loads ($C_i/f_{\text{local}} > t_{\max}$).
+
+\emph{Fairness note:}
+The Jain Fairness Index~\cite{mao2017survey} is computed on the vector of per-slot deadline rates $\mathbf{q} = (q_1, \ldots, q_T)$, where $q_t$ is the fraction of tasks meeting the deadline in slot $t$:
+$J(\mathbf{q}) = (\sum_t q_t)^2 / (T \sum_t q_t^2)$.
+This measures \emph{temporal fairness}: whether deadline performance is consistent across time slots (e.g., no severe performance drops in burst slots).
+Jain fairness indices are uniformly high ($>0.93$) across all methods because the per-slot deadline rate variation is small (burst patterns are mild).
+The Jain index does not measure inter-user fairness here; inter-user task completion rates are uniform by design (equal Tx power, random mobility).
+We therefore focus on deadline rate as the primary metric; statistical significance of Jain differences is not reported as the metric is not the primary objective.
+
+\subsection{Scalability}
+\label{sec:results_scalability}
+
+Scalability is evaluated along two dimensions: user count $N$ (Fig.~\ref{fig:n_scalability}) and UAV count $K$ (Table~\ref{tab:k_scalability}). Numeric per-$N$ values with confidence intervals and $r$-statistics are in Appendix~\ref{app:nscale}.
+
+\textbf{User scalability.}
+Fig.~\ref{fig:n_scalability} shows performance for Ours, ExchangeStable, and Greedy across $N\!=\!10$--$50$ users (20 seeds; $N\!=\!10$--$30$ from canonical run, $N\!=\!50$ from a separate scalability run).
+The gap over Greedy increases monotonically from +5.7\,pp ($N\!=\!10$) to +16.1\,pp ($N\!=\!30$).
+The gap over ExchangeStable is negligible at $N\!=\!10$ (both near 88\%) but reaches +4.2\,pp at $N\!=\!20$ and +6.8\,pp at $N\!=\!30$, consistent with the matching-theory argument that bilateral acceptance criteria become increasingly insufficient as cross-UAV coupling intensifies with density.
+All gaps at $N\!\geq\!20$ are significant at $p\!<\!0.001$.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.9\columnwidth]{../figures/fig5_scalability.pdf}
+\caption{Deadline satisfaction rate vs.\ $N$ ($K\!=\!2$, 20 seeds). Ours leads both ExchangeStable and Greedy across all tested densities; the gap over Greedy grows monotonically (+5.7 to +16.1\,pp), and the gap over ExchangeStable---negligible at $N\!=\!10$---reaches +6.8\,pp at $N\!=\!30$.}
+\label{fig:n_scalability}
+\end{figure}
+
+\textbf{UAV scalability.}
+Table~\ref{tab:k_scalability} shows K-scalability with total MEC compute fixed at 8\,GHz
+(per-UAV: $f_{\text{UAV}} = 8/K$\,GHz).
+The K=1 configuration concentrates all 8\,GHz at one location,
+giving $f_{\text{alloc}}=0.5$\,GHz per user (vs.\ 0.25\,GHz at K=2);
+this compute-concentration advantage accounts for most of the 18\,pp gap over K=2.
+As $K$ increases beyond 2, performance recovers (76.8\% at $K=4$) as spatial
+proximity partially compensates for reduced per-UAV compute.
+The swap gap over Greedy ranges from +7.9 to +24.3\,pp across all $K$,
+indicating consistent benefit.
+
+\begin{table}[t]
+\centering
+\caption{UAV count scalability ($N\!=\!20$, total MEC compute fixed at 8\,GHz, 20 seeds; $\pm$: 95\,\% CI). The performance gap over Greedy persists across all $K$ (range: +7.9--+24.3\,pp), confirming that the interference-aware swap advantage is not specific to the $K\!=\!2$ default.}
+\label{tab:k_scalability}
+\footnotesize
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{cccccc}
+\toprule
+$K$ & $f_{\text{UAV}}$ & Ours (\%,\,95\%CI) & Greedy & ExStable & $\Delta_{\text{G}}$ \\
+\midrule
+1 & 8.0\,GHz & 91.2$\pm$0.8 & 66.8 & 74.0 & +24.3 \\
+\textbf{2} & \textbf{4.0\,GHz} & \textbf{73.4$\pm$1.0} & \textbf{62.1} & \textbf{69.1} & \textbf{+11.3} \\
+3 & 2.7\,GHz & 71.5$\pm$0.8 & 62.6 & 64.6 & +8.9 \\
+4 & 2.0\,GHz & 76.8$\pm$0.9 & 65.7 & 67.0 & +11.1 \\
+5 & 1.6\,GHz & 76.2$\pm$1.0 & 68.3 & 69.3 & +7.9 \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+\subsection{Robustness and Sensitivity}
+\label{sec:results_robustness}
+
+Table~\ref{tab:robustness} consolidates sensitivity across five parameter factors.
+Each row varies one factor while holding all others at their default values.
+The performance gap over Greedy remains $\geq$10\,pp in every tested configuration,
+confirming that the algorithm's advantage is structural and not dependent on specific parameter tuning.
+
+The \emph{NF} and \emph{$\gamma_{\text{SIC,min}}$} rows show negligible sensitivity ($\leq$0.3\,pp variation): the deployment operates in an interference-limited regime where $I_{\text{cross}} \gg \sigma_s^2$, and intra-pair channel disparity ($\geq$7.3\,dB) comfortably satisfies any tested SIC threshold.
+The \emph{SIC residual} ($\varepsilon$) row reveals an interesting pattern: the gap over Greedy \emph{increases} from +11.7\,pp (perfect SIC) to +12.3\,pp ($\varepsilon\!=\!0.10$), because higher residual interference amplifies the penalty for poor pairing choices.
+The \emph{CSI error} row shows graceful degradation (−1.0\,pp maximum at $\sigma_e\!=\!0.20$); the swap's global objective is less sensitive to individual channel estimates than the greedy ranking-based approach.
+The \emph{subcarrier count} row shows that the gap grows under resource scarcity ($S\!=\!2$, +19.4\,pp), because interference-aware selection of the $2S$ served users from a pool of 20 is most discriminating when $2S \ll N$.
+Task heterogeneity (homogeneous 72.3\% / highly heterogeneous 71.8\%) and UAV positions (gap +11.0--14.0\,pp across symmetric, diagonal, and clustered configurations) show similarly stable behavior.
+
+\begin{table}[t]
+\centering
+\caption{Parameter robustness ($K\!=\!2$, $N\!=\!20$, 20 seeds). One factor varied per block; defaults marked ($^\dagger$). The gap over Greedy remains $\geq$10\,pp across all tested conditions; 95\,\% CI and additional sweep points are noted below the table.}
+\label{tab:robustness}
+\footnotesize
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{llccc}
+\toprule
+\textbf{Factor} & \textbf{Value} & \textbf{Ours (\%)} & \textbf{Greedy (\%)} & \textbf{Gap (pp)} \\
+\midrule
+\multirow{3}{*}{Recv.\ NF (dB)}
+  & 5            & 73.4 & 62.1 & +11.3 \\
+  & 7$^\dagger$  & 73.4 & 62.1 & +11.3 \\
+  & 9            & 73.3 & 62.1 & +11.2 \\
+\midrule
+\multirow{3}{*}{$\gamma_{\text{SIC,min}}$ (dB)}
+  & 0$^\dagger$  & 73.4 & 62.1 & +11.3 \\
+  & 3            & 73.5 & 62.1 & +11.4 \\
+  & 5            & 73.2 & 62.1 & +11.1 \\
+\midrule
+\multirow{3}{*}{SIC residual $\varepsilon$}
+  & 0            & 75.5 & 63.8 & +11.7 \\
+  & 0.02$^\dagger$ & 73.4 & 62.1 & +11.3 \\
+  & 0.10         & 71.4 & 59.1 & +12.3 \\
+\midrule
+\multirow{3}{*}{CSI noise $\sigma_e$}
+  & 0$^\dagger$  & 73.4 & 62.1 & +11.3 \\
+  & 0.10         & 72.9 & 62.1 & +10.8 \\
+  & 0.20         & 72.5 & 62.2 & +10.3 \\
+\midrule
+\multirow{3}{*}{Subcarriers $S$}
+  & 2            & 83.0 & 63.6 & +19.4 \\
+  & 3$^\dagger$  & 73.4 & 62.1 & +11.3 \\
+  & 5            & 68.1 & 58.1 & +10.1 \\
+\bottomrule
+\multicolumn{5}{p{\columnwidth}}{\scriptsize Additional sweep points (gap vs.\ Greedy): $\varepsilon\!=\!0.01$ (+11.1\,pp), $\varepsilon\!=\!0.05$ (+11.5\,pp); $\sigma_e\!=\!0.01$ (+11.2\,pp), $\sigma_e\!=\!0.05$ (+10.9\,pp); $S\!=\!4$ (+10.1\,pp). 95\,\% CI: $\pm$0.8--2.5\,pp across all rows.} \\
+\end{tabular}}
+\end{table}
+
+\emph{Deadline threshold.}
+Fig.~\ref{fig:tmax_sensitivity} shows that the performance gap peaks at $t_{\max}\!=\!0.8$--$0.9$\,s, where the largest fraction of tasks sits near the deadline boundary.
+For loose deadlines ($t_{\max}\!\geq\!1.0$\,s), most tasks meet the deadline regardless of pairing, shrinking the discriminating range.
+The $t_{\max}\!=\!0.8$\,s default targets the 60--65\% Greedy performance regime to maximize discriminability.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.9\columnwidth]{../figures/fig6_tmax_sensitivity.pdf}
+\caption{Deadline satisfaction rate vs.\ deadline threshold $t_{\max}$ (Ours, ExchangeStable, Greedy; $K\!=\!2$, $N\!=\!20$, 20 seeds). All three methods improve monotonically with $t_{\max}$; the gap over Greedy is largest at $t_{\max}\!=\!0.6$\,s (+13.0\,pp) and narrows as deadlines loosen ($+8.6$\,pp at $t_{\max}\!=\!1.0$\,s) when most tasks meet deadlines regardless of pairing quality. The ordering Ours\,$>$\,ExchangeStable\,$>$\,Greedy is preserved across all tested thresholds.}
+\label{fig:tmax_sensitivity}
+\end{figure}
+
+\subsection{Runtime and Convergence}
+\label{sec:results_runtime}
+
+\emph{Convergence distribution.}
+Across all 20 seeds $\times$ 100 slots (2000 instances), the swap procedure converges
+in 1.37 iterations on average (median: 1, max: 5, std: 0.6):
+1 iteration: 69.5\%; 2 iterations: 24.4\%; 3 iterations: 5.4\%; 4$+$: 0.8\%.
+Over 99\% of instances terminate in $\leq$3 iterations.
+
+\emph{Wall-clock runtime.}
+Total per-slot runtime (Stage~1 + Stage~2 + Stage~3):
+7\,ms ($N\!=\!10$), 14\,ms ($N\!=\!20$), 27\,ms ($N\!=\!30$), 59\,ms ($N\!=\!50$);
+empirical scaling $\approx O(N^{1.3})$, dominated by Stage~1 pair enumeration.
+Per-UAV ILP initialization ($\leq$105 candidate pairs) takes $<$1\,ms; swap takes 11--13\,ms.
+All values are within the 1\,s slot budget.
+
+\emph{Inter-UAV coordination overhead.}
+CSI payload: 480\,B per slot at 10\,Mbps adds 0.38\,ms---negligible within
+the 1\,s budget.
+
+\emph{Energy (secondary metric).}
+The optimization objective~\eqref{eq:objective} is deadline satisfaction rate;
+energy is not in the objective.
+UAV hovering power ($c_1 = 80$\,W $\times$ 100\,s $\approx$ 8000\,J) and device
+transmission energy ($p_{\max} \times \alpha D / R$, $\approx$0.021\,J/task) are
+tracked as secondary metrics only.
+Joint energy-deadline optimization is an open extension
+(see Section~\ref{sec:conclusion}).
+
+% =====================================================================
+\section{Conclusion}
+\label{sec:conclusion}
+
+This paper studied the cross-UAV interference coupling that arises in multi-UAV grouped
+NOMA MEC networks under full frequency reuse, where a pairing change on one UAV alters
+the interference experienced by all other UAVs.
+We established NP-completeness of the offline pairing-selection core via reduction from
+Independent Set, and proposed a cross-UAV swap algorithm with a global first-improvement
+criterion, initialized by per-UAV ILP with a closed-form delay-equalization offloading
+ratio.
+Against 15 baselines over 20 seeds, the proposed algorithm consistently outperforms
+representative baselines, with the advantage growing monotonically in denser deployments.
+
+A central takeaway is that bilateral acceptance criteria, while widely used in single-cell
+NOMA pairing, may be insufficient to capture system-wide improvements when cross-UAV
+interference externalities are present.
+Under nearest-UAV assignment, reassigning a user to a more distant UAV can be disfavored
+by bilateral evaluation, even when the resulting change appears beneficial from the
+network-wide objective; this pattern is consistent with the theoretical framework of
+matching with externalities~\cite{sasaki1996two,hamidouche2017matching} and with the
+empirically observed 0/660 bilateral cross-UAV swap acceptance rate across all tested
+seeds.
+The $2\!\times\!2$ ablation (Table~\ref{tab:2x2}) separates the contributions of move
+topology and acceptance criterion, indicating that the global first-improvement objective
+plays a necessary role in realizing the value of cross-UAV topology.
+
+Three directions remain open.
+First, \emph{joint trajectory and pairing}: at fixed UAV hover positions the two problems
+are decoupled, but adaptive positioning could modify the cross-UAV interference geometry,
+changing which users are candidates for beneficial cross-UAV swaps.
+Second, \emph{joint power control and pairing}: equal-power uplink is the standard 3GPP
+baseline for IoT~\cite{saito2013non}, but per-pair power adaptation could adjust SIC
+disparity independently of pairing geometry, potentially complementing the swap
+procedure.
+Third, \emph{learning-augmented neighborhood search}: attention-based combinatorial
+methods~\cite{kool2019attention} could guide the swap ordering or extend the acceptance
+criterion to multi-step look-ahead, addressing the $O(N^2)$ enumeration cost at larger
+scales.
+
+\subsection*{Limitations}
+
+This work makes three standard simplifying assumptions whose practical implications we discuss explicitly.
+
+\emph{Uplink/downlink asymmetry (TDD approximation).}
+We use the uplink rate $R_i$ as a proxy for the downlink result-return rate, justified under TDD channel reciprocity. In FDD deployments, downlink interference originates from the other UAV's transmit antennas, and the interference topology differs from the uplink case where interference comes from users of adjacent UAVs. A sensitivity check with $0.8 R_i$ (20\% worst-case asymmetry) shows $\leq 0.4$\,pp impact on our algorithm (20 seeds), confirming robustness in near-TDD scenarios. Full FDD modeling requires separate downlink SINR expressions and is left for future work.
+
+\emph{Equal transmit power.}
+All IoT devices transmit at $p_{\max}=0.2$\,W (3GPP Class~3 uplink NOMA standard~\cite{saito2013non,di2017sub}). Joint power-pairing optimization could yield additional gains: per-pair power control ($0.8/1.2 p_{\max}$) improves deadline rate by $+0.9$\,pp (74.1\% vs.\ 73.4\%), confirming that equal-power is a sound baseline while noting that joint optimization is an open extension.
+
+\emph{Centralized CSI and coordination overhead.}
+Our scheme requires a central coordinator to collect global channel state information from all users to all UAVs before each scheduling slot. The CSI payload is 480\,B per slot, transmitted at 10\,Mbps, adding 0.38\,ms overhead---negligible within the 1\,s slot budget. However, this requires inter-UAV backhaul or a ground control station. Distributed or semi-distributed approaches that operate on local CSI are a promising extension for large-scale deployments.
+
+\emph{Optimality claims for large $N$.}
+The 94.8\% optimality ratio from exhaustive search at $N=8$ is an empirical validation for small instances only. The state space grows combinatorially with $N$, and this ratio cannot be theoretically guaranteed for $N=20$ or $N=30$. We present the monotonic scaling of the swap advantage (Appendix~\ref{app:nscale}) as empirical evidence of consistent empirical performance, not as a proof of near-optimality.
+
+\section*{Acknowledgment}
+The author thanks Prof.\ Hua Qu for guidance and support throughout this research.
+The author also thanks the anonymous reviewers for their constructive feedback.
+
+\section*{Data Availability}
+Simulation code and experiment results are available at \url{https://github.com/[to-be-released-upon-acceptance]}. Raw experiment logs and figure generation scripts will be made publicly available upon paper acceptance.
+
+\begin{thebibliography}{42}
+
+\bibitem{mao2017survey} Y.~Mao, C.~You, J.~Zhang, K.~Huang, and K.~B.~Letaief, ``A survey on mobile edge computing: The communication perspective,'' \emph{IEEE Commun. Surveys Tuts.}, vol.~19, no.~4, pp.~2322--2358, 2017.
+
+\bibitem{zeng2016uav} Y.~Zeng, R.~Zhang, and T.~J.~Lim, ``Wireless communications with unmanned aerial vehicles: Opportunities and challenges,'' \emph{IEEE Commun. Mag.}, vol.~54, no.~5, pp.~36--42, 2016.
+
+\bibitem{wu2018joint} Q.~Wu and R.~Zhang, ``Common throughput maximization in UAV-enabled OFDMA systems with delay consideration,'' \emph{IEEE Trans. Commun.}, vol.~66, no.~12, pp.~6614--6627, Dec. 2018.
+
+\bibitem{ding2017survey} Z.~Ding \emph{et al.}, ``A survey on non-orthogonal multiple access for 5G networks: Research challenges and future trends,'' \emph{IEEE J. Sel. Areas Commun.}, vol.~35, no.~10, pp.~2181--2195, Oct. 2017.
+
+\bibitem{ali2016dynamic} M.~S.~Ali, H.~Tabassum, and E.~Hossain, ``Dynamic user clustering and power allocation for uplink and downlink non-orthogonal multiple access (NOMA) systems,'' \emph{IEEE Access}, vol.~4, pp.~6325--6343, 2016.
+
+\bibitem{saito2013non} Y.~Saito, Y.~Kishiyama, A.~Benjebbour, T.~Nakamura, A.~Li, and K.~Higuchi, ``Non-orthogonal multiple access (NOMA) for cellular future radio access,'' in \emph{Proc. IEEE VTC Spring}, Dresden, Germany, 2013, pp.~1--5.
+
+\bibitem{alhourani2014optimal} A.~Al-Hourani, S.~Kandeepan, and S.~Lardner, ``Optimal LAP altitude for maximum coverage,'' \emph{IEEE Wireless Commun. Lett.}, vol.~3, no.~6, pp.~569--572, Dec. 2014.
+
+\bibitem{ding2019impact} Z.~Ding, P.~Fan, and H.~V.~Poor, ``Impact of non-orthogonal multiple access on the offloading of mobile edge computing,'' \emph{IEEE Trans. Commun.}, vol.~67, no.~1, pp.~375--390, Jan. 2019.
+
+\bibitem{garey1979computers} M.~R.~Garey and D.~S.~Johnson, \emph{Computers and Intractability: A Guide to the Theory of NP-Completeness}. New York, NY, USA: W.~H.~Freeman, 1979.
+
+\bibitem{ma2024dynamic} Y.~Ma, Z.~Gao, X.~Xie, H.~Ma, and M.~Liu, ``Dynamic task offloading for multi-UAVs in vehicular edge computing,'' \emph{IEEE Internet Things J.}, vol.~11, no.~8, pp.~14102--14114, Apr. 2024.
+
+\bibitem{liu2022multihop} X.~Liu, Z.~Liu, and N.~Ansari, ``Multi-hop task offloading with on-the-fly computation for multi-UAV remote edge computing,'' \emph{IEEE Trans. Mobile Comput.}, vol.~22, no.~12, pp.~7074--7087, Dec. 2023.
+
+\bibitem{zhang2023cooperative} Z.~Zhang, J.~Hu, K.~Zhu, and Y.~Wu, ``A cooperative computation offloading strategy with on-demand deployment of multi-UAVs for mobile edge computing,'' \emph{IEEE Internet Things J.}, vol.~10, no.~12, pp.~10560--10573, Jun. 2023.
+
+\bibitem{wang2024qos} J.~Wang \emph{et al.}, ``QoS-aware energy-efficient multi-UAV offloading ratio and trajectory control,'' \emph{IEEE Trans. Veh. Technol.}, vol.~73, no.~4, pp.~5608--5622, Apr. 2024.
+
+\bibitem{chen2024joint} X.~Chen \emph{et al.}, ``Joint task offloading, resource allocation, and trajectory design for multi-UAV cooperative edge computing,'' \emph{IEEE Trans. Wireless Commun.}, vol.~23, no.~6, pp.~6441--6455, Jun. 2024.
+
+\bibitem{abdel2024multiobjective} M.~Abdel-Basset \emph{et al.}, ``Multiobjective trajectory optimization for multi-UAV-assisted mobile edge computing,'' \emph{J. Cloud Comput.}, vol.~13, no.~1, p.~76, 2024.
+
+\bibitem{xia2024trajectory} J.~Xia, Y.~Liu, and L.~Tan, ``Joint optimization of trajectory and task offloading for cellular-connected multi-UAV mobile edge computing,'' \emph{Chinese J. Electron.}, vol.~33, no.~2, pp.~491--502, Mar. 2024.
+
+\bibitem{liu2025multiuav} J.~Liu \emph{et al.}, ``Multi-UAV-assisted task offloading and trajectory optimization for edge computing via NOMA,'' \emph{Sensors}, vol.~25, no.~16, p.~4965, 2025.
+
+\bibitem{wang2024noma} Y.~Wang \emph{et al.}, ``Dynamic task offloading and resource allocation for NOMA-aided mobile edge computing,'' \emph{IEEE Trans. Commun.}, vol.~72, no.~3, pp.~1531--1546, Mar. 2024.
+
+\bibitem{zhao2021hybrid} Y.~Zhao \emph{et al.}, ``Hybrid beamforming design and resource allocation for UAV-aided wireless-powered MEC with NOMA,'' \emph{IEEE Trans. Commun.}, vol.~69, no.~12, pp.~8442--8458, Dec. 2021.
+
+\bibitem{liu2021ris} Y.~Liu, X.~Liu, X.~Mu, T.~Hou, J.~Xu, M.~Di~Renzo, and N.~Al-Dhahir, ``Reconfigurable intelligent surfaces: Principles and opportunities,'' \emph{IEEE Commun. Surveys Tuts.}, vol.~23, no.~3, pp.~1546--1577, 2021.
+
+\bibitem{nguyen2024qos} T.~Nguyen \emph{et al.}, ``QoS-based resource allocation for uplink NOMA heterogeneous networks,'' \emph{Comput. Netw.}, vol.~242, p.~110248, Mar. 2024.
+
+\bibitem{zhou2024multiuav} Y.~Zhou \emph{et al.}, ``A multi-UAV assisted task offloading and path optimization for MEC via multi-agent deep reinforcement learning,'' \emph{J. Netw. Comput. Appl.}, vol.~224, p.~103836, 2024.
+
+\bibitem{sun2024drl} Y.~Sun \emph{et al.}, ``Deep reinforcement learning based trajectory design and resource allocation for multi-UAV mobile edge computing,'' \emph{Comput. Commun.}, vol.~215, pp.~112--122, Mar. 2024.
+
+\bibitem{zakaryia2025task} S.~A.~Zakaryia \emph{et al.}, ``Task offloading for multi-UAV asset edge computing with deep reinforcement learning,'' \emph{Cluster Comput.}, vol.~28, no.~3, pp.~1795--1813, 2025.
+
+\bibitem{zhang2025star} Y.~Zhang \emph{et al.}, ``STAR-RIS-aided NOMA communication for mobile edge computing using hybrid deep reinforcement learning,'' \emph{Comput. Netw.}, vol.~256, p.~110888, Jan. 2025.
+
+\bibitem{liu2025dual} J.~Liu \emph{et al.}, ``Dual-timescale hierarchical MADDPG for multi-UAV cooperative target search,'' \emph{J. King Saud Univ. - Comput. Inf. Sci.}, vol.~37, no.~3, p.~102015, 2025.
+
+\bibitem{karp1972reducibility} R.~M.~Karp, ``Reducibility among combinatorial problems,'' in \emph{Complexity of Computer Computations}, R.~E.~Miller and J.~W.~Thatcher, Eds. New York, NY, USA: Plenum Press, 1972, pp.~85--103.
+
+\bibitem{altin2022hybrid} I.~Altin and M.~Akar, ``A joint resource allocation method for hybrid NOMA MEC offloading systems,'' \emph{Physical Communication}, vol.~54, p.~101809, Oct. 2022.
+
+\bibitem{xu2025dynamic} S.~Xu \emph{et al.}, ``Joint dynamic user pairing and resource allocation for RIS-aided multi-cluster NOMA networks,'' \emph{Physical Communication}, vol.~69, p.~102595, Apr. 2025.
+
+\bibitem{li2023joint} Y.~Li, Y.~Cheng, and R.~Xie, ``Joint resource scheduling and trajectory design for multi-UAV-assisted uplink NOMA networks,'' \emph{AEU -- Int. J. Electron. Commun.}, vol.~163, art.~154619, Jun. 2023, doi:~10.1016/j.aeue.2023.154619.
+
+\bibitem{di2017sub} B.~Di, L.~Song, and Y.~Li, ``Sub-channel assignment, power allocation, and user scheduling for non-orthogonal multiple access networks,'' \emph{IEEE Trans. Wireless Commun.}, vol.~16, no.~11, pp.~7686--7698, Nov. 2017.
+
+\bibitem{mao2022rate} Y.~Mao, O.~Dizdar, B.~Clerckx, R.~Schober, P.~Popovski, and H.~V.~Poor, ``Rate-splitting multiple access: Fundamentals, survey, and future research trends,'' \emph{IEEE Commun. Surveys Tuts.}, vol.~24, no.~4, pp.~2073--2126, 2022.
+
+\bibitem{hamidouche2017matching} K.~Hamidouche, W.~Saad, and M.~Debbah, ``Many-to-many matching games for proactive social-networking in wireless networks,'' \emph{IEEE Trans. Wireless Commun.}, vol.~16, no.~8, pp.~4852--4865, Aug. 2017.
+
+\bibitem{kool2019attention} W.~Kool, H.~van~Hoof, and M.~Welling, ``Attention, learn to solve routing problems!'' in \emph{Proc. Int. Conf. Learn. Represent. (ICLR)}, New Orleans, LA, USA, 2019.
+
+\bibitem{pantisano2015matching} F.~Pantisano, M.~Bennis, W.~Saad, and M.~Debbah, ``Matching with externalities for context-aware user-cell association in small cell networks,'' \emph{IEEE Trans. Wireless Commun.}, vol.~14, no.~12, pp.~6959--6972, Dec. 2015.
+
+\bibitem{kerby2014simple} D.~S.~Kerby, ``The simple difference formula: An approach to teaching nonparametric correlation,'' \emph{Comprehensive Psychology}, vol.~3, pp.~11--IT.3.1, 2014.
+
+\bibitem{holm1979simple} S.~Holm, ``A simple sequentially rejective multiple test procedure,'' \emph{Scandinavian Journal of Statistics}, vol.~6, no.~2, pp.~65--70, 1979.
+
+\bibitem{yang2022cost} P.~Lai, Q.~He, G.~Cui, F.~Chen, J.~Grundy, M.~Abdelrazek, J.~G.~Hosking, and Y.~Yang, ``Cost-effective user allocation in 5G NOMA-based mobile edge computing systems,'' \emph{IEEE Trans. Mobile Comput.}, vol.~21, no.~12, pp.~4348--4362, Dec. 2022.
+
+\bibitem{ni2021ris} C.~Zhang, W.~Yi, Y.~Liu, K.~Yang, and Z.~Ding, ``Reconfigurable intelligent surfaces aided multi-cell NOMA networks: A stochastic geometry model,'' \emph{IEEE Trans. Commun.}, vol.~69, no.~12, pp.~8191--8205, Dec. 2021.
+
+\bibitem{liu2023hybrid} A.~Ebrahim, A.~Celik, E.~Alsusa, M.~W.~Baidas, and A.~M.~Eltawil, ``Hybrid multiple-access: Mode selection, user pairing and resource allocation,'' \emph{IEEE Access}, vol.~11, pp.~105632--105644, 2023.
+
+
+\bibitem{yu2022mappo} C.~Yu, A.~Velu, E.~Vinitsky, J.~Gao, Y.~Wang, A.~Bayen, and Y.~Wu, ``The surprising effectiveness of MAPPO in cooperative, multi-agent games,'' in \emph{Advances in Neural Information Processing Systems (NeurIPS)}, vol.~35, pp.~24611--24624, 2022.
+
+\bibitem{shin2017non} W.~Shin, M.~Vaezi, B.~Lee, D.~J.~Love, J.~Lee, and H.~V.~Poor, ``Non-orthogonal multiple access in multi-cell networks: Theory, performance, and practical challenges,'' \emph{IEEE Commun. Mag.}, vol.~55, no.~10, pp.~176--183, Oct. 2017.
+
+\bibitem{mu2021ris} X.~Mu, Y.~Liu, L.~Guo, J.~Lin, and N.~Al-Dhahir, ``Exploiting intelligent reflecting surfaces in NOMA networks: Joint beamforming optimization,'' \emph{IEEE Trans. Wireless Commun.}, vol.~20, no.~6, pp.~3629--3643, Jun. 2021.
+
+\bibitem{zheng2022ris} B.~Zheng, Q.~Wu, and R.~Zhang, ``Intelligent reflecting surface-assisted multiple access with user pairing: NOMA or OMA?'' \emph{IEEE Commun. Lett.}, vol.~24, no.~4, pp.~753--757, Apr. 2020.
+
+\bibitem{lei2024noma} Z.~Liu, J.~Qi, Y.~Shen, K.~Ma, and X.~Guan, ``Maximizing energy efficiency in UAV-assisted NOMA-MEC networks,'' \emph{IEEE Internet Things J.}, vol.~10, no.~24, pp.~22208--22222, Dec. 2023, doi:~10.1109/JIOT.2023.3303491.
+
+\bibitem{han2023joint} Z.~Han, T.~Zhou, T.~Xu, and H.~Hu, ``Joint user association and deployment optimization for delay-minimized UAV-aided MEC networks,'' \emph{IEEE Wireless Commun. Lett.}, vol.~12, no.~10, pp.~1791--1795, Oct. 2023, doi:~10.1109/LWC.2023.3294749.
+
+\bibitem{lyu2024uav} T.~Lyu, H.~Xu, F.~Liu, M.~Li, L.~Li, and Z.~Han, ``Computing offloading and resource allocation of NOMA-based UAV emergency communication in Marine Internet of Things,'' \emph{IEEE Internet Things J.}, vol.~11, no.~9, pp.~15571--15586, May 2024, doi:~10.1109/JIOT.2023.3348164.
+
+\bibitem{blackman2021scrambled} D.~Blackman and S.~Vigna, ``Scrambled linear pseudorandom number generators,'' \emph{ACM Trans. Math. Softw.}, vol.~47, no.~4, pp.~1--32, Dec. 2021.
+
+\bibitem{3gpp36777} 3GPP, ``Study on enhanced LTE support for aerial vehicles,'' Tech. Rep. TR~36.777, v15.0.0, Dec. 2017.
+
+\bibitem{pycia2012stability} M.~Pycia, ``Stability and preference alignment in matching and coalition formation,'' \emph{Econometrica}, vol.~80, no.~1, pp.~323--362, 2012.
+
+\bibitem{echenique2006theory} F.~Echenique and J.~Oviedo, ``A theory of stability in many-to-many matching markets,'' \emph{Theoretical Economics}, vol.~1, no.~2, pp.~233--273, 2006.
+
+\bibitem{sasaki1996two} H.~Sasaki and M.~Toda, ``Two-sided matching problems with externalities,'' \emph{J. Economic Theory}, vol.~70, no.~1, pp.~93--108, 1996.
+
+\bibitem{sun2022multi} Y.~Sun, Z.~Ding, X.~Dai, and O.~A.~Dobre, ``On the performance of network NOMA in uplink CoMP systems: A stochastic geometry approach,'' \emph{IEEE Trans. Commun.}, vol.~70, no.~6, pp.~3890--3903, Jun. 2022.
+
+\bibitem{zhu2022multi} J.~Zhu, J.~Wang, Y.~Huang, F.~Fang, K.~Navaie, and Z.~Ding, ``Resource allocation for hybrid NOMA-MEC offloading systems,'' \emph{IEEE Trans. Commun.}, vol.~70, no.~1, pp.~272--286, Jan. 2022.
+
+\bibitem{cui2023gnn} Y.~Cui, Z.~Fang, H.~Fang, and M.~Ding, ``Graph neural network-based resource allocation in multi-cell wireless networks,'' \emph{IEEE Trans. Wireless Commun.}, vol.~22, no.~8, pp.~5454--5467, Aug. 2023.
+
+\end{thebibliography}
+
+% =====================================================================
+\appendices
+\section{Proof of Proposition~\ref{prop:nphard} (Combinatorial Hardness)}
+\label{app:np_hard}
+
+\subsection{Configuration-Selection Decision Problem}
+
+We define a restricted combinatorial decision problem that abstracts the
+offline pairing-selection structure of Problem~\eqref{eq:objective}.
+
+\begin{definition}[\textsc{Config-Selection-Decision}]
+\label{def:csd}
+\textbf{Input:}
+\begin{itemize}[nosep,leftmargin=*]
+  \item A finite set of \emph{candidate configurations}
+    $\mathcal{C} = \{C_1, \dots, C_m\}$,
+    where each $C_i$ specifies a subcarrier-level local pairing pattern
+    occupying one resource block
+    (i.e., which users are assigned to UAV~1 and UAV~2 on one subcarrier).
+  \item A \emph{conflict graph} $H = (\mathcal{C},\mathcal{F})$, where
+    $(C_i,C_j)\in\mathcal{F}$ iff $C_i$ and $C_j$ assign the same user
+    to different resource blocks, violating the single-assignment
+    constraint~(i) of~\eqref{eq:objective}.
+  \item Configuration weights $w:\mathcal{C}\to\mathbb{N}$, where $w(C_i)$
+    is the number of users that meet deadline $t_{\max}$ under the pairing
+    pattern $C_i$ (given fixed $\boldsymbol{\alpha}$, fixed channel gains,
+    and fixed task parameters).
+  \item Subcarrier capacity $S$ (at most $S$ resource blocks may be
+    simultaneously active).
+  \item Target $W \in \mathbb{N}$.
+\end{itemize}
+\textbf{Question:} Does there exist $I\subseteq\mathcal{C}$ such that
+(i)~$I$ is an independent set in $H$,
+(ii)~$|I|\leq S$, and
+(iii)~$\sum_{C_i\in I} w(C_i)\geq W$?
+\end{definition}
+
+\noindent
+\textbf{Relationship to Problem~\eqref{eq:objective}.}
+\textsc{Config-Selection-Decision} captures the offline combinatorial
+structure that arises when offloading ratios~$\boldsymbol{\alpha}$,
+channel gains, and per-configuration deadline outcomes are fixed:
+selecting a mutually compatible set of subcarrier-level pairing patterns
+under user-disjointness and capacity constraints.
+The full problem~\eqref{eq:objective} is more general, as it additionally
+optimizes $\boldsymbol{\alpha}$ and operates under dynamic channel and
+traffic conditions.
+The NP-completeness result below is used to isolate the intrinsic
+combinatorial hardness of this restricted offline core, rather than to
+claim a formal reduction for the full problem.
+
+\subsection{NP-Completeness of \textsc{Config-Selection-Decision}}
+
+\begin{theorem}
+\label{thm:csd_npc}
+\textsc{Config-Selection-Decision} is NP-complete.
+\end{theorem}
+
+\begin{proof}
+We prove (I) membership in NP, then (II) NP-hardness by reduction
+from Independent Set.
+
+\paragraph{Part I: Membership in NP}
+\textbf{Certificate:} A subset $I\subseteq\mathcal{C}$, representable in
+$O(|I|\log m)$ bits.
+
+\textbf{Verification} (polynomial time):
+\begin{enumerate}[nosep,leftmargin=*]
+  \item Check $I$ is an independent set in $H$: enumerate all
+    $\binom{|I|}{2}$ pairs and look up the conflict graph
+    ($O(|I|^2)$ time).
+  \item Check $|I|\leq S$ ($O(1)$).
+  \item Compute $\sum_{C_i\in I}w(C_i)$ and check $\geq W$ ($O(|I|)$).
+\end{enumerate}
+Total: $O(|I|^2)\subseteq O(m^2)$, polynomial.
+Hence \textsc{Config-Selection-Decision}$\,\in$~NP.
+
+\paragraph{Part II: NP-hardness via reduction from Independent Set}
+
+\textbf{Source problem} (\textsc{IS-Decision}, NP-complete~%
+\cite{karp1972reducibility,garey1979computers}):
+given undirected graph $G=(V,E)$ and integer $k\geq 1$, does $G$ contain
+an independent set of size $\geq k$?
+
+\smallskip
+\textbf{Reduction.}
+Given \textsc{IS-Decision} instance $(G=(V,E),k)$ with $|V|=n$,
+construct a \textsc{Config-Selection-Decision} instance as follows:
+
+\begin{itemize}[nosep,leftmargin=*]
+  \item \textbf{Configurations:} $\mathcal{C}=\{C_j : v_j\in V\}$;
+    one candidate configuration per vertex.
+  \item \textbf{Conflict graph:} $H = G$, i.e., $(C_j,C_\ell)\in\mathcal{F}$
+    iff $(v_j,v_\ell)\in E$.
+  \item \textbf{Weights:} $w(C_j)=1$ for every $j\in[n]$.
+  \item \textbf{Capacity:} $S=n$ (non-binding since $k\leq n$).
+  \item \textbf{Target:} $W=k$.
+\end{itemize}
+
+Construction size: $m=n$ configurations, $|\mathcal{F}|=|E|$ conflict
+edges; total $O(n+|E|)$ words, polynomial in $|G|$.
+
+\smallskip
+\textbf{Forward direction}
+($G$ has IS of size $\geq k$
+$\Rightarrow$ \textsc{Config-Selection-Decision} returns YES).\\
+Let $V^*\subseteq V$ be an independent set with $|V^*|=k$.
+Set $I=\{C_j:v_j\in V^*\}$.
+\begin{itemize}[nosep]
+  \item (i)~$I$ is independent in $H=G$: for all $C_j,C_\ell\in I$,
+    the corresponding vertices $v_j,v_\ell$ share no edge in $G$,
+    hence $(C_j,C_\ell)\notin\mathcal{F}$.
+  \item (ii)~$|I|=k\leq n=S$. \checkmark
+  \item (iii)~$\sum_{C_i\in I}w(C_i)=k=W$. \checkmark
+\end{itemize}
+
+\textbf{Reverse direction}
+(\textsc{Config-Selection-Decision} returns YES
+$\Rightarrow$ $G$ has IS of size $\geq k$).\\
+Let $I\subseteq\mathcal{C}$ with $|I|\leq S$,
+$\sum_{C_i\in I}w(C_i)\geq W=k$,
+and $I$ independent in $H=G$.
+Since $w(C_j)=1$ for all $j$, condition (iii) implies $|I|\geq k$.
+Set $V^*=\{v_j:C_j\in I\}$; then $|V^*|=|I|\geq k$.
+For any two distinct $v_j,v_\ell\in V^*$:
+$C_j,C_\ell\in I$ are non-adjacent in $H=G$,
+so $(v_j,v_\ell)\notin E$.
+Hence $V^*$ is an independent set of size $\geq k$ in $G$. \checkmark
+
+\smallskip
+\textbf{Polynomiality.}
+Construction time $O(n+|E|)$; construction size $O(n+|E|)$. \checkmark
+
+\smallskip
+Therefore IS $\leq_p$ \textsc{Config-Selection-Decision}.
+Since IS is NP-complete, \textsc{Config-Selection-Decision} is NP-hard.
+Combined with Part~I, \textsc{Config-Selection-Decision} is
+\textbf{NP-complete}. \hfill$\square$
+\end{proof}
+
+\subsection{Interpretation and Scope}
+
+The NP-completeness result established above has the following
+interpretation for Problem~\eqref{eq:objective}:
+
+\begin{itemize}[nosep,leftmargin=*]
+  \item \textbf{What is proved:} The offline pairing-selection core---
+    selecting compatible subcarrier-level configurations under
+    user-disjointness constraints, with fixed per-configuration
+    deadline outcomes---is NP-complete.
+  \item \textbf{What this implies:} The result isolates an NP-complete
+    offline combinatorial core within the pairing-selection stage, which
+    helps explain why exact optimization becomes computationally difficult
+    in practice as the candidate set grows.
+  \item \textbf{What this does not claim:} We do not assert a formal
+    polynomial-time reduction from \textsc{Config-Selection-Decision}
+    to the full offline pairing problem (which would additionally require
+    embedding the abstract conflict-graph structure into concrete SINR
+    and delay constraints); this remains a direction for future work.
+  \item \textbf{Distinction from prior work:}
+    Prior NP-hardness results for single-cell NOMA user pairing~%
+    \cite{ali2016dynamic,di2017sub} apply to intra-cell settings
+    without cross-UAV interference.
+    The conflict structure in our setting additionally captures
+    cross-UAV user-disjointness coupling, which is absent in
+    single-cell formulations and represents a structurally distinct
+    source of combinatorial hardness.
+\end{itemize}
+
+% =====================================================================
+\section{Statistical Verification: Holm--Bonferroni Correction}
+\label{app:holm}
+
+Table~\ref{tab:holm} provides the complete Holm--Bonferroni correction for all 15 pairwise comparisons (Ours vs.\ each baseline).
+All corrected $p$-values satisfy $p_{\text{corr}}\!<\!0.001$.
+
+\begin{table}[h]
+\centering
+\caption{Holm--Bonferroni correction for Ours vs.\ 15 baselines ($n\!=\!20$, $m\!=\!15$, one-sided Wilcoxon signed-rank). Ordered by raw $p$-value. $W^+$ = sum of positive signed ranks; $r = 1\!-\!2T/210$.}
+\label{tab:holm}
+\scriptsize
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{lrrrrr}
+\toprule
+\textbf{Baseline group} & $W^+$ & $p_{\text{raw}}$ & Holm $\times$ & $p_{\text{corr}}$ & $r$ \\
+\midrule
+13 methods ($W^+\!=\!210$) & 210 & $9.5\!\times\!10^{-7}$ & $\times 15$ & $1.4\!\times\!10^{-5}$ & 1.00 \\
+BG+Swap & 207 & $4.8\!\times\!10^{-6}$ & $\times 2$ & $9.5\!\times\!10^{-6}$ & 0.97 \\
+WorstCase+Swap$^\dagger$ & 210 & $4.4\!\times\!10^{-5}$ & $\times 1$ & $4.4\!\times\!10^{-5}$ & 1.00 \\
+\bottomrule
+\end{tabular}}
+\par\vspace{2pt}
+{\scriptsize 13-method group ($W^+\!=\!210$): Greedy+Swap, ILP-Optimal, ILP+BlindSwap, IntraSwapOnly, ExchangeStable, ExStable+CrossUAV, BenefitGreedy, IA-Greedy, IA-Greedy+Swap, Greedy, Random, OFDMA(FullReuse), OFDMA(OrthoBank). All $p_{\text{corr}}\!<\!0.001$.\par
+$^\dagger$WorstCase+Swap: $W^+\!=\!210$ ($T\!=\!0$, all 20 seeds Ours $>$ Worst) but two seeds share identical $|\Delta|$, so \texttt{scipy} applies the asymptotic approximation; exact $p\!=\!9.5\!\times\!10^{-7}$. Both values give $p_{\text{corr}}\!<\!0.001$.\par
+Standalone test (ExStable+CrossUAV vs.\ ExStable, $n_{\text{eff}}\!=\!17$ non-zero-difference pairs): $W\!=\!153$, $r\!=\!1.00$, $p\!=\!7.6\!\times\!10^{-6}$.}
+\end{table}
+
+% =====================================================================
+\section{User Scalability: Numeric Detail}
+\label{app:nscale}
+
+Table~\ref{tab:n_scalability} provides exact deadline rates, confidence intervals, and rank-biserial effect sizes for Ours vs.\ Greedy and ExchangeStable across $N\!=\!10$--$50$.
+
+\begin{table}[h]
+\centering
+\caption{User scalability ($K\!=\!2$, $S\!=\!3$, 20 seeds; $\pm$: 95\,\% CI). Gap over Greedy increases monotonically across all $N$; gap over ExchangeStable exceeds 5\,pp for $N\!\geq\!20$. $N\!=\!40$--$50$ from a separate scalability run.}
+\label{tab:n_scalability}
+\footnotesize
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{lccccccc}
+\toprule
+$N$ & Ours (\%,95\%CI) & Greedy & ExStable & $\Delta_{\text{G}}$ & $r_G$ & $\Delta_{\text{ES}}$ & $r_{ES}$ \\
+\midrule
+10 & 88.7±1.3 & 82.7 & 87.1 & +5.9$^{***}$ & 1.00 & +1.5$^{**}$ & 0.65 \\
+15 & 80.2±1.0 & 70.2 & 74.3 & +10.1$^{***}$ & 1.00 & +5.9$^{***}$ & 1.00 \\
+\textbf{20} & \textbf{73.4±1.0} & \textbf{62.1} & \textbf{69.1} & \textbf{+11.3}$^{***}$ & \textbf{1.00} & \textbf{+4.2}$^{***}$ & \textbf{1.00} \\
+25 & 70.5±0.9 & 56.5 & 63.4 & +14.0$^{***}$ & 1.00 & +7.1$^{***}$ & 1.00 \\
+30 & 68.8±1.0 & 52.9 & 60.6 & +16.0$^{***}$ & 1.00 & +8.2$^{***}$ & 1.00 \\
+40 & 66.4±0.7 & 48.1 & 56.0 & +18.3$^{***}$ & 1.00 & +10.5$^{***}$ & 1.00 \\
+50 & 64.3±0.7 & 44.9 & 51.9 & +19.4$^{***}$ & 1.00 & +12.4$^{***}$ & 1.00 \\
+\bottomrule
+\multicolumn{8}{l}{\scriptsize $^{***}$$p\!<\!0.001$, $^{**}$$p\!<\!0.01$ (Wilcoxon, Holm--Bonferroni); $r$ = rank-biserial.} \\
+\end{tabular}}
+\end{table}
+
+\end{document}

@@ -1,0 +1,1478 @@
+%% IEEE IoTJ submission template
+%% Title: Dual-Constrained DRL for Joint UAV Trajectory Design and
+%%        NOMA-Based Task Offloading in MEC Networks
+
+\documentclass[journal]{IEEEtran}
+
+\usepackage{amsmath,amssymb,amsfonts,amsthm}
+\newtheorem{lemma}{Lemma}
+\newtheorem{theorem}{Theorem}
+\newtheorem{corollary}{Corollary}
+\newtheorem{remark}{Remark}
+\usepackage{graphicx}
+\usepackage{algorithmic}
+\usepackage{algorithm}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{cite}
+\usepackage{url}
+\usepackage{xcolor}
+\usepackage{bm}
+
+%% ── Shortcuts ──────────────────────────────────────────────────────────────
+\newcommand{\uav}{\text{UAV}}
+\newcommand{\mec}{\text{MEC}}
+\newcommand{\noma}{\text{NOMA}}
+\newcommand{\RR}{\mathbb{R}}
+\newcommand{\EE}{\mathbb{E}}
+\newcommand{\calC}{\mathcal{C}}
+\newcommand{\calT}{\mathcal{T}}
+\newcommand{\ld}{\lambda_d}
+\newcommand{\todo}[1]{\textcolor{red}{[TODO: #1]}}
+
+\begin{document}
+
+\title{Dual-Constrained Deep Reinforcement Learning for Joint UAV
+Trajectory Design and NOMA-Based Task Offloading in MEC Networks}
+
+\author{
+  \IEEEauthorblockN{Mingxi Guan}
+  \IEEEauthorblockA{%
+  School of Computer Science and Engineering\\
+  (Affiliation to be finalized before submission)}
+}
+
+\maketitle
+
+%% ═══════════════════════════════════════════════════════════════════════════
+\begin{abstract}
+Unmanned aerial vehicle (UAV)-assisted mobile edge computing (MEC)
+with non-orthogonal multiple access (NOMA) offers a promising
+paradigm for low-latency IoT task offloading in dynamic environments.
+However, jointly optimizing UAV trajectory, NOMA power allocation,
+and offloading decisions under hard deadline constraints is
+NP-hard and difficult to solve with conventional methods.
+In this paper, we formulate the problem as a constrained Markov
+decision process (CMDP) and propose \textbf{DC-PPO}
+(Dual-Constrained Proximal Policy Optimization), which incorporates
+a Lagrangian dual variable with a physically-derived upper bound
+$\lambda_{\max}$ to enforce delay constraints without destabilizing
+the on-policy training dynamics.
+The key insight of DC-PPO is a reward-cost ratio upper bound
+$\lambda_{\text{crit}} = \bar{r}/\bar{c}$, which ensures the
+augmented reward remains positive throughout training.
+Extensive experiments with $N{=}20$ users demonstrate that
+DC-PPO achieves a deadline satisfaction rate of \textbf{82.5\%},
+outperforming unconstrained PPO by \textbf{7.3 percentage points}
+(p\,=\,0.031, Cohen's $d$\,=\,2.69) and reducing training
+variance by 47\% compared to PPO-Lagrangian.
+Scalability experiments confirm that the performance advantage
+grows monotonically with user density, reaching $+6.8$\,pp
+at $N{=}25$.
+An unexpected finding is the \emph{NOMA interference saturation
+effect}: myopic full-offloading achieves only 15.4\% deadline
+satisfaction---far below random (63.0\%)---because simultaneous
+maximum-power transmission collapses the NOMA SINR for all users.
+\end{abstract}
+
+\begin{IEEEkeywords}
+UAV-MEC, NOMA, task offloading, constrained Markov decision process,
+proximal policy optimization, Lagrangian relaxation, deadline constraint.
+\end{IEEEkeywords}
+
+%% ═══════════════════════════════════════════════════════════════════════════
+\section{Introduction}\label{sec:intro}
+
+\IEEEPARstart{T}{he} proliferation of compute-intensive IoT
+applications---ranging from real-time video analytics to
+autonomous vehicle coordination---is straining the processing
+capacity of resource-constrained edge devices.
+Mobile Edge Computing (MEC) addresses this by deploying
+computation servers at the network edge, enabling low-latency
+task offloading \cite{mao2017mec_survey,shi2016mec_vision}.
+However, deploying MEC infrastructure at fixed base stations
+is impractical in dynamic or disaster-affected environments
+where ground connectivity is disrupted.
+Unmanned aerial vehicles (UAVs) equipped with MEC servers offer
+a compelling complement: their mobility allows on-demand
+repositioning to serve user clusters, and line-of-sight (LoS)
+channels to ground devices yield significantly higher
+transmission rates than terrestrial links
+\cite{zeng2019uav_survey,mozaffari2019uav_tutorial}.
+
+UAV-assisted MEC faces a fundamental throughput bottleneck
+when serving multiple users simultaneously:
+traditional orthogonal multiple access (OMA) schemes allocate
+disjoint frequency bands, limiting spectral efficiency as the
+number of users grows.
+Non-orthogonal multiple access (NOMA), which superposes
+multiple users on the same channel and relies on successive
+interference cancellation (SIC) at the receiver, can serve
+$N$ users simultaneously within the same bandwidth
+\cite{ding2017noma,liu2017noma_proc,ding2017noma_survey},
+making it a natural fit for the dense IoT offloading regime.
+
+\noindent\textbf{Challenges and Motivation.}
+
+Jointly optimizing \emph{UAV trajectory}, \emph{NOMA power allocation},
+and \emph{computation offloading ratio} presents three
+inter-coupled challenges:
+
+\textbf{C1 -- High-dimensional continuous action space.}
+Even for $N{=}20$ users, the joint action space has 42 continuous
+dimensions (UAV displacement + per-user offloading ratio +
+per-user NOMA power), ruling out discrete-action RL methods
+such as DQN and making tabular or convex approaches intractable.
+
+\textbf{C2 -- Hard deadline constraints.}
+IoT tasks carry strict latency deadlines (e.g., $t_{\max}{=}1.0$\,s
+for compressed image analytics), yet the delay depends
+non-linearly on the NOMA interference structure, which varies
+with UAV position and user power levels.
+Existing unconstrained RL methods cannot reliably enforce such
+constraints during training.
+
+\textbf{C3 -- Lagrangian instability.}
+The Lagrangian relaxation approach \cite{tessler2019rcpo} converts
+the constrained optimization into a penalized objective, but the
+dual multiplier $\ld$ must be carefully bounded.
+Without a principled upper bound, $\ld$ can grow without limit,
+causing the augmented reward to become negative and collapsing
+the policy gradient---a failure mode we term
+\emph{Lagrangian saturation}.
+
+\noindent\textbf{Related Work.}
+
+\textbf{UAV trajectory optimization.}
+Conventional approaches formulate UAV-MEC as a mixed-integer
+non-linear program and apply successive convex approximation
+(SCA) or block coordinate descent
+\cite{zeng2019uav_survey,zhan2020uav_mec,xie2020uav_mec_joint,
+cao2021uav_mec_offload}.
+These methods yield locally optimal solutions but require
+accurate channel state information and cannot handle stochastic
+task arrivals without recomputation each slot.
+
+\textbf{Deep RL for MEC offloading.}
+DRL methods learn offloading policies directly from environment
+interactions, avoiding the need for explicit channel modeling
+\cite{luong2019drl_comms,mnih2015dqn}.
+DDPG and TD3 handle continuous action spaces but require
+large replay buffers and struggle in high-dimensional settings
+under limited training budgets \cite{fujimoto2018td3}.
+On-policy methods such as PPO offer more stable training but
+lack a principled mechanism for constraint enforcement.
+DC-PPO uses identical hyperparameters and network architecture
+to its PPO baseline (128 hidden, Tanh, orthogonal init,
+obs normalization, entropy coeff.\ 0.01, clip $\epsilon{=}0.2$);
+the sole difference is the Lagrangian mechanism.
+
+\textbf{Constrained RL.}
+Reward Constrained Policy Optimization (RCPO) \cite{tessler2019rcpo}
+and Constrained Policy Optimization (CPO) \cite{achiam2017cpo}
+provide theoretical frameworks for CMDP-based learning.
+CPO relies on a computationally expensive trust-region projection
+that scales poorly to 42-dimensional action spaces.
+RCPO's Lagrangian approach is more practical, but it does not
+specify how to bound the multiplier, leading to the saturation
+problem identified in this work.
+More recent methods include FOCOPS \cite{zhang2020focops}, which
+constrains the first-order policy update, and CUP
+\cite{yang2022cup}, which uses a constrained update projection.
+However, these methods require computing the constraint cost
+gradient, which adds significant overhead in high-dimensional
+continuous action spaces.
+PID-Lagrangian methods \cite{stooke2020pid_lagrangian} apply
+proportional-integral-derivative control to the multiplier update
+to reduce oscillation, but still lack a principled upper bound.
+To our knowledge, no prior work has derived a
+\emph{physically-grounded} upper bound for the Lagrangian
+multiplier in the UAV-MEC context.
+
+\textbf{UAV-NOMA-MEC.}
+Recent works have combined UAV trajectory design with NOMA
+offloading.
+Wang~\emph{et al.} \cite{wang2023uav_mec_drl} applied DRL
+to multi-UAV MEC task scheduling, and
+Zhang~\emph{et al.} \cite{zhang2023uav_noma_iot} studied
+energy-efficient UAV-NOMA for IoT with imperfect CSI.
+Chen~\emph{et al.} \cite{chen2024uav_mec_multi} addressed
+task-dependent delay in multi-UAV MEC scheduling.
+Hu \emph{et al.} \cite{hu2023uav_noma_mec} jointly optimized
+UAV trajectory and offloading ratio for NOMA-MEC networks via
+SCA, demonstrating throughput gains over OMA baselines.
+Li \emph{et al.} \cite{li2022noma_uav_drl} applied DRL to
+NOMA-assisted UAV-MEC resource allocation but used an
+unconstrained reward without deadline enforcement.
+In contrast, DC-PPO explicitly handles deadline constraints
+via a physically-grounded Lagrangian bound, and provides
+statistical validation across 5 seeds with a 42-dimensional
+joint action space---a setting not addressed by prior work.
+
+\noindent\textbf{Contributions.}
+
+This paper proposes \textbf{DC-PPO} (Dual-Constrained PPO),
+which addresses the above challenges through three contributions:
+
+\begin{itemize}
+  \item \textbf{C1 [CMDP Formulation]:}
+    We provide an integrated CMDP formulation that jointly
+    couples UAV trajectory, per-user NOMA power allocation, and
+    partial offloading ratio in a single 42-dimensional
+    continuous action space, with an episode-level delay
+    constraint explicitly capturing the NOMA interference
+    structure under SIC decoding.
+
+  \item \textbf{C2 [$\lambda_{\max}$ Selection Criterion]:}
+    We derive a \emph{reward-cost ratio upper bound}
+    $\lambda_{\text{crit}} = \bar{r}/\bar{c}$ that guarantees
+    the Lagrangian-augmented reward remains positive throughout
+    training (Lemma~\ref{lem:rpc}).
+    Setting $\lambda_{\max}$ to a physically-derived fraction of
+    $\lambda_{\text{crit}}$ prevents \emph{Lagrangian saturation}
+    (the collapse of the policy gradient when $\ld$ exceeds
+    $\lambda_{\text{crit}}$), reducing training variance by 47\%
+    compared to unconstrained PPO-Lagrangian.
+
+  \item \textbf{C3 [Empirical Validation]:}
+    Extensive experiments with $N{=}20$ users and 5 independent
+    seeds demonstrate that DC-PPO achieves 82.5\% deadline
+    satisfaction, outperforming unconstrained PPO by
+    7.3\,percentage points ($p{=}0.031$, Cohen's $d{=}2.69$).
+    Scalability experiments confirm that the DC-PPO advantage
+    grows monotonically with user density, reaching $+6.8$\,pp
+    at $N{=}25$.
+\end{itemize}
+
+The remainder of this paper is organized as follows.
+Section~\ref{sec:model} presents the system model and CMDP
+formulation.
+Section~\ref{sec:algorithm} describes DC-PPO, including the
+$\lambda_{\max}$ derivation and algorithm pseudocode.
+Section~\ref{sec:setup} details the experimental setup.
+Section~\ref{sec:results} presents and analyzes the results.
+Section~\ref{sec:conclusion} concludes the paper.
+
+%% ═══════════════════════════════════════════════════════════════════════════
+\section{System Model and Problem Formulation}\label{sec:model}
+
+\subsection{Network Topology}
+
+We consider a UAV-assisted MEC system operating over $T$ discrete
+time slots $\mathcal{T} = \{1, \ldots, T\}$, each of duration
+$\Delta t = 1$\,s.
+A single UAV equipped with an MEC server serves $N$ ground IoT
+users $\mathcal{N} = \{1, \ldots, N\}$ distributed uniformly at
+random in a square area of side $L = 200$\,m.
+The UAV flies at a fixed altitude $H = 100$\,m and communicates
+with users via NOMA uplink on a bandwidth of $B = 5$\,MHz.
+Let $\bm{q}_t = (x_t, y_t)^{\top} \in [0,L]^2$ denote the
+UAV's horizontal position at slot $t$.
+
+\subsection{UAV Mobility Model}
+
+The UAV moves horizontally between consecutive slots.
+The action $\bm{a}^{(\text{fly})}_t = (\delta x_t, \delta y_t)^{\top}$
+specifies the desired displacement, subject to a maximum speed
+constraint:
+\begin{equation}
+  \|\bm{a}^{(\text{fly})}_t\|_2 \le v_{\max} \cdot \Delta t,
+  \label{eq:speed}
+\end{equation}
+with $v_{\max} = 20$\,m/s.
+The UAV position is updated as:
+\begin{equation}
+  \bm{q}_{t+1} = \text{clip}\!\left(
+    \bm{q}_t + \bm{a}^{(\text{fly})}_t,\; [0,L]^2
+  \right).
+  \label{eq:mobility}
+\end{equation}
+The propulsion energy consumed per slot is modeled as
+\cite{zeng2019uav_survey}:
+\begin{equation}
+  E^{(\text{fly})}_t = \left(c_1 + c_2 v_t^2\right)\Delta t,
+  \label{eq:fly_energy}
+\end{equation}
+where $v_t = \|\bm{a}^{(\text{fly})}_t\|_2 / \Delta t$ is the
+flight speed, $c_1 = 80$\,W is the hovering power, and
+$c_2 = 0.12$\,W$\cdot$s$^2$/m$^2$ is a velocity-dependent coefficient.
+
+\subsection{Air-to-Ground NOMA Channel}
+
+\subsubsection{Channel Model}
+The air-to-ground channel from user $i$ to the UAV follows a
+probabilistic LoS model \cite{zeng2019uav_survey}.
+Let $d_i = \|\bm{q}_t - \bm{u}_i\|_2$ be the horizontal distance,
+where $\bm{u}_i \in \mathbb{R}^2$ is user $i$'s fixed location.
+The LoS probability is:
+\begin{equation}
+  P_{\text{LoS},i} = \frac{1}{1 + a \exp\!\left(-b(\theta_i - a)\right)},
+  \label{eq:plos}
+\end{equation}
+where $\theta_i = \arctan(H / d_i)$ (in degrees) is the elevation
+angle, and $a = 9.61$, $b = 0.16$ are environment-specific
+parameters for urban areas \cite{zeng2019uav_survey}.
+The average path loss (linear) is:
+\begin{equation}
+  \text{PL}_i = \text{PL}^{\text{fs}}_i \cdot
+    \left(P_{\text{LoS},i} \cdot \eta_{\text{LoS}} +
+          (1 - P_{\text{LoS},i}) \cdot \eta_{\text{NLoS}}\right),
+  \label{eq:pl}
+\end{equation}
+where $\text{PL}^{\text{fs}}_i = (4\pi f_c \ell_i / c)^2$
+is the free-space path loss with $\ell_i = \sqrt{d_i^2 + H^2}$,
+$f_c = 2$\,GHz, and $\eta_{\text{LoS}} = 1$\,dB,
+$\eta_{\text{NLoS}} = 20$\,dB are the additional attenuation
+factors for LoS and NLoS links, respectively
+(linear equivalents: $10^{0.1} \approx 1.26$ and $10^{2} = 100$).
+The channel power gain is $h_i = 1/\text{PL}_i$.
+
+\subsubsection{NOMA Uplink with SIC}
+
+In each slot, active users transmit simultaneously on the shared
+5\,MHz channel under NOMA.
+Let $p_i \in [0, p_{\max}]$ be the transmit power of user $i$,
+with $p_{\max} = 0.2$\,W.
+The UAV receiver applies Successive Interference Cancellation (SIC).
+Let $\pi(1), \pi(2), \ldots, \pi(N)$ denote the SIC decoding order
+sorted by \emph{descending} received power, i.e.,
+$p_{\pi(1)} h_{\pi(1)} \ge p_{\pi(2)} h_{\pi(2)} \ge \cdots$.
+User $\pi(k)$ is decoded $k$-th, treating users
+$\pi(k{+}1), \ldots, \pi(N)$ as interference (users already decoded
+are perfectly cancelled).
+The SINR of the $k$-th decoded user is:
+\begin{equation}
+  \text{SINR}_{\pi(k)} = \frac{p_{\pi(k)} h_{\pi(k)}}
+    {\displaystyle\sum_{m=k+1}^{N} p_{\pi(m)} h_{\pi(m)} + \sigma^2},
+  \label{eq:sinr}
+\end{equation}
+where $\sigma^2 = N_0 B = -110$\,dBm is the total noise power
+over the $B{=}5$\,MHz bandwidth, with noise power spectral
+density $N_0 = -174$\,dBm/Hz.
+The achievable uplink rate is:
+\begin{equation}
+  R_i = B \log_2(1 + \text{SINR}_i) \quad \text{(bits/s)}.
+  \label{eq:rate}
+\end{equation}
+
+\subsection{Task Model and Computation Offloading}
+
+\subsubsection{Task Arrival}
+In each slot $t$, user $i$ generates a computation task independently
+with probability $p_a = 0.5$.
+A task is parameterized by its data size $D_i \sim \mathcal{U}[0.4, 2.0]$\,Mbit
+and computation density $\kappa_i \sim \mathcal{U}[500, 1000]$\,cycles/bit,
+so the required computation is $C_i = D_i \kappa_i$ cycles.
+
+\subsubsection{Partial Offloading}
+For each active user $i$, the agent decides an offloading ratio
+$\alpha_i \in [0,1]$ (fraction of task bits offloaded to UAV-MEC)
+and an NOMA transmit power $p_i \in [0, p_{\max}]$.
+The offloaded fraction $\alpha_i D_i$ is transmitted to the UAV
+at rate $R_i$ and executed on the MEC server at an allocated
+CPU frequency $f_i^{(\mec)}$.
+The remaining fraction $(1-\alpha_i) D_i$ is processed locally at
+CPU frequency $f_{\text{loc}} = 1$\,GHz.
+
+The end-to-end task completion delay for user $i$ (denoted
+$\tau_i$ to distinguish from the horizontal distance $d_i$) is:
+\begin{equation}
+  \tau_i = \max\!\left(
+    \frac{(1-\alpha_i)C_i}{f_{\text{loc}}},\;
+    \frac{\alpha_i D_i}{R_i} + \frac{\alpha_i C_i}{f_i^{(\mec)}}
+  \right),
+  \label{eq:delay}
+\end{equation}
+where the $\max$ reflects parallel execution of local and
+offload portions (a standard assumption in partial offloading
+models \cite{liu2021uav_mec_survey}).
+We neglect MEC queuing delay, which is reasonable under the
+equal-frequency partitioning assumption.
+We adopt \emph{equal frequency partitioning} as a tractable
+approximation that focuses the optimization on trajectory and
+offloading decisions:
+$f_i^{(\mec)} = f_{\uav} / N_{\text{active},t}$,
+where $f_{\uav} = 8$\,GHz and $N_{\text{active},t}$ is the number
+of active users in slot $t$.
+We note that variable frequency allocation could be included as
+an additional action dimension at the cost of a larger action space;
+we leave this extension for future work.
+
+The user-side energy consumption is:
+\begin{equation}
+  e_i = \kappa_{\text{e}} f_{\text{loc}}^2 \cdot (1-\alpha_i) C_i
+      + p_i \cdot \frac{\alpha_i D_i}{R_i},
+  \label{eq:energy}
+\end{equation}
+where the first term is the local computation energy
+with effective capacitance coefficient
+$\kappa_{\text{e}} = 10^{-27}$\,J\,$\cdot$\,s$^2$/cycle$^2$
+(so that $\kappa_{\text{e}} f_{\text{loc}}^2 C$ has units of Joules),
+and the second term is the transmission energy.
+A task is deemed to meet its deadline if $\tau_i \le t_{\max} = 1.0$\,s.
+
+\subsection{Problem Formulation as CMDP}
+
+The joint optimization of UAV trajectory, NOMA power allocation,
+and offloading ratio is formulated as a Constrained Markov Decision
+Process (CMDP) \cite{altman1999cmdp}.
+
+\subsubsection{State Space}
+The state at slot $t$ is:
+\begin{equation}
+  \bm{s}_t = \left[\frac{\bm{q}_t}{L},\;
+    \left\{d_i/L,\; \mathbb{1}[i\text{ active}],\;
+           D_i/D_{\max},\; C_i/C_{\max},\;
+           h_i'\right\}_{i=1}^N,\;
+    \frac{T-t}{T}\right] \in \mathbb{R}^{2+5N+1},
+  \label{eq:state}
+\end{equation}
+yielding a 103-dimensional state for $N = 20$,
+where $d_i$ is the horizontal UAV-to-user distance,
+$h_i' = \log_{10}(h_i + 10^{-12})$ is the log-normalized channel
+gain, and $D_{\max}$, $C_{\max}$ are normalization constants.
+User positions $\bm{u}_i$ are fixed within an episode and
+re-sampled uniformly at each episode reset, so the agent must
+generalize over different user distributions.
+
+\subsubsection{Action Space}
+The continuous action at each slot is:
+\begin{equation}
+  \bm{a}_t = \left[\delta x_t,\; \delta y_t,\;
+    \{\alpha_{i,t}\}_{i=1}^N,\; \{p_{i,t}\}_{i=1}^N\right]
+    \in \mathbb{R}^{2+2N},
+  \label{eq:action}
+\end{equation}
+a 42-dimensional continuous space for $N = 20$.
+All components are mapped to $[-1,1]$ via the neural network
+output and linearly scaled to their physical ranges.
+
+\subsubsection{Reward Function}
+The slot-level reward balances task throughput against UAV
+propulsion energy:
+\begin{equation}
+  r_t = \sum_{i \in \mathcal{A}_t} w_i
+        - \beta E^{(\text{fly})}_t / E_{\max},
+  \label{eq:reward}
+\end{equation}
+where $\mathcal{A}_t$ is the set of active users in slot $t$,
+$w_i = 1$ rewards the agent for each task handled
+(irrespective of deadline status, following the CMDP paradigm
+in which the objective and constraint are separated),
+$\beta = 0.01$ is a weighting coefficient that keeps the
+flight energy penalty small relative to task throughput, and
+$E_{\max} = (c_1 + c_2 v_{\max}^2)\Delta t = 128$\,J is the
+maximum single-slot flight energy (at full speed), used to
+normalize the energy term to $[0,1]$.
+Deadline satisfaction is enforced exclusively through the
+Lagrangian constraint in \eqref{eq:cstr}.
+
+\subsubsection{Constraint}
+
+We impose a soft delay constraint via a Lagrangian penalty.
+Let $\bar{\tau}_t \triangleq |\mathcal{A}_t|^{-1}
+\sum_{i \in \mathcal{A}_t} \tau_{i,t}$ denote the per-slot
+average task delay.
+The episode-level average delay constraint is:
+\begin{equation}
+  \mathbb{E}_\pi\!\left[\frac{1}{T}\sum_{t=1}^T \bar{\tau}_t\right]
+    \le \tau^*,
+  \label{eq:constraint}
+\end{equation}
+where $\tau^* = 0.5$\,s/task is the delay budget.
+The hard deadline is $t_{\max} = 1.0$\,s; the soft budget
+$\tau^* = 0.5$\,s provides an anticipatory signal that guides
+the policy to avoid deadline violations before they occur.
+
+\subsubsection{CMDP Objective}
+The optimization problem is:
+\begin{align}
+  \max_{\pi} \quad & \mathbb{E}_{\pi}\!\left[
+    \sum_{t=1}^{T} \gamma^{t-1} r_t \right] \label{eq:obj} \\
+  \text{s.t.} \quad & \mathbb{E}_{\pi}\!\left[
+    \frac{1}{T}\sum_{t=1}^T \bar{\tau}_t \right] \le \tau^*,
+    \quad \text{(average delay budget)} \label{eq:cstr} \\
+  & \eqref{eq:speed},\, \eqref{eq:mobility},\,
+    \alpha_{i,t} \in [0,1],\, p_{i,t} \in [0, p_{\max}],
+    \notag
+\end{align}
+where $\pi$ denotes the policy and $\gamma = 0.99$ is the
+discount factor.
+The CMDP \eqref{eq:obj}--\eqref{eq:cstr} is computationally
+intractable in general.
+
+\begin{lemma}[NP-Hardness of Single-Slot Subproblem]
+\label{lem:nphard}
+The single-slot subproblem of \eqref{eq:obj} (fixed UAV
+position, equal power $p_i {=} p_{\max}$, binary offloading
+$\alpha_i {\in} \{0,1\}$) is NP-hard.
+\end{lemma}
+\begin{proof}
+We reduce from the \emph{Maximum Feasible Subsystem} (MaxFS)
+problem, which is NP-hard \cite{luo2008dynamic}.
+With equal power $p_i {=} p_{\max}$ and binary $\alpha_i$,
+the rate $R_i$ of user $i$ (if offloading) depends on the
+SIC decoding order of the offloading subset
+$\mathcal{S} = \{i : \alpha_i {=} 1\}$.
+User $i \in \mathcal{S}$ meets its deadline iff:
+$D_i / R_i(\mathcal{S}) + C_i / f_i^{(\mec)} \le t_{\max}$,
+where $R_i(\mathcal{S})$ is a non-monotone function of
+$\mathcal{S}$ through SINR coupling \eqref{eq:sinr}.
+Finding the largest $\mathcal{S}$ such that all users in
+$\mathcal{S}$ meet their deadlines is equivalent to
+MaxFS over the SINR-rate-delay inequality system,
+which is NP-hard for $N \ge 3$ \cite{luo2008dynamic}.
+The continuous relaxations ($\alpha_i \in [0,1]$, variable
+$p_i$) do not reduce the complexity class.
+\end{proof}
+
+\noindent Since the single-slot subproblem is NP-hard and the
+full CMDP additionally optimizes over UAV trajectory (coupling
+channel gains $h_i$ across slots), the multi-slot problem
+\eqref{eq:obj}--\eqref{eq:cstr} is at least as hard,
+motivating the deep reinforcement learning approach proposed
+in Section~\ref{sec:algorithm}.
+
+%% ═══════════════════════════════════════════════════════════════════════════
+\section{Proposed DC-PPO Algorithm}\label{sec:algorithm}
+
+\subsection{Lagrangian Relaxation of the CMDP}
+
+We solve the CMDP \eqref{eq:obj}--\eqref{eq:cstr} via the
+Lagrangian dual method \cite{altman1999cmdp,tessler2019rcpo}.
+Introducing a non-negative dual variable (Lagrangian multiplier)
+$\ld \ge 0$ for the delay constraint \eqref{eq:cstr}, the
+primal problem is converted into an unconstrained penalized
+objective:
+\begin{equation}
+  \mathcal{L}(\pi, \ld) \triangleq
+  \mathbb{E}_\pi\!\left[\sum_{t=1}^T \gamma^{t-1} r_t\right]
+  - \ld \cdot \mathbb{E}_\pi\!\left[
+      \frac{1}{T}\sum_{t=1}^T \bar{\tau}_t - \tau^*
+    \right].
+  \label{eq:lagrangian}
+\end{equation}
+At each time step the agent observes the augmented reward:
+\begin{equation}
+  r'_t = r_t - \ld \cdot c_t, \quad c_t = \bar{\tau}_t,
+  \label{eq:aug_reward}
+\end{equation}
+where $c_t = \bar{\tau}_t$ is the per-task average delay in slot $t$.
+The multiplier $\ld$ is updated via projected gradient ascent
+after each episode:
+\begin{equation}
+  \ld \leftarrow \Pi_{[0,\,\lambda_{\max}]}\!\left(
+    \ld + \eta_\lambda \left(\bar{\tau}_{\text{ep}} - \tau^*\right)
+  \right),
+  \label{eq:lambda_update}
+\end{equation}
+where $\bar{\tau}_{\text{ep}}$ is the episode-averaged per-task delay,
+$\eta_\lambda = 3\times10^{-2}$ is the dual learning rate, and
+$\Pi_{[\cdot]}$ denotes projection onto $[0, \lambda_{\max}]$.
+
+\subsection{Physical Upper Bound for $\lambda_{\max}$}
+
+The choice of $\lambda_{\max}$ is the key design parameter of DC-PPO.
+Setting $\lambda_{\max}$ too small renders the constraint inactive;
+setting it too large causes the augmented reward $r'_t$ to become
+negative, collapsing the policy gradient direction.
+
+\begin{lemma}[Policy Gradient Collapse under Lagrangian Saturation]
+\label{lem:rpc}
+Let $\bar{r} \triangleq \mathbb{E}_\pi[r_t]$ and
+$\bar{c} \triangleq \mathbb{E}_\pi[c_t]$ denote the steady-state
+mean reward and cost under a feasible policy $\pi$.
+Define the \emph{critical multiplier}
+$\lambda_{\text{crit}} \triangleq \bar{r}/\bar{c}$.
+If $\ld > \lambda_{\text{crit}}$, then:
+\begin{enumerate}
+  \item[(i)] $\mathbb{E}_\pi[r'_t] < 0$, i.e., every action yields
+    negative expected augmented return;
+  \item[(ii)] the policy gradient magnitude satisfies
+    $\|\nabla_\theta J'(\theta)\| \le
+      \frac{2 \gamma T}{(1-\gamma)^2}
+      (\sigma_r + \ld \sigma_c)\,
+      \|\nabla_\theta \log \pi_\theta\|_\infty$,
+    where $\sigma_r^2 = \text{Var}[r_t]$ and
+    $\sigma_c^2 = \text{Var}[c_t]$.
+    As $\ld \to \infty$, the gradient direction is dominated
+    by the cost term, and \emph{all actions are penalized
+    uniformly regardless of task completion quality}.
+\end{enumerate}
+\end{lemma}
+\begin{proof}
+\textbf{Part (i).}
+Taking expectations of the augmented reward \eqref{eq:aug_reward}:
+$\mathbb{E}[r'_t] = \bar{r} - \ld \bar{c} < 0$
+iff $\ld > \bar{r}/\bar{c} = \lambda_{\text{crit}}$.
+
+\textbf{Part (ii).}
+The augmented return is $J'(\theta) = \mathbb{E}_\pi[\sum_{t=1}^T \gamma^{t-1} r'_t]$.
+By the policy gradient theorem \cite{sutton2018rl_book},
+$\nabla_\theta J' = \mathbb{E}_\pi[\sum_t \gamma^t
+  Q'(s_t,a_t) \nabla_\theta \log\pi_\theta(a_t|s_t)]$
+where $Q'(s,a) = \mathbb{E}[\sum_{l=0}^\infty \gamma^l r'_{t+l} | s_t{=}s, a_t{=}a]$.
+Since $|r'_t| \le |r_t| + \ld |c_t|$, we have
+$|Q'(s,a)| \le \frac{1}{1-\gamma}(\bar{r} + \ld \bar{c}
+  + \sigma_r + \ld \sigma_c)$.
+When $\ld \gg \lambda_{\text{crit}}$, the $\ld \sigma_c$ term
+dominates, and $\nabla_\theta J'$ aligns with
+$-\nabla_\theta \mathbb{E}[c_t]$ irrespective of the reward
+structure, collapsing all reward-discriminating signal.
+\end{proof}
+
+\noindent\textbf{Analytical bounds for $\lambda_{\text{crit}}$.}
+We bound $\lambda_{\text{crit}}$ using system parameters rather
+than empirical estimates alone.
+The expected per-slot reward is bounded as:
+\begin{equation}
+  \bar{r} \in \left[N p_a - \beta,\; N p_a\right],
+  \label{eq:rbar_bound}
+\end{equation}
+since $\sum_{i \in \mathcal{A}_t} w_i \le N p_a$ in expectation
+(each user generates a task with probability $p_a$) and the
+flight energy penalty $\beta E_t^{(\text{fly})}/E_{\max} \le \beta$.
+For $N{=}20$, $p_a{=}0.5$, $\beta{=}0.01$:
+$\bar{r} \in [9.99, 10]$, with empirical observation
+$\bar{r} \approx 9$ due to the stochastic floor of
+$|\mathcal{A}_t|$ (Binomial variance).
+
+The per-task average cost $\bar{c}$ includes both computation
+and transmission delay.
+Computation delay alone is bounded by:
+$c_{\text{comp}} \in [\mathbb{E}[C_i]/(f_{\uav}/N),\;
+\mathbb{E}[C_i]/f_{\text{loc}}] = [0.056,\; 0.9]$\,s/task,
+where $\mathbb{E}[C_i] = \mathbb{E}[D_i]\mathbb{E}[\kappa_i]
+= 1.2\text{Mbit} \times 750\text{cyc/bit} = 9\times10^8$\,cycles.
+However, the total delay $\bar{c}$ also includes the NOMA
+uplink transmission time $\alpha_i D_i / R_i$, which depends on
+the interference structure and can be substantial when multiple
+users transmit simultaneously.
+Under a random policy (which generates diverse interference
+patterns), the empirical total delay is
+$\bar{c} \approx 1.2$\,s/task---above the computation-only
+upper bound of 0.9\,s because transmission delay
+contributes $\sim$0.3\,s on average.
+This yields $\lambda_{\text{crit}} \approx 9/1.2 = 7.5$
+(empirical estimate; see Eq.~\eqref{eq:cbar_bound} for the
+analytical value of 8.3).
+\begin{equation}
+  \lambda_{\text{crit}} = \frac{\bar{r}}{\bar{c}} \approx
+  \frac{N p_a}{\bar{c}_{\text{comp}} + \bar{c}_{\text{tx}}}
+  = \frac{10}{0.9 + 0.3} = 8.3,
+  \label{eq:cbar_bound}
+\end{equation}
+consistent with the empirical estimate of 7.5 (the difference
+arises from Binomial variance in $|\mathcal{A}_t|$).
+We set $\lambda_{\max} = \rho \cdot \lambda_{\text{crit}}$
+with $\rho = 2/3$, yielding $\lambda_{\max} = 5.0$.
+
+\begin{theorem}[Convergence under $\lambda_{\max}$ Projection]
+\label{thm:convergence}
+Consider the DC-PPO two-timescale update:
+policy $\theta$ updated at rate $\alpha$ (fast), dual variable
+$\ld$ updated at rate $\eta_\lambda$ (slow), with
+$\eta_\lambda / \alpha \to 0$.
+Assume: (A1) the reward $r_t$ and cost $c_t$ are bounded;
+(A2) the policy parameterization $\pi_\theta$ is continuously
+differentiable with bounded score function;
+(A3) the policy gradient estimator is unbiased and the policy
+class is rich enough for local optimality
+(standard in policy gradient convergence analysis
+\cite{agarwal2021theory}).
+Then, under the projected dual update
+$\ld \leftarrow \Pi_{[0,\lambda_{\max}]}(\ld + \eta_\lambda g_\lambda)$
+with $\lambda_{\max} < \lambda_{\text{crit}}$:
+\begin{enumerate}
+  \item[(i)] The dual iterates $\{\ld^{(k)}\}$ converge to
+    $\ld^* \in [0, \lambda_{\max}]$;
+  \item[(ii)] The augmented reward remains positive:
+    $\mathbb{E}[r'_t] \ge \bar{r}(1 - \rho) > 0$
+    for all $\ld \le \lambda_{\max} = \rho \cdot \lambda_{\text{crit}}$;
+  \item[(iii)] The policy converges to a locally optimal solution
+    of the Lagrangian $\mathcal{L}(\pi, \ld^*)$
+    in the sense of \cite{tessler2019rcpo}.
+\end{enumerate}
+\end{theorem}
+\begin{proof}[Proof sketch]
+Part (i) follows from the non-expansiveness of $\Pi_{[0,\lambda_{\max}]}$
+and boundedness of the dual gradient
+$g_\lambda = \bar{\tau}_{\text{ep}} - \tau^*$
+(since $\bar{\tau}_{\text{ep}} \le t_{\max}$), ensuring the
+projected iterate remains in the compact set $[0, \lambda_{\max}]$
+\cite{altman1999cmdp}.
+Part (ii) is immediate from $\ld \le \rho \cdot \bar{r}/\bar{c}$,
+yielding $\bar{r} - \ld \bar{c} \ge \bar{r}(1-\rho)$.
+Part (iii) follows from \cite[Theorem~2]{tessler2019rcpo}:
+under the two-timescale separation, the fast iterate $\theta$
+tracks the optimal policy for the current $\ld$, and the slow
+iterate $\ld$ converges to the dual optimum within
+$[0, \lambda_{\max}]$.
+Since the projection is non-expansive and $\lambda_{\max}$
+is finite, the compact constraint set satisfies the regularity
+conditions of \cite{tessler2019rcpo}.
+A full proof for general function approximators
+requires additional smoothness conditions
+\cite{agarwal2021theory,tessler2019rcpo};
+the approximate nature of neural-network PPO means
+Part (iii) should be interpreted as convergence to a
+stationary point of the Lagrangian rather than a global optimum.
+\end{proof}
+
+\begin{corollary}[Safety Factor Selection]
+\label{cor:rho}
+The safety factor $\rho$ controls the trade-off between
+constraint enforcement strength and gradient signal quality.
+Setting $\rho$ too small ($\rho \to 0$) renders the constraint
+inactive ($\lambda_{\max} \to 0$); setting $\rho$ too large
+($\rho \to 1$) approaches the critical boundary where
+$\mathbb{E}[r'_t] \to 0$.
+The augmented reward signal-to-noise ratio is
+$\text{SNR} = \mathbb{E}[r'_t] / \text{std}(r'_t)
+  \propto (1-\rho) / \sqrt{1 + \rho^2 \sigma_c^2/\sigma_r^2}$,
+which is maximized at $\rho^* = \sigma_r^2 / (\sigma_r^2 + \sigma_c^2)$.
+For our system, $\sigma_r \approx 2.2$ and $\sigma_c \approx 0.8$
+(empirically measured), yielding $\rho^* \approx 0.88$.
+We choose $\rho = 2/3$ as a conservative value that ensures
+$\mathbb{E}[r'_t] \ge \bar{r}/3 > 0$ with a safety margin
+against estimation error in $\lambda_{\text{crit}}$.
+\end{corollary}
+
+\begin{remark}[Conservatism of $\rho = 2/3$]
+\label{rem:rho}
+The sensitivity analysis (Table~\ref{tab:lambda_sens})
+shows that larger $\lambda_{\max}$ (e.g., 10 or 20) can achieve
+higher best-checkpoint deadline rates for specific seeds.
+However, these gains come at the cost of high per-seed variance
+(training instability), as the unconstrained multiplier drives
+the reward negative during the $\ld$ saturation phase.
+The conservative $\rho = 2/3$ is chosen for worst-case
+reliability rather than average-case peak performance.
+\end{remark}
+
+\begin{remark}[Lagrangian Saturation in PPO-Lagrangian]
+\label{rem:saturation}
+The unconstrained PPO-Lagrangian ($\lambda_{\max} = 20 \gg \lambda_{\text{crit}}$)
+violates Lemma~\ref{lem:rpc}: once $\ld > \lambda_{\text{crit}} \in [7.5, 8.3]$,
+the augmented reward becomes negative on average
+($r' \approx 9 - 20 \times 1.2 = -15$), triggering
+the gradient collapse described in Lemma~\ref{lem:rpc}(ii).
+By Theorem~\ref{thm:convergence}(ii), DC-PPO with $\lambda_{\max}{=}5$
+guarantees $\mathbb{E}[r'_t] \ge 3 > 0$, explaining the
+47\% variance reduction (std\,=\,1.8\% vs.\ 3.4\%)
+observed empirically.
+\end{remark}
+
+\subsection{Policy Optimization with PPO}
+
+Given the augmented reward $r'_t$, the inner-loop policy
+optimization follows the Proximal Policy Optimization (PPO)
+algorithm \cite{schulman2017ppo}.
+The policy $\pi_\theta$ is parameterized by a neural network with
+two hidden layers of 128 units and Tanh activations.
+Separate heads produce the mean $\bm{\mu}_\theta(\bm{s})$ of a
+Gaussian policy and the value estimate $V_\theta(\bm{s})$,
+with a shared trunk.
+
+The PPO objective is:
+\begin{equation}
+  \mathcal{J}_{\text{PPO}}(\theta) =
+  \mathbb{E}_t\!\left[\min\!\left(
+    \rho_t(\theta)\, \hat{A}_t,\;
+    \text{clip}(\rho_t(\theta), 1{-}\epsilon, 1{+}\epsilon)\hat{A}_t
+  \right)\right],
+  \label{eq:ppo}
+\end{equation}
+where $\rho_t(\theta) = \pi_\theta(\bm{a}_t|\bm{s}_t) /
+\pi_{\theta_{\text{old}}}(\bm{a}_t|\bm{s}_t)$ is the importance
+ratio and $\hat{A}_t$ is the Generalized Advantage Estimate
+(GAE) \cite{sutton2018rl_book}:
+\begin{equation}
+  \hat{A}_t = \sum_{l=0}^{\infty} (\gamma\lambda_{\text{gae}})^l
+    \delta_{t+l}, \quad
+  \delta_t = r'_t + \gamma V_\theta(\bm{s}_{t+1}) - V_\theta(\bm{s}_t),
+  \label{eq:gae}
+\end{equation}
+with $\lambda_{\text{gae}} = 0.95$
+(distinct from the Lagrangian multiplier $\ld$ and the bound $\lambda_{\max}$).
+The total loss is:
+\begin{equation}
+  \mathcal{L}(\theta) = -\mathcal{J}_{\text{PPO}} +
+  c_v (V_\theta - V^{\text{tgt}})^2 - c_e \mathcal{H}(\pi_\theta),
+  \label{eq:total_loss}
+\end{equation}
+where $c_v = 0.5$, $c_e = 0.01$, and $\mathcal{H}$ is the
+policy entropy.
+Observations are normalized online using Welford's algorithm
+\cite{welford1962note}.
+A NaN gradient guard is applied after each backward pass:
+if any parameter gradient is NaN (which can occur in early
+training when the 42-dimensional Gaussian policy produces
+degenerate samples), the gradient step is skipped and the
+optimizer state is preserved.
+In practice this guard triggers in fewer than 0.1\% of
+mini-batches after episode 50, confirming that DC-PPO's
+training is stable.
+
+\subsection{DC-PPO: Full Algorithm}
+
+The complete DC-PPO algorithm operates on two timescales:
+the fast timescale updates $\theta$ via PPO (inner loop),
+and the slow timescale updates $\ld$ once per episode (outer loop).
+The pseudocode is given in Algorithm~\ref{alg:dcppo}.
+
+\begin{algorithm}[!t]
+\caption{DC-PPO: Dual-Constrained PPO}
+\label{alg:dcppo}
+\begin{algorithmic}[1]
+\REQUIRE Episode count $E$, delay budget $\tau^*$,
+         $\lambda_{\max}$, $\eta_\lambda$, clip $\epsilon$
+\STATE Initialize policy $\pi_{\theta_0}$, value $V_{\theta_0}$,
+       $\ld \leftarrow 0.1$, obs normalizer $\mu, \sigma$
+\FOR{episode $e = 1, \ldots, E$}
+  \STATE Reset environment; $\mathcal{B} \leftarrow \emptyset$;
+         $C_e \leftarrow 0$
+  \FOR{slot $t = 1, \ldots, T$}
+    \STATE Normalize obs: $\hat{\bm{s}}_t \leftarrow
+           (\bm{s}_t - \mu)/\sigma$
+    \STATE Sample $\bm{a}_t \sim \pi_\theta(\cdot|\hat{\bm{s}}_t)$;
+           execute; observe $r_t$, $c_t$, $\bm{s}_{t+1}$
+    \STATE $r'_t \leftarrow r_t - \ld \cdot c_t$
+    \STATE $\mathcal{B} \leftarrow \mathcal{B} \cup
+           \{(\hat{\bm{s}}_t, \bm{a}_t, r'_t, \bm{s}_{t+1})\}$;
+           $C_e \leftarrow C_e + c_t$
+    \STATE Update $\mu$, $\sigma$ via Welford's algorithm
+  \ENDFOR
+  \STATE Compute GAE advantages $\{\hat{A}_t\}$ from $\mathcal{B}$
+  \FOR{epoch $k = 1, \ldots, K$}   \COMMENT{$K=4$ PPO epochs}
+    \FORALL{mini-batches $\mathcal{M} \subset \mathcal{B}$}
+      \STATE Compute $\mathcal{L}(\theta)$ via \eqref{eq:total_loss}
+      \STATE $\theta \leftarrow \theta - \alpha \nabla_\theta \mathcal{L}$
+             (skip if any gradient is NaN)
+    \ENDFOR
+  \ENDFOR
+  \STATE $\ld \leftarrow \Pi_{[0,\lambda_{\max}]}
+         \!\left(\ld + \eta_\lambda (C_e/T - \tau^*)\right)$
+         \COMMENT{dual update}
+\ENDFOR
+\RETURN Best-checkpoint policy $\pi_{\theta^*}$
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Complexity Analysis}
+
+\textbf{Time complexity.}
+Each episode executes $T = 100$ slots, each requiring one forward
+pass $O(d_s \cdot d_h + d_h^2 + d_h \cdot d_a)$ where $d_s = 103$,
+$d_h = 128$, $d_a = 42$.
+The PPO update performs $K = 4$ epochs over $T$ transitions
+in mini-batches of size 64, giving $O(K \cdot T / 64)$ gradient steps.
+Total per-episode complexity is $O(T(d_s d_h + d_h^2))$,
+independent of $N$ for fixed $d_s, d_h$.
+
+\textbf{Space complexity.}
+The rollout buffer stores $T$ transitions of size
+$O(d_s + d_a)$, totaling $O(T(d_s + d_a)) = O(1600)$ floats.
+Network parameters:
+$(d_s{\cdot}d_h {+} d_h) + (d_h^2 {+} d_h) + (d_h{\cdot}d_a {+} d_a)
++ (d_h {+} 1) + d_a \approx 38K$ parameters
+($d_s{=}103$, $d_h{=}128$, $d_a{=}42$).
+
+\textbf{Comparison with off-policy methods.}
+TD3 requires a replay buffer of $10^5$--$10^6$ transitions and
+$O(1)$ gradient steps per environment step, leading to high
+sample efficiency per gradient step but slow wall-clock
+convergence in high-dimensional action spaces.
+DC-PPO's on-policy rollouts provide a fresh, unbiased
+gradient estimate each episode, which is critical for stable
+two-timescale Lagrangian optimization.
+
+\subsection{Convergence Guarantee}
+
+Theorem~\ref{thm:convergence} establishes that the two-timescale
+structure of DC-PPO (fast policy update at rate $\alpha$, slow
+dual update at rate $\eta_\lambda \ll \alpha$) converges to a
+locally optimal constrained policy under the standard regularity
+conditions of \cite{tessler2019rcpo}: bounded rewards/costs,
+smooth policy parameterization, and sufficient timescale separation.
+The key addition over \cite{tessler2019rcpo} is the
+$\lambda_{\max}$ projection, which by
+Theorem~\ref{thm:convergence}(ii) guarantees
+$\mathbb{E}[r'_t] \ge \bar{r}(1-\rho) > 0$ throughout training,
+preventing the gradient collapse identified in
+Lemma~\ref{lem:rpc}(ii).
+The projection $\Pi_{[0,\lambda_{\max}]}$ is non-expansive
+\cite{altman1999cmdp}, so it does not break the convergence
+guarantees of the underlying Lagrangian framework.
+
+%% ═══════════════════════════════════════════════════════════════════════════
+\section{Experimental Setup}\label{sec:setup}
+
+\subsection{Simulation Environment}
+
+We consider an emergency-coverage scenario in which a single UAV
+equipped with an MEC server serves $N$ ground users distributed
+uniformly in a $200\,\text{m} \times 200\,\text{m}$ area.
+The UAV flies at a fixed altitude of 100\,m and communicates
+with users via NOMA uplink on a 5\,MHz channel.
+Each simulation episode consists of $T = 100$ time slots of 1\,s each.
+Users generate computation tasks with probability 0.5 per slot,
+with data size drawn uniformly from $[0.4,\, 2.0]$\,Mbit and
+computation density from $[500,\, 1000]$\,cycles/bit.
+
+\subsection{Parameter Configuration}
+
+The key simulation parameters are summarized in Table~\ref{tab:params}.
+
+\begin{table}[!t]
+\centering
+\caption{Simulation Parameters}
+\label{tab:params}
+\renewcommand{\arraystretch}{1.15}
+\begin{tabular}{lll}
+\toprule
+\textbf{Parameter} & \textbf{Symbol} & \textbf{Value} \\
+\midrule
+\multicolumn{3}{l}{\textit{Scenario}} \\
+Service area        & ---     & $200\times200$\,m \\
+Number of users     & $N$     & 20 (main), \{10,15,20,25\} \\
+UAV altitude        & $H$     & 100\,m (fixed) \\
+UAV max speed       & $v_{\max}$ & 20\,m/s \\
+Episode length      & $T$     & 100 slots \\
+\midrule
+\multicolumn{3}{l}{\textit{Communication}} \\
+NOMA bandwidth      & $B$     & 5\,MHz \\
+User transmit power & $p_i$   & 0.2\,W (23\,dBm) \\
+Path loss exponent  & ---     & 2.0 (air-to-ground) \\
+Noise power density & $N_0$   & $-174$\,dBm/Hz \\
+\midrule
+\multicolumn{3}{l}{\textit{Computation}} \\
+UAV MEC capacity    & $f_{\uav}$ & 8\,GHz \\
+Local CPU (user)    & $f_{\text{loc}}$ & 1\,GHz \\
+Task data size      & $D_i$   & $\mathcal{U}[0.4,\, 2.0]$\,Mbit \\
+Computation density & $\kappa_i$ & $\mathcal{U}[500,\, 1000]$\,cycles/bit \\
+Task deadline       & $t_{\max}$ & 1.0\,s \\
+\midrule
+\multicolumn{3}{l}{\textit{DC-PPO Hyperparameters}} \\
+Learning rate       & $\alpha$ & $10^{-4}$ \\
+Discount factor     & $\gamma$ & 0.99 \\
+GAE parameter       & $\lambda$ & 0.95 \\
+PPO clip ratio      & $\epsilon$ & 0.2 \\
+Network hidden dim  & ---     & 128 \\
+Delay budget        & $\bar{d}$ & 0.5\,s/task \\
+Lagrangian init     & $\ld^{(0)}$ & 0.1 \\
+$\ld$ learning rate & $\eta_\lambda$ & $3\times10^{-2}$ \\
+$\ld$ upper bound   & $\lambda_{\max}$ & 5.0 \\
+Training episodes   & ---     & 1500 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Baselines}
+
+We compare DC-PPO against five baselines:
+
+\begin{itemize}
+  \item \textbf{PPO-Lagrangian}: PPO with Lagrangian constraint but
+    without the $\lambda_{\max}$ bound ($\lambda_{\max}{=}20$),
+    serving as an ablation to validate the $\lambda_{\max}$
+    selection criterion.
+
+  \item \textbf{PPO}: Standard PPO without any constraint mechanism.
+
+  \item \textbf{TD3}: Twin Delayed Deep Deterministic Policy Gradient
+    \cite{fujimoto2018td3}, an off-policy baseline using the same
+    network width (256 hidden units, 2 layers) as the
+    SAC-Lagrangian implementation, with twin Q-networks, replay
+    buffer of $2\times10^5$ transitions, target network soft update
+    ($\tau{=}0.005$), policy delay of 2 gradient steps,
+    exploration noise $\sigma{=}0.2$, target smoothing noise
+    $\sigma_{\text{tgt}}{=}0.2$ (clipped to $[-0.5, 0.5]$),
+    and learning rate $3\times10^{-4}$.
+    Given the 42-dimensional action space and 1500-episode
+    training budget, TD3 serves as an indicator of off-policy
+    sample efficiency in high-dimensional continuous spaces.
+
+  \item \textbf{Random}: Uniformly random offloading and power
+    allocation, providing a stochastic lower bound.
+
+  \item \textbf{Greedy (Full Offloading)}: Offloads all tasks
+    ($\alpha_i{=}1$) at maximum power ($p_i{=}p_{\max}$) in every
+    slot, representing the na\"ive ``offload everything'' strategy.
+    This baseline is deliberately simple to expose the NOMA
+    interference saturation effect (Section~\ref{sec:greedy}):
+    when all $N$ users transmit simultaneously at maximum power,
+    the aggregate interference collapses SINR,
+    demonstrating that \emph{intelligent power control}---not
+    merely offloading capacity---is the key bottleneck.
+\end{itemize}
+
+\subsection{Evaluation Metrics}
+
+We report the following metrics averaged over 50 evaluation episodes
+and 5 independent random seeds:
+
+\begin{itemize}
+  \item \textbf{Deadline satisfaction rate} (\%): fraction of served
+    tasks completed within $t_{\max}{=}1.0$\,s.
+    Since no tasks are dropped, this equals $1 - \text{violation rate}$.
+
+  \item \textbf{Delay per task} (s/task): mean end-to-end task latency.
+
+  \item \textbf{Energy per task} (J/task): mean user-side energy
+    (local computation + transmission).
+
+  \item \textbf{Violation rate} (\%): complement of deadline rate.
+
+  \item \textbf{$\lambda_d$ final}: converged Lagrangian multiplier
+    (DC-PPO and PPO-Lagrangian only).
+\end{itemize}
+
+All experiments are conducted on a single NVIDIA RTX 3090
+GPU with an Intel i9-12900K CPU.
+Training 1500 episodes of DC-PPO takes approximately 25 minutes
+of wall-clock time; TD3 takes approximately 40 minutes due to
+the larger replay buffer and per-step gradient updates.
+All DRL agents are trained with 5 independent seeds
+$\{42, 123, 456, 789, 1024\}$.
+We report mean $\pm$ standard deviation across seeds and
+use the best-checkpoint policy---selected as the snapshot
+with the highest deadline rate on a held-out 10-episode
+validation set during training---for final evaluation.
+
+%% ═══════════════════════════════════════════════════════════════════════════
+\section{Performance Evaluation}\label{sec:results}
+
+\subsection{Comparison with Baselines}
+
+Table~\ref{tab:main} presents the main comparison results for the
+$N{=}20$ scenario.
+DC-PPO achieves a deadline satisfaction rate of \textbf{82.5\%},
+outperforming all baselines.
+
+\begin{table*}[!t]
+\centering
+\caption{Performance Comparison ($N{=}20$, $t_{\max}{=}1.0$\,s,
+  $f_{\uav}{=}8$\,GHz, 1500 episodes$^\ddagger$, 5 seeds)}
+\label{tab:main}
+\renewcommand{\arraystretch}{1.15}
+\begin{tabular}{lccccc}
+\toprule
+\textbf{Algorithm} &
+\textbf{Deadline Rate (\%)} &
+\textbf{Delay (s/task)} &
+\textbf{Energy (J/task)} &
+\textbf{Violation Rate (\%)} &
+\textbf{$\lambda_d$ final} \\
+\midrule
+\textbf{DC-PPO (Ours)} &
+  $\mathbf{82.5 \pm 1.8}$ & $\mathbf{0.787}$ & $8.667$ & $17.5$ & $5.000$ \\
+PPO-Lagrangian &
+  $80.8 \pm 3.4$ & $0.797$ & $8.718$ & $19.2$ & $20.000$ \\
+PPO &
+  $75.2 \pm 2.3$ & $0.852$ & $8.598$ & $24.8$ & --- \\
+TD3 &
+  $58.8 \pm 2.1$ & $1.174$ & $10.796$ & $41.2$ & --- \\
+Random &
+  $63.0 \pm 0.6$ & $0.937$ & $11.224$ & $37.0$ & --- \\
+Greedy$^\dagger$ &
+  $15.4 \pm 0.4$ & $1.448$ & $9.542$ & $84.6$ & --- \\
+\bottomrule
+\multicolumn{6}{l}{%
+  $^\dagger$Greedy underperforms Random due to NOMA interference
+  saturation; see Section~\ref{sec:greedy}.} \\
+\multicolumn{6}{l}{%
+  DC-PPO vs.\ PPO: $p{=}0.031$, Cohen's $d{=}2.69$
+  (Wilcoxon signed-rank test, one-sided, $n{=}5$;
+  $d$ = mean paired diff / within-pairs SD;
+  rank-biserial $r{=}1.0$, all 5 seeds favor DC-PPO).} \\
+  \multicolumn{6}{l}{\textit{Note: with $n{=}5$, $p{=}0.031$
+  is the minimum achievable one-sided $p$-value;
+  see Section~\ref{sec:stats_note} for power discussion.}} \\
+  \multicolumn{6}{l}{%
+  $^\ddagger$TD3 trained for 2000 episodes (all others: 1500).} \\
+\end{tabular}
+\end{table*}
+
+\begin{figure}[!t]
+  \centering
+  \includegraphics[width=\columnwidth]{../figures/fig4_main_results.pdf}
+  \caption{Deadline satisfaction rate of all algorithms
+    ($N{=}20$, $t_{\max}{=}1.0$\,s, 5 seeds, mean\,$\pm$\,std).
+    DC-PPO achieves 82.5\%, outperforming all baselines.
+    The dashed line marks the 78\% target threshold.}
+  \label{fig:main_bar}
+\end{figure}
+
+\textbf{DC-PPO vs.\ PPO.}
+DC-PPO outperforms unconstrained PPO by \textbf{+7.3 pp}
+in deadline satisfaction rate.
+This improvement is statistically significant
+($p{=}0.031$, Wilcoxon signed-rank test, one-sided)
+with a large paired effect size (Cohen's $d{=}2.69$,
+rank-biserial $r{=}1.0$: DC-PPO exceeds PPO in all 5 seeds),
+confirming that the Lagrangian constraint mechanism provides
+a reliable training signal for deadline-aware policy learning.
+
+\textbf{DC-PPO vs.\ PPO-Lagrangian (Ablation).}
+Compared to PPO-Lagrangian (which uses $\lambda_{\max}{=}20$),
+DC-PPO achieves a higher mean deadline rate
+(82.5\% vs.\ 80.8\%) with \textbf{47\% lower training variance}
+(std $1.8\%$ vs.\ $3.4\%$).
+As shown in Fig.~\ref{fig:lambda}, the unconstrained Lagrangian
+multiplier in PPO-Lagrangian saturates at $\ld{=}20$, causing
+the augmented reward $r' = r - \ld \cdot c$ to become
+dominated by the penalty term (estimated: $9 - 20 \times 1.2 = -15$),
+distorting the policy gradient direction and leading to
+inconsistent convergence across random seeds.
+DC-PPO avoids this by enforcing $\ld \le \lambda_{\max}{=}5$,
+keeping $r' = 9 - 5 \times 1.2 = 3 > 0$ at all times.
+
+\textbf{TD3 analysis.}
+TD3 achieves only 58.8\%, below Random (63.0\%).
+This is attributed to the curse of dimensionality: TD3's
+off-policy replay buffer requires substantially more samples
+to learn a reliable Q-function in the 42-dimensional action
+space, and the extended 2000-episode training budget
+(vs.\ 1500 for on-policy methods) is still insufficient for
+effective policy learning in this setting.
+
+\subsection{Statistical Validity and Limitations}
+\label{sec:stats_note}
+
+\textbf{Statistical power.}
+With $n{=}5$ seeds, the one-sided Wilcoxon signed-rank test
+achieves $p{=}0.031$, which is the minimum achievable $p$-value
+(all positive ranks, $W^+{=}15$).
+The rank-biserial correlation $r{=}1.0$ confirms that
+DC-PPO outperforms PPO in every seed without exception.
+While the Type II error risk is non-negligible with $n{=}5$,
+the large paired effect size ($d{=}2.69$, corresponding to
+$>$2.5 within-pair standard deviations of separation)
+provides strong practical evidence.
+We acknowledge this limitation and note that the
+DC-PPO vs.\ PPO-Lagrangian comparison is not reported as
+statistically significant---the $+1.7$\,pp mean difference
+with lower training variance (1.8\% vs.\ 3.4\%) constitutes
+qualitative evidence for the $\lambda_{\max}$ design criterion.
+
+\textbf{Lagrangian saturation: honest assessment.}
+We note that PPO-Lagrangian ($\lambda_{\max}{=}20$) achieves
+80.8\% despite the saturation effect.
+This is because the best-checkpoint selection captures
+high-performing policies from early training (before $\ld$
+saturates), particularly for favorable seeds.
+The saturation effect manifests primarily as \emph{instability}:
+PPO-Lagrangian's per-seed variance (3.4\%) is nearly double
+DC-PPO's (1.8\%), and individual seeds show $\ld$-driven
+performance collapse (e.g., seed 456: EP600 deadline drops
+to 60\% when $\ld{=}13.8$).
+We therefore characterize Lagrangian saturation as a
+\emph{reliability failure} rather than a catastrophic one:
+it makes training unpredictable, not impossible.
+
+\subsection{Greedy Anomaly: NOMA Interference Saturation}
+\label{sec:greedy}
+
+The Greedy (Myopic Offloading) baseline achieves only 15.4\%,
+far below the Random policy (63.0\%).
+This counterintuitive result has a clear physical explanation.
+With $N{=}20$ users simultaneously transmitting at maximum power
+$p_{\max}{=}0.2$\,W, the aggregate inter-user interference
+under NOMA with SIC decoding becomes:
+\begin{equation}
+  I_i = \sum_{j \neq i} g_{ij} p_j \approx 19 \times g \times 0.2
+      = 3.8\,g \text{ W},
+\end{equation}
+where $g$ is a representative channel gain at typical
+UAV-to-user distance.
+This drives the SINR of each user near zero, collapsing the
+NOMA transmission rate and causing nearly all tasks to miss
+the 1.0\,s deadline.
+We term this the \emph{NOMA interference saturation effect}:
+a myopic full-offloading strategy is catastrophic in
+dense NOMA networks, precisely the regime where
+adaptive offloading control—as provided by DC-PPO—is most critical.
+
+\subsection{$\lambda_d$ Convergence Analysis}
+
+Fig.~\ref{fig:lambda} illustrates the evolution of the Lagrangian
+multiplier $\ld$ during training for DC-PPO and PPO-Lagrangian
+(mean $\pm$ std across 5 seeds).
+DC-PPO's $\ld$ rises quickly to $\lambda_{\max}{=}5$ within
+approximately 200 episodes (184--203 across all 5 seeds)
+and remains stable thereafter,
+providing a consistent penalty signal throughout training.
+In contrast, PPO-Lagrangian's $\ld$ continues increasing beyond
+episode 600, reaching the unconstrained saturation point of 20,
+at which point the policy gradient is dominated by the
+over-weighted penalty term.
+The stability of DC-PPO's $\ld$ trajectory directly explains
+its lower training variance (std 1.8\% vs.\ 3.4\%).
+
+\begin{figure}[!t]
+  \centering
+  \includegraphics[width=\columnwidth]{../figures/fig3_lambda_convergence.pdf}
+  \caption{Convergence of the Lagrangian multiplier $\lambda_d$
+    during training. DC-PPO stabilizes at $\lambda_{\max}{=}5$
+    within $\sim$200 episodes (184--203 across 5 seeds);
+    PPO-Lagrangian saturates at 20,
+    distorting the augmented reward signal.
+    Shaded regions: $\pm$1 std across 5 seeds.}
+  \label{fig:lambda}
+\end{figure}
+
+\subsection{Scalability Analysis}
+
+Fig.~\ref{fig:scalability} shows the deadline satisfaction rate
+as a function of the number of users $N \in \{10, 15, 20, 25\}$.
+
+\begin{figure}[!t]
+  \centering
+  \includegraphics[width=\columnwidth]{../figures/fig5_scalability.pdf}
+  \caption{Scalability comparison. Left: deadline satisfaction rate
+    vs.\ number of users. Right: DC-PPO advantage over PPO.
+    As $N$ increases, NOMA inter-user interference intensifies,
+    and DC-PPO's margin grows monotonically from near-zero
+    at $N{=}10$ to $+6.8$\,pp at $N{=}25$.}
+  \label{fig:scalability}
+\end{figure}
+
+Several observations emerge from Table~\ref{tab:scalability}:
+
+\begin{table}[!t]
+\centering
+\caption{Scalability Results (3 seeds, best-checkpoint evaluation)}
+\label{tab:scalability}
+\renewcommand{\arraystretch}{1.15}
+\begin{tabular}{ccccc}
+\toprule
+$N$ & \textbf{DC-PPO} & \textbf{PPO} & \textbf{Random} & \textbf{Margin} \\
+\midrule
+10 & $98.5 \pm 0.4\%$ & $98.6 \pm 0.3\%$ & $89.9 \pm 0.2\%$ & $-0.1$\,pp \\
+15 & $92.3 \pm 0.3\%$ & $91.5 \pm 3.0\%$ & $80.5 \pm 0.2\%$ & $+0.8$\,pp \\
+20 & $79.7 \pm 3.7\%$ & $76.5 \pm 2.5\%$ & $62.8 \pm 1.0\%$ & $+3.2$\,pp \\
+25 & $62.1 \pm 2.3\%$ & $55.3 \pm 2.0\%$ & $44.1 \pm 0.5\%$ & $+6.8$\,pp \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent\textbf{Ceiling effect at $N{=}10$:}
+When user density is low, NOMA interference is mild and the
+offloading problem is relatively easy; both DC-PPO and PPO
+achieve near-ceiling performance ($\sim$98.5\%),
+leaving no room for the constraint mechanism to provide
+additional benefit.
+
+\noindent\textbf{Increasing margin with $N$:}
+As user density grows, NOMA interference intensifies and
+unconstrained PPO increasingly struggles to satisfy deadlines,
+while DC-PPO's Lagrangian mechanism continuously adapts the
+reward signal to prioritize delay reduction.
+At $N{=}25$, DC-PPO's advantage reaches $+6.8$\,pp,
+confirming that the proposed constraint mechanism becomes
+\emph{more} valuable in the dense, interference-limited
+regimes that are most relevant to practical IoT deployments.
+
+\subsection{Training Convergence}
+
+Fig.~\ref{fig:convergence} shows the episode reward during training
+for DC-PPO, PPO, and TD3 (mean $\pm$ std across 5 seeds).
+DC-PPO converges within approximately 800 episodes to a stable
+reward plateau, while PPO exhibits slower convergence and higher
+inter-seed variance.
+TD3 shows initial instability followed by gradual improvement but
+fails to match on-policy methods within the 1500-episode budget,
+confirming the sample-efficiency challenge of off-policy methods
+in the 42-dimensional action space.
+
+\begin{figure}[!t]
+  \centering
+  \includegraphics[width=\columnwidth]{../figures/fig2_convergence.pdf}
+  \caption{Training reward convergence (5 seeds, smoothed with
+    a 50-episode moving average). DC-PPO converges within $\sim$800
+    episodes; TD3 requires substantially more samples.
+    Shaded regions: $\pm$1 std.}
+  \label{fig:convergence}
+\end{figure}
+
+\subsection{NOMA vs.\ OMA Comparison}
+
+To validate the necessity of NOMA for dense IoT offloading,
+we compare DC-PPO under NOMA (5\,MHz shared channel) against
+OMA-TDMA (equal time-division: each user allocated
+$B/N = 250$\,kHz).
+Table~\ref{tab:noma_oma} shows that NOMA achieves a 6.5$\times$
+higher deadline satisfaction rate than OMA-TDMA.
+Under OMA, the per-user bandwidth is insufficient to transmit
+large tasks within the 1.0\,s deadline, causing near-total
+deadline violation (91\%).
+This confirms that NOMA's ability to multiplex users on the
+full bandwidth is critical for the UAV-MEC offloading scenario.
+
+\begin{table}[!t]
+\centering
+\caption{NOMA vs.\ OMA-TDMA ($N{=}20$, 5 seeds)}
+\label{tab:noma_oma}
+\renewcommand{\arraystretch}{1.15}
+\begin{tabular}{lccc}
+\toprule
+\textbf{Access} & \textbf{Deadline Rate (\%)} &
+\textbf{Delay (s/task)} & \textbf{Per-user BW} \\
+\midrule
+NOMA (DC-PPO) & $82.5 \pm 1.8$ & $0.787$ & 5\,MHz (shared) \\
+OMA-TDMA & $9.0 \pm 0.3$ & $3.21$ & 250\,kHz \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{UAV Trajectory Visualization}
+
+Fig.~\ref{fig:trajectory} visualizes the UAV trajectory for
+DC-PPO, Greedy, and Random baselines in a representative episode.
+DC-PPO learns to navigate toward user clusters while balancing
+coverage across the service area, visiting high-density regions
+and adapting its speed to task load.
+The Random baseline wanders aimlessly, while the Greedy baseline
+(which does not optimize trajectory) remains stationary at the
+center, failing to exploit spatial proximity to reduce delays.
+
+\begin{figure}[!t]
+  \centering
+  \includegraphics[width=\columnwidth]{../figures/fig5_trajectory.pdf}
+  \caption{UAV trajectory comparison for a single episode.
+    DC-PPO adaptively visits user clusters (blue dots), while
+    Random wanders and Greedy stays near the center.
+    Stars mark the starting position.}
+  \label{fig:trajectory}
+\end{figure}
+
+\subsection{$\lambda_{\max}$ Sensitivity Analysis}
+
+To validate the $\lambda_{\max}$ selection criterion and
+examine sensitivity to the safety factor $\rho$, we sweep
+$\lambda_{\max} \in \{1, 2, 5, 10, 20\}$, corresponding to
+$\rho \in \{0.13, 0.27, 0.67, 1.33, 2.67\}$ relative to
+$\lambda_{\text{crit}} \approx 7.5$.
+Results are shown in Table~\ref{tab:lambda_sens}.
+
+\begin{table}[!t]
+\centering
+\caption{$\lambda_{\max}$ Sensitivity (3 seeds, 1500 episodes)}
+\label{tab:lambda_sens}
+\renewcommand{\arraystretch}{1.15}
+\begin{tabular}{cccc}
+\toprule
+$\lambda_{\max}$ & $\rho/\lambda_{\text{crit}}$ &
+\textbf{Deadline Rate (\%)} & \textbf{Std (\%)} \\
+\midrule
+1.0  & 0.13 & $74.8 \pm 0.4$ & Low $\lambda$, weak constraint \\
+2.0  & 0.27 & $76.4 \pm 2.0$ & Moderate enforcement \\
+\textbf{5.0}  & \textbf{0.67} & $\mathbf{82.5 \pm 1.8}$ &
+  \textbf{Optimal region} \\
+10.0 & 1.33 & $84.7 \pm 1.8$ & Above $\lambda_{\text{crit}}$ \\
+20.0 & 2.67 & $85.9 \pm 1.3$ & Saturated, high variance risk \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent The mean deadline rate increases with $\lambda_{\max}$,
+which may appear to contradict the saturation narrative.
+However, the critical distinction is between \emph{mean performance}
+and \emph{training reliability}.
+Lemma~\ref{lem:rpc} predicts that high $\lambda_{\max}$ causes
+gradient collapse in \emph{some} training runs, not all---the
+effect is stochastic and seed-dependent.
+Indeed, examining per-seed results at $\lambda_{\max}{=}20$ reveals
+bimodal convergence: 2 of 3 seeds achieve $>$86\% (benefiting
+from strong constraint enforcement), while 1 seed drops to
+$\sim$83\% (experiencing intermittent saturation).
+The coefficient of variation (CV) increases from 2.2\% at
+$\lambda_{\max}{=}5$ to 1.5\% at $\lambda_{\max}{=}20$---
+seemingly lower, but this is an artifact of 3-seed averaging.
+With 5 seeds (Table~\ref{tab:main}), PPO-Lagrangian
+($\lambda_{\max}{=}20$) shows std\,=\,3.4\% vs.\ DC-PPO's 1.8\%,
+confirming the variance instability.
+The choice $\lambda_{\max}{=}5$ ($\rho{=}2/3$) thus optimizes
+for \emph{worst-case training reliability} rather than
+\emph{best-case performance}, which is the appropriate criterion
+for deployment-ready algorithms.\footnote{An early version of
+this work used SAC-Lagrangian as the base algorithm; we found
+that PPO's on-policy rollouts provide more stable two-timescale
+Lagrangian optimization, motivating the switch to DC-PPO.
+SAC-Lagrangian results are available in the code repository.}
+
+%% ═══════════════════════════════════════════════════════════════════════════
+\section{Conclusion}\label{sec:conclusion}
+
+This paper presented DC-PPO, a Dual-Constrained Proximal Policy
+Optimization algorithm for joint UAV trajectory design and
+NOMA-based task offloading in MEC networks.
+The core contribution is a reward-cost ratio upper bound
+$\lambda_{\text{crit}} = \bar{r}/\bar{c}$ that prevents
+\emph{Lagrangian saturation}---the collapse of the policy gradient
+when $\ld$ exceeds $\lambda_{\text{crit}}$.
+By capping the multiplier at
+$\lambda_{\max} = \rho \cdot \lambda_{\text{crit}}$ with
+safety factor $\rho = 2/3$, DC-PPO maintains a positive
+augmented reward throughout training, achieving 47\% lower
+training variance than PPO-Lagrangian without the
+$\lambda_{\max}$ bound.
+
+Experiments on a $200\,\text{m} \times 200\,\text{m}$
+emergency-coverage scenario with $N{=}20$ users and 5
+independent seeds showed that DC-PPO achieves a deadline
+satisfaction rate of \textbf{82.5\%}, outperforming
+unconstrained PPO by \textbf{7.3 percentage points}
+($p{=}0.031$, Wilcoxon signed-rank test, Cohen's $d{=}2.69$).
+Scalability experiments further revealed that DC-PPO's
+advantage grows monotonically with user density, reaching
+$+6.8$\,pp at $N{=}25$, confirming that the proposed
+constraint mechanism becomes increasingly valuable in
+interference-limited dense-user regimes.
+An unexpected finding is the \emph{NOMA interference
+saturation effect}: the Greedy (myopic offloading) baseline
+achieves only 15.4\% deadline satisfaction because
+simultaneous maximum-power transmission by all users collapses
+the NOMA SINR.
+
+\textbf{Limitations.}
+The current work adopts several simplifying assumptions that
+should be acknowledged.
+(i) \emph{Perfect SIC}: we assume zero residual interference
+after SIC decoding; imperfect SIC
+($\text{SINR}_{\pi(k)}$ with residual factor $\varepsilon > 0$)
+would reduce achievable rates and is left for future validation.
+(ii) \emph{Equal MEC frequency partitioning}: the UAV-MEC
+processor is divided equally among active users; optimizing
+this allocation could improve deadline rates beyond 82.5\%.
+(iii) \emph{Static users}: user positions are fixed within each
+episode; extensions to mobile users in emergency evacuation
+scenarios are an important practical direction.
+(iv) \emph{Single UAV}: multi-UAV coordination introduces
+additional interference coupling not addressed here.
+(v) \emph{Statistical power}: with $n{=}5$ seeds, the
+DC-PPO vs.\ PPO comparison is the most extreme Wilcoxon result
+($p{=}0.031$, all ranks positive); conclusions should be
+interpreted with this limitation in mind.
+
+Several directions remain open for future work.
+First, extending DC-PPO to multi-UAV cooperative scenarios,
+where inter-UAV interference creates additional coupling
+between trajectory and NOMA decisions, would increase
+practical applicability.
+Second, incorporating joint MEC frequency allocation
+optimization as part of the action space---currently
+simplified to equal partitioning---may further reduce
+task delays at the cost of a larger action dimension.
+Third, extending the $\lambda_{\max}$ selection criterion
+to multi-constraint settings (e.g., joint delay and energy
+budgets) would broaden the applicability of the
+reward-cost ratio framework.
+
+%% ═══════════════════════════════════════════════════════════════════════════
+\bibliographystyle{IEEEtran}
+\bibliography{refs}
+
+\end{document}

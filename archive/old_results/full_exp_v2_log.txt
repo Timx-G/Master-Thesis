@@ -1,0 +1,46 @@
+========================================================================
+  FULL EXPERIMENT v2: DC-PPO  N=20  PPO/DC-PPO=1500ep  TD3=2000ep  5 seeds
+========================================================================
+
+[1/6] Heuristics: Greedy + Random
+  greedy: deadline=15.4%±0.4%
+  random: deadline=63.0%±0.6%
+
+[2/6] PPO (unconstrained baseline)
+  seed=42
+    [PPO     seed=42 EP 100] deadline=78.7%
+    [PPO     seed=42 EP 200] deadline=64.2%
+    [PPO     seed=42 EP 300] deadline=66.3%
+    [PPO     seed=42 EP 400] deadline=65.6%
+    [PPO     seed=42 EP 500] deadline=74.7%
+    [PPO     seed=42 EP 600] deadline=61.8%
+    [PPO     seed=42 EP 700] deadline=83.9%
+    [PPO     seed=42 EP 800] deadline=75.4%
+    [PPO     seed=42 EP 900] deadline=71.3%
+    [PPO     seed=42 EP1000] deadline=67.1%
+    [PPO     seed=42 EP1100] deadline=65.2%
+Traceback (most recent call last):
+  File "/usr/lib/python3.10/runpy.py", line 196, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File "/usr/lib/python3.10/runpy.py", line 86, in _run_code
+    exec(code, run_globals)
+  File "/home/ggmx/my_workspace/my_project/V2X_MEC_Offloading_Thesis/uav_mec/full_experiment_dcppo.py", line 359, in <module>
+    run()
+  File "/home/ggmx/my_workspace/my_project/V2X_MEC_Offloading_Thesis/uav_mec/full_experiment_dcppo.py", line 247, in run
+    agent = train_ppo(seed)
+  File "/home/ggmx/my_workspace/my_project/V2X_MEC_Offloading_Thesis/uav_mec/full_experiment_dcppo.py", line 140, in train_ppo
+    agent.update()
+  File "/home/ggmx/my_workspace/my_project/V2X_MEC_Offloading_Thesis/uav_mec/agents/ppo.py", line 155, in update
+    dist = Normal(mu, std)
+  File "/home/ggmx/.local/lib/python3.10/site-packages/torch/distributions/normal.py", line 67, in __init__
+    super().__init__(batch_shape, validate_args=validate_args)
+  File "/home/ggmx/.local/lib/python3.10/site-packages/torch/distributions/distribution.py", line 78, in __init__
+    raise ValueError(
+ValueError: Expected parameter loc (Tensor of shape (64, 42)) of distribution Normal(loc: torch.Size([64, 42]), scale: torch.Size([64, 42])) to satisfy the constraint Real(), but found invalid values:
+tensor([[nan, nan, nan,  ..., nan, nan, nan],
+        [nan, nan, nan,  ..., nan, nan, nan],
+        [nan, nan, nan,  ..., nan, nan, nan],
+        ...,
+        [nan, nan, nan,  ..., nan, nan, nan],
+        [nan, nan, nan,  ..., nan, nan, nan],
+        [nan, nan, nan,  ..., nan, nan, nan]], grad_fn=<AddmmBackward0>)

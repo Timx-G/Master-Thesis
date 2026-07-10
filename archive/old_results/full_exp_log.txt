@@ -1,0 +1,282 @@
+========================================================================
+  FULL EXPERIMENT: DC-PPO  N=20  1000ep  5 seeds
+========================================================================
+
+[1/6] Heuristics: Greedy + Random
+  greedy: deadline=15.4%±0.4%
+  random: deadline=63.0%±0.6%
+
+[2/6] PPO (unconstrained baseline)
+  seed=42
+    [PPO     seed=42 EP 100] deadline=69.0%
+    [PPO     seed=42 EP 200] deadline=65.9%
+    [PPO     seed=42 EP 300] deadline=69.2%
+    [PPO     seed=42 EP 400] deadline=65.1%
+    [PPO     seed=42 EP 500] deadline=69.8%
+    [PPO     seed=42 EP 600] deadline=70.2%
+    [PPO     seed=42 EP 700] deadline=72.6%
+    [PPO     seed=42 EP 800] deadline=50.0%
+    [PPO     seed=42 EP 900] deadline=75.3%
+    [PPO     seed=42 EP1000] deadline=66.9%
+  → deadline=65.0%  [126s]
+  seed=123
+    [PPO     seed=123 EP 100] deadline=68.6%
+    [PPO     seed=123 EP 200] deadline=61.3%
+    [PPO     seed=123 EP 300] deadline=58.7%
+    [PPO     seed=123 EP 400] deadline=59.4%
+    [PPO     seed=123 EP 500] deadline=60.1%
+    [PPO     seed=123 EP 600] deadline=68.3%
+    [PPO     seed=123 EP 700] deadline=63.8%
+    [PPO     seed=123 EP 800] deadline=67.5%
+    [PPO     seed=123 EP 900] deadline=72.2%
+    [PPO     seed=123 EP1000] deadline=74.3%
+  → deadline=75.1%  [170s]
+  seed=456
+    [PPO     seed=456 EP 100] deadline=69.7%
+    [PPO     seed=456 EP 200] deadline=68.3%
+    [PPO     seed=456 EP 300] deadline=77.4%
+    [PPO     seed=456 EP 400] deadline=66.1%
+    [PPO     seed=456 EP 500] deadline=59.6%
+    [PPO     seed=456 EP 600] deadline=68.1%
+    [PPO     seed=456 EP 700] deadline=67.0%
+    [PPO     seed=456 EP 800] deadline=62.0%
+    [PPO     seed=456 EP 900] deadline=68.6%
+    [PPO     seed=456 EP1000] deadline=60.3%
+  → deadline=58.7%  [90s]
+  seed=789
+    [PPO     seed=789 EP 100] deadline=65.4%
+    [PPO     seed=789 EP 200] deadline=66.2%
+    [PPO     seed=789 EP 300] deadline=69.5%
+    [PPO     seed=789 EP 400] deadline=65.3%
+    [PPO     seed=789 EP 500] deadline=67.1%
+    [PPO     seed=789 EP 600] deadline=58.8%
+    [PPO     seed=789 EP 700] deadline=66.4%
+    [PPO     seed=789 EP 800] deadline=71.3%
+    [PPO     seed=789 EP 900] deadline=75.9%
+    [PPO     seed=789 EP1000] deadline=77.6%
+  → deadline=77.2%  [194s]
+  seed=1024
+    [PPO     seed=1024 EP 100] deadline=69.2%
+    [PPO     seed=1024 EP 200] deadline=71.7%
+    [PPO     seed=1024 EP 300] deadline=64.3%
+    [PPO     seed=1024 EP 400] deadline=66.0%
+    [PPO     seed=1024 EP 500] deadline=80.1%
+    [PPO     seed=1024 EP 600] deadline=74.7%
+    [PPO     seed=1024 EP 700] deadline=71.1%
+    [PPO     seed=1024 EP 800] deadline=69.1%
+    [PPO     seed=1024 EP 900] deadline=60.4%
+    [PPO     seed=1024 EP1000] deadline=69.3%
+  → deadline=67.0%  [83s]
+  PPO mean=68.6%
+
+[3/6] TD3 (off-policy baseline)
+  seed=42
+    [TD3     seed=42 EP 100] deadline=55.2%
+    [TD3     seed=42 EP 200] deadline=58.2%
+    [TD3     seed=42 EP 300] deadline=27.8%
+    [TD3     seed=42 EP 400] deadline=47.5%
+    [TD3     seed=42 EP 500] deadline=46.7%
+    [TD3     seed=42 EP 600] deadline=43.9%
+    [TD3     seed=42 EP 700] deadline=41.4%
+    [TD3     seed=42 EP 800] deadline=42.7%
+    [TD3     seed=42 EP 900] deadline=47.7%
+    [TD3     seed=42 EP1000] deadline=47.8%
+  → deadline=45.5%  [489s]
+  seed=123
+    [TD3     seed=123 EP 100] deadline=58.9%
+    [TD3     seed=123 EP 200] deadline=54.7%
+    [TD3     seed=123 EP 300] deadline=25.7%
+    [TD3     seed=123 EP 400] deadline=45.3%
+    [TD3     seed=123 EP 500] deadline=48.6%
+    [TD3     seed=123 EP 600] deadline=48.6%
+    [TD3     seed=123 EP 700] deadline=50.1%
+    [TD3     seed=123 EP 800] deadline=54.1%
+    [TD3     seed=123 EP 900] deadline=41.4%
+    [TD3     seed=123 EP1000] deadline=43.0%
+  → deadline=42.6%  [526s]
+  seed=456
+    [TD3     seed=456 EP 100] deadline=61.1%
+    [TD3     seed=456 EP 200] deadline=60.7%
+    [TD3     seed=456 EP 300] deadline=62.7%
+    [TD3     seed=456 EP 400] deadline=44.7%
+    [TD3     seed=456 EP 500] deadline=43.4%
+    [TD3     seed=456 EP 600] deadline=41.5%
+    [TD3     seed=456 EP 700] deadline=31.3%
+    [TD3     seed=456 EP 800] deadline=42.2%
+    [TD3     seed=456 EP 900] deadline=43.3%
+    [TD3     seed=456 EP1000] deadline=48.2%
+  → deadline=47.1%  [489s]
+  seed=789
+    [TD3     seed=789 EP 100] deadline=53.5%
+    [TD3     seed=789 EP 200] deadline=52.1%
+    [TD3     seed=789 EP 300] deadline=53.3%
+    [TD3     seed=789 EP 400] deadline=48.3%
+    [TD3     seed=789 EP 500] deadline=49.5%
+    [TD3     seed=789 EP 600] deadline=43.1%
+    [TD3     seed=789 EP 700] deadline=42.3%
+    [TD3     seed=789 EP 800] deadline=44.4%
+    [TD3     seed=789 EP 900] deadline=37.5%
+    [TD3     seed=789 EP1000] deadline=53.6%
+  → deadline=54.5%  [474s]
+  seed=1024
+    [TD3     seed=1024 EP 100] deadline=55.5%
+    [TD3     seed=1024 EP 200] deadline=47.7%
+    [TD3     seed=1024 EP 300] deadline=36.0%
+    [TD3     seed=1024 EP 400] deadline=41.3%
+    [TD3     seed=1024 EP 500] deadline=37.8%
+    [TD3     seed=1024 EP 600] deadline=50.7%
+    [TD3     seed=1024 EP 700] deadline=56.2%
+    [TD3     seed=1024 EP 800] deadline=50.4%
+    [TD3     seed=1024 EP 900] deadline=48.6%
+    [TD3     seed=1024 EP1000] deadline=47.9%
+  → deadline=48.4%  [570s]
+  TD3 mean=47.6%
+
+[4/6] PPO-Lagrangian (ablation: lambda_max=20)
+  seed=42
+    [PPO-Lag seed=42 EP 100] deadline=72.7%  λd=2.743
+    [PPO-Lag seed=42 EP 200] deadline=74.5%  λd=5.136
+    [PPO-Lag seed=42 EP 300] deadline=80.2%  λd=6.979
+    [PPO-Lag seed=42 EP 400] deadline=74.1%  λd=9.074
+    [PPO-Lag seed=42 EP 500] deadline=63.7%  λd=11.728
+    [PPO-Lag seed=42 EP 600] deadline=74.8%  λd=14.199
+    [PPO-Lag seed=42 EP 700] deadline=79.9%  λd=16.196
+    [PPO-Lag seed=42 EP 800] deadline=78.8%  λd=17.765
+    [PPO-Lag seed=42 EP 900] deadline=82.4%  λd=19.174
+    [PPO-Lag seed=42 EP1000] deadline=79.0%  λd=20.000
+  → deadline=78.0%  λd=20.000  [87s]
+  seed=123
+    [PPO-Lag seed=123 EP 100] deadline=67.6%  λd=2.750
+    [PPO-Lag seed=123 EP 200] deadline=82.8%  λd=5.229
+    [PPO-Lag seed=123 EP 300] deadline=81.9%  λd=7.208
+    [PPO-Lag seed=123 EP 400] deadline=77.4%  λd=9.188
+    [PPO-Lag seed=123 EP 500] deadline=76.6%  λd=11.432
+    [PPO-Lag seed=123 EP 600] deadline=66.2%  λd=14.024
+    [PPO-Lag seed=123 EP 700] deadline=61.0%  λd=17.120
+    [PPO-Lag seed=123 EP 800] deadline=75.8%  λd=19.674
+    [PPO-Lag seed=123 EP 900] deadline=74.5%  λd=20.000
+    [PPO-Lag seed=123 EP1000] deadline=78.2%  λd=20.000
+  → deadline=78.4%  λd=20.000  [84s]
+  seed=456
+    [PPO-Lag seed=456 EP 100] deadline=74.3%  λd=2.656
+    [PPO-Lag seed=456 EP 200] deadline=73.6%  λd=5.125
+    [PPO-Lag seed=456 EP 300] deadline=78.6%  λd=7.105
+    [PPO-Lag seed=456 EP 400] deadline=70.1%  λd=9.239
+    [PPO-Lag seed=456 EP 500] deadline=67.4%  λd=12.049
+    [PPO-Lag seed=456 EP 600] deadline=77.9%  λd=14.572
+    [PPO-Lag seed=456 EP 700] deadline=79.7%  λd=16.737
+    [PPO-Lag seed=456 EP 800] deadline=75.7%  λd=18.488
+    [PPO-Lag seed=456 EP 900] deadline=74.2%  λd=19.993
+    [PPO-Lag seed=456 EP1000] deadline=73.2%  λd=20.000
+  → deadline=73.5%  λd=20.000  [85s]
+  seed=789
+    [PPO-Lag seed=789 EP 100] deadline=72.2%  λd=2.638
+    [PPO-Lag seed=789 EP 200] deadline=85.5%  λd=4.807
+    [PPO-Lag seed=789 EP 300] deadline=78.6%  λd=6.886
+    [PPO-Lag seed=789 EP 400] deadline=75.9%  λd=8.974
+    [PPO-Lag seed=789 EP 500] deadline=68.6%  λd=11.467
+    [PPO-Lag seed=789 EP 600] deadline=73.4%  λd=14.093
+    [PPO-Lag seed=789 EP 700] deadline=56.1%  λd=17.507
+    [PPO-Lag seed=789 EP 800] deadline=55.6%  λd=20.000
+    [PPO-Lag seed=789 EP 900] deadline=73.4%  λd=20.000
+    [PPO-Lag seed=789 EP1000] deadline=66.1%  λd=20.000
+  → deadline=66.7%  λd=20.000  [85s]
+  seed=1024
+    [PPO-Lag seed=1024 EP 100] deadline=70.1%  λd=2.723
+    [PPO-Lag seed=1024 EP 200] deadline=73.8%  λd=5.026
+    [PPO-Lag seed=1024 EP 300] deadline=74.6%  λd=6.913
+    [PPO-Lag seed=1024 EP 400] deadline=74.9%  λd=9.234
+    [PPO-Lag seed=1024 EP 500] deadline=70.2%  λd=11.731
+    [PPO-Lag seed=1024 EP 600] deadline=74.3%  λd=14.591
+    [PPO-Lag seed=1024 EP 700] deadline=74.7%  λd=16.966
+    [PPO-Lag seed=1024 EP 800] deadline=83.5%  λd=18.514
+    [PPO-Lag seed=1024 EP 900] deadline=78.6%  λd=19.906
+    [PPO-Lag seed=1024 EP1000] deadline=76.2%  λd=20.000
+  → deadline=74.3%  λd=20.000  [97s]
+  PPO-Lagrangian mean=74.2%
+
+[5/6] DC-PPO (Ours: lambda_max=5)
+  seed=42
+    [DC-PPO seed=42 EP 100] deadline=73.1%  λd=2.646
+    [DC-PPO seed=42 EP 200] deadline=76.5%  λd=4.817
+    [DC-PPO seed=42 EP 300] deadline=75.1%  λd=5.000
+    [DC-PPO seed=42 EP 400] deadline=85.0%  λd=5.000
+    [DC-PPO seed=42 EP 500] deadline=86.0%  λd=5.000
+    [DC-PPO seed=42 EP 600] deadline=79.9%  λd=5.000
+    [DC-PPO seed=42 EP 700] deadline=79.5%  λd=5.000
+    [DC-PPO seed=42 EP 800] deadline=77.9%  λd=5.000
+    [DC-PPO seed=42 EP 900] deadline=85.4%  λd=5.000
+    [DC-PPO seed=42 EP1000] deadline=82.8%  λd=5.000
+  → deadline=82.4%  λd=5.000  [83s]
+  seed=123
+    [DC-PPO seed=123 EP 100] deadline=76.7%  λd=2.595
+    [DC-PPO seed=123 EP 200] deadline=79.2%  λd=4.802
+    [DC-PPO seed=123 EP 300] deadline=72.7%  λd=5.000
+    [DC-PPO seed=123 EP 400] deadline=79.9%  λd=5.000
+    [DC-PPO seed=123 EP 500] deadline=80.4%  λd=5.000
+    [DC-PPO seed=123 EP 600] deadline=79.0%  λd=5.000
+    [DC-PPO seed=123 EP 700] deadline=74.2%  λd=5.000
+    [DC-PPO seed=123 EP 800] deadline=79.8%  λd=5.000
+    [DC-PPO seed=123 EP 900] deadline=79.0%  λd=5.000
+    [DC-PPO seed=123 EP1000] deadline=81.4%  λd=5.000
+  → deadline=82.7%  λd=5.000  [84s]
+  seed=456
+    [DC-PPO seed=456 EP 100] deadline=69.2%  λd=2.551
+    [DC-PPO seed=456 EP 200] deadline=76.9%  λd=4.869
+    [DC-PPO seed=456 EP 300] deadline=84.1%  λd=5.000
+    [DC-PPO seed=456 EP 400] deadline=84.3%  λd=5.000
+    [DC-PPO seed=456 EP 500] deadline=81.0%  λd=5.000
+    [DC-PPO seed=456 EP 600] deadline=77.3%  λd=5.000
+    [DC-PPO seed=456 EP 700] deadline=82.2%  λd=5.000
+    [DC-PPO seed=456 EP 800] deadline=74.6%  λd=5.000
+    [DC-PPO seed=456 EP 900] deadline=77.4%  λd=5.000
+    [DC-PPO seed=456 EP1000] deadline=76.3%  λd=5.000
+  → deadline=79.3%  λd=5.000  [202s]
+  seed=789
+    [DC-PPO seed=789 EP 100] deadline=66.5%  λd=2.715
+    [DC-PPO seed=789 EP 200] deadline=69.9%  λd=5.000
+    [DC-PPO seed=789 EP 300] deadline=73.3%  λd=5.000
+    [DC-PPO seed=789 EP 400] deadline=79.8%  λd=5.000
+    [DC-PPO seed=789 EP 500] deadline=78.5%  λd=5.000
+    [DC-PPO seed=789 EP 600] deadline=74.4%  λd=5.000
+    [DC-PPO seed=789 EP 700] deadline=80.5%  λd=5.000
+    [DC-PPO seed=789 EP 800] deadline=76.7%  λd=5.000
+    [DC-PPO seed=789 EP 900] deadline=83.8%  λd=5.000
+    [DC-PPO seed=789 EP1000] deadline=75.2%  λd=5.000
+  → deadline=77.0%  λd=5.000  [84s]
+  seed=1024
+    [DC-PPO seed=1024 EP 100] deadline=71.2%  λd=2.698
+    [DC-PPO seed=1024 EP 200] deadline=68.8%  λd=5.000
+    [DC-PPO seed=1024 EP 300] deadline=69.0%  λd=5.000
+    [DC-PPO seed=1024 EP 400] deadline=76.3%  λd=5.000
+    [DC-PPO seed=1024 EP 500] deadline=67.3%  λd=5.000
+    [DC-PPO seed=1024 EP 600] deadline=71.8%  λd=5.000
+    [DC-PPO seed=1024 EP 700] deadline=76.3%  λd=5.000
+    [DC-PPO seed=1024 EP 800] deadline=79.3%  λd=5.000
+    [DC-PPO seed=1024 EP 900] deadline=67.6%  λd=5.000
+    [DC-PPO seed=1024 EP1000] deadline=77.8%  λd=5.000
+  → deadline=76.4%  λd=5.000  [87s]
+  DC-PPO mean=79.6%±2.6%
+
+[6/6] Saving results
+  CSV: /home/ggmx/my_workspace/my_project/V2X_MEC_Offloading_Thesis/results/exp1_dcppo_baseline.csv
+  Lambda trajectories: /home/ggmx/my_workspace/my_project/V2X_MEC_Offloading_Thesis/results/lambda_trajectories.json
+
+========================================================================
+  TABLE: N=20, t_max=1.0s, f_uav=8GHz, 1000ep, 5 seeds
+========================================================================
+  Algorithm             Deadline%   Avg Delay    λd_final
+  ----------------------------------------------------------
+  DC-PPO               79.6± 2.6%    819.015s      5.000 ◀ OURS
+  PPO-Lagrangian       74.2± 4.2%    813.064s     20.000
+  PPO                  68.6± 6.8%    898.313s      0.000
+  TD3                  47.6± 4.0%   2701.237s      0.000
+  greedy               15.4± 0.4%   1449.753s      0.000
+  random               63.0± 0.6%    937.879s      0.000
+
+  DC-PPO vs PPO margin: +11.0pp
+  G1(DC-PPO≥78%): PASS ✅  (79.6%)
+  G3(margin≥5pp): PASS ✅  (11.0pp)
+
+  Total time: 70.1 min
+========================================================================

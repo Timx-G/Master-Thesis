@@ -1,0 +1,159 @@
+ ---                                                             
+  Round 2：理论与算法形式化                                                                                                                                                                                     
+                                                                                                                                                                                                                
+  You are a theoretical computer science / optimization paper editor.
+                                                                                                                                                                                                                
+  TARGET FILE: <MAIN_TEX_PATH>                                                                                                                                                                                  
+    (Use the Round 1 revised version as input.)                                                                                                                                                                 
+  ROUND: 2 of 3 — Algorithm formalization and theory tightening ONLY.                                                                                                                                           
+                                                                                                                                                                                                                
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━                                                                                                                                                                    
+  STEP 0 — DIAGNOSE BEFORE EDITING (mandatory)                                                                                                                                                                  
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━                                                                                                                                                                    
+  Before any changes, read the algorithm and theory sections and                                                                                                                                                
+  produce:                                                                                                                                                                                                      
+                                                                                                                                                                                                                
+  (1) Current formal weaknesses in Section IV and the                                                                                                                                                           
+      proposition/lemma/remark environment.                       
+  (2) Which tasks below are safe to execute as written.                                                                                                                                                         
+  (3) Which tasks require downgrading (see Task T4 rules).                                                                                                                                                      
+  (4) Any notation inconsistency with existing manuscript symbols.                                                                                                                                              
+                                                                                                                                                                                                                
+  Present this diagnosis BEFORE any edits.                                                                                                                                                                      
+                                                                                                                                                                                                                
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━                                                                                                                                                                    
+  STRICT SCOPE — THIS ROUND ONLY TOUCHES
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━                                                                                                                                                                    
+  ✅ Section IV algorithm framing: neighborhood formalization                                                                                                                                                   
+  ✅ Proposition 2 (convergence): notation update only                                                                                                                                                          
+  ✅ Complexity paragraph: two-layer presentation                                                                                                                                                               
+  ✅ Lemma 1 + Remark 2: consistency check and minor polish                                                                                                                                                     
+  ✅ Conditional: Task T4 (see decision tree)                                                                                                                                                                   
+                                                                                                                                                                                                                
+  🚫 DO NOT touch: Abstract, Introduction, Related Work,                                                                                                                                                        
+     Conclusion, Experiments, any existing proposition conclusion,                                                                                                                                              
+     any system model equation.                                                                                                                                                                                 
+  🚫 DO NOT add new numerical claims.                                                                                                                                                                           
+  🚫 DO NOT change any existing theorem/lemma result.                                                                                                                                                           
+                                                                                                                                                                                                                
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━                                                                                                                                                                    
+  ANTI-FABRICATION RULE FOR FORMAL STATEMENTS                                                                                                                                                                   
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━                                                                                                                                                                    
+  Before writing any formal statement, ask at each step:                                                                                                                                                        
+  "Can I verify this is fully consistent with the model,                                                                                                                                                        
+  notation, and assumptions in this manuscript?"                                                                                                                                                                
+                                                                                                                                                                                                                
+  Downgrade order (stop at first safe level):                                                                                                                                                                   
+    Proposition + rigorous proof                                                                                                                                                                                
+    → Lemma + proof sketch ("full proof in Appendix")                                                                                                                                                           
+    → \begin{remark}[Structural observation]\end{remark}                                                                                                                                                        
+    → Illustrative 4-user example in prose only                                                                                                                                                                 
+    → \begin{remark}[Geometric mechanism]\end{remark} + [TODO]                                                                                                                                                  
+                                                                                                                                                                                                                
+  Never write a proof that looks formally complete but has gaps.                                                                                                                                                
+                                                                                                                                                                                                                
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━                                                                                                                                                                    
+  TASK T1 — Formal neighborhood definition                        
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━                                                                                                                                                                    
+  Before the three swap descriptions in Stage 2, insert:                                                                                                                                                        
+                                                                                                                                                                                                                
+  \paragraph{Neighborhood definition.}                                                                                                                                                                          
+  We define the search neighborhood of pairing $\boldsymbol{\pi}$ as:                                                                                                                                           
+  $$\mathcal{N}(\boldsymbol{\pi}) \;\triangleq\;                                                                                                                                                                
+    \mathcal{N}_{\mathrm{repl}}(\boldsymbol{\pi}) \cup                                                                                                                                                          
+    \mathcal{N}_{\mathrm{pos}}(\boldsymbol{\pi})  \cup                                                                                                                                                          
+    \mathcal{N}_{\mathrm{cross}}(\boldsymbol{\pi})$$                                                                                                                                                            
+  where each subset contains pairings reachable via Swap~1, Swap~2,                                                                                                                                             
+  and Swap~3 respectively. The algorithm performs first-improvement                                                                                                                                             
+  local search: find the first $\boldsymbol{\pi}' \in                                                                                                                                                           
+  \mathcal{N}(\boldsymbol{\pi})$ with $f(\boldsymbol{\pi}') >                                                                                                                                                   
+  f(\boldsymbol{\pi})$ and move to $\boldsymbol{\pi}'$.                                                                                                                                                         
+  Termination: $f(\boldsymbol{\pi}) \geq f(\boldsymbol{\pi}')$                                                                                                                                                  
+  for all $\boldsymbol{\pi}' \in \mathcal{N}(\boldsymbol{\pi})$.                                                                                                                                                
+                                                                                                                                                                                                                
+  Verify all symbols match the existing Table of Notation exactly.                                                                                                                                              
+                                                                                                                                                                                                                
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━                                                                                                                                                                    
+  TASK T2 — Update Proposition 2 notation                         
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━                                                                                                                                                                    
+  Update proposition statement to use $\mathcal{N}(\boldsymbol{\pi})$.                                                                                                                                          
+  The existing proof is correct — update notation only, do not                                                                                                                                                  
+  alter the proof logic.                                                                                                                                                                                        
+                                                                                                                                                                                                                
+  \begin{proposition}[Finite Convergence to $\mathcal{N}$-Local Optimum]                                                                                                                                        
+  The first-improvement swap procedure terminates at an                                                                                                                                                         
+  $\mathcal{N}(\boldsymbol{\pi})$-local optimum in at most                                                                                                                                                      
+  $|\mathcal{A}|$ accepted moves.                                                                                                                                                                               
+  \end{proposition}                                                                                                                                                                                             
+                                                                                                                                                                                                                
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━                                                                                                                                                                    
+  TASK T3 — Complexity: two-layer presentation                    
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━                                                                                                                                                                    
+  Replace the current complexity paragraph with:                                                                                                                                                                
+                                                                                                                                                                                                                
+  Layer 1 — Formal asymptotic:                                                                                                                                                                                  
+    Stage 1: $O(\sum_k \binom{M_k}{2}) = O(N^2/K^2)$ pair                                                                                                                                                       
+    enumeration; bounded-size MILP (tractable for small $M_k$;                                                                                                                                                  
+    not claimed polynomial-time in general).                                                                                                                                                                    
+    Stage 2: $O(T \cdot |\mathcal{N}(\boldsymbol{\pi})| \cdot KS)$                                                                                                                                              
+    total, $T \leq |\mathcal{A}|$ (Proposition~2).                                                                                                                                                              
+    Stage 3: $O(N)$.                                                                                                                                                                                            
+    Dominant: $O(N^2)$ from Stage~1 for large $N$.                                                                                                                                                              
+                                                                                                                                                                                                                
+  Layer 2 — Practical runtime for fixed $K$, $S$:                                                                                                                                                               
+    For fixed $K$ and $S$, Stage~2 evaluates $O(K^3S^3)$ candidates                                                                                                                                             
+    per iteration — a constant independent of $N$. Runtime growth                                                                                                                                               
+    is dominated by Stage~1 pair enumeration.                                                                                                                                                                   
+    (Write: "for fixed K and S, Stage~2 cost is bounded by a                                                                                                                                                    
+    constant factor independent of large N."                                                                                                                                                                    
+    Do NOT write "Stage 2 is constant-time" as an absolute claim.)                                                                                                                                              
+                                                                                                                                                                                                                
+    If measured runtimes (e.g., 7/14/27/59 ms for N=10/20/30/50)                                                                                                                                                
+    already exist in the manuscript or verified logs, preserve them                                                                                                                                             
+    and ensure the asymptotic discussion is consistent with them.                                                                                                                                               
+    Do not introduce or restate runtime numbers that cannot be                                                                                                                                                  
+    verified from the current manuscript or logs.                                                                                                                                                               
+                                                                                                                                                                                                                
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━                                                                                                                                                                    
+  TASK T4 — Structural proposition on bilateral failure (CONDITIONAL)                                                                                                                                           
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━                                                                                                                                                                    
+  Follow this decision tree exactly. Do not skip levels.                                                                                                                                                        
+                                                                                                                                                                                                                
+  LEVEL 0: Check existing Remark (~lines 123–129).                                                                                                                                                              
+    If already clearly states the geometric mechanism → output:                                                                                                                                                 
+    [DONE: existing remark is sufficient; no new addition.]                                                                                                                                                     
+                                                                                                                                                                                                                
+  LEVEL 1: Attempt formal proposition.                                                                                                                                                                          
+    Construct K=2, S=1, 4-user instance using ONLY equations                                                                                                                                                    
+    already in the paper. Verify every inequality step.                                                                                                                                                         
+    If ALL steps are rigorous → write Proposition + Appendix.                                                                                                                                                   
+    If ANY step is uncertain → drop to LEVEL 2.                                                                                                                                                                 
+                                                                                                                                                                                                                
+  LEVEL 2: Illustrative example (no formal theorem label).                                                                                                                                                      
+    Write 2-paragraph prose counterexample with explicit                                                                                                                                                        
+    channel values and deadline comparisons.                                                                                                                                                                    
+    \begin{remark}[Illustrative bilateral failure instance]                                                                                                                                                     
+      ... A formal proof for the general case is deferred.                                                                                                                                                      
+    \end{remark}                                                                                                                                                                                                
+                                                                                                                                                                                                                
+  LEVEL 3: Remark only.                                                                                                                                                                                         
+    If LEVEL 2 is also uncertain: structural observation remark                                                                                                                                                 
+    citing Hamidouche2017 and the empirical 0/660 result only.                                                                                                                                                  
+                                                                                                                                                                                                                
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━                                                                                                                                                                    
+  OUTPUT FORMAT                                                                                                                                                                                                 
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━                                                                                                                                                                    
+  PART A — Theory diagnosis                                                                                                                                                                                     
+    Weaknesses found; which tasks are safe; notation issues.                                                                                                                                                    
+                                                                                                                                                                                                                
+  PART B — Revised algorithm/theory text                                                                                                                                                                        
+    Revised LaTeX for affected portions of Section IV and                                                                                                                                                       
+    proposition/remark environments.                                                                                                                                                                            
+                                                                  
+  PART C — Theory audit                                                                                                                                                                                         
+    For each T-task: what was done or why it was downgraded.      
+    For T4: which level was reached and why.                                                                                                                                                                    
+                                                                                                                                                                                                                
+  PART D — Deferred and flagged items                                                                                                                                                                           
+    All [FLAG] or [TODO] markers with reasons.                                                                                                                                                                  
+                                                              

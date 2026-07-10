@@ -1,0 +1,36 @@
+======================================================================
+  EXP1: Baseline Comparison (9 algorithms, 5 seeds)
+======================================================================
+
+--- Seed 42 ---
+  local          : R=416.7  delay=446.7  energy=8447  viol=404.5
+  full_offload   : R=416.7  delay=333.3  energy=8042  viol=333.7
+  random         : R=388.9  delay=264.8  energy=11007  viol=222.5
+  greedy         : R=397.3  delay=209.2  energy=9971  viol=150.7
+  round_robin    : R=416.7  delay=362.5  energy=8357  viol=323.7
+  [DQN EP    1] R=415.8  delay=433.9  viol=394.0
+  [DQN EP 1000] R=420.1  delay=283.3  viol=270.0
+  DQN            : R=410.4  delay=269.6  energy=8676  viol=254.0
+  [PPO EP    1] R=425.8  delay=228.9  viol=191.8
+  [PPO EP 1000] R=426.0  delay=230.4  viol=189.4
+  PPO            : R=416.3  delay=221.1  energy=8255  viol=176.8
+  [TD3 EP    1] R=424.6  delay=230.2  viol=183.2
+  [TD3 EP 1000] R=415.8  delay=1385.8  viol=324.8
+  TD3            : R=405.6  delay=1421.1  energy=9323  viol=314.7
+  [EP    1] R=424.4  delay=238.4  energy=8435  viol=204.4  λe=0.000 λd=0.100 α=0.200
+  [EP 1000] R=400.5  delay=309.5  energy=10759  viol=209.6  λe=0.000 λd=31.746 α=0.500
+  SAC-Lagrangian : R=414.9  delay=233.1  energy=8408  viol=197.3
+
+--- Seed 123 ---
+  local          : R=416.3  delay=445.7  energy=8446  viol=406.6
+  full_offload   : R=416.3  delay=331.8  energy=8042  viol=326.8
+  random         : R=388.7  delay=263.8  energy=10991  viol=222.1
+  greedy         : R=397.1  delay=206.0  energy=9957  viol=147.3
+  round_robin    : R=416.3  delay=362.9  energy=8357  viol=324.9
+  [DQN EP    1] R=423.9  delay=233.8  viol=200.4
+  [DQN EP 1000] R=401.1  delay=324.8  viol=300.8
+  DQN            : R=392.8  delay=304.9  energy=10552  viol=281.1
+  [PPO EP    1] R=425.9  delay=236.3  viol=202.8
+  [PPO EP 1000] R=425.1  delay=232.3  viol=191.8
+  PPO            : R=415.0  delay=224.1  energy=8353  viol=181.0
+  [TD3 EP    1] R=424.5  delay=234.2  viol=188.6

@@ -1,0 +1,118 @@
+============================================================
+  DC-PPO ONLY  N=20  1500ep  5 seeds
+============================================================
+
+  seed=42
+    [DC-PPO seed=42 EP 100] deadline=64.7%  λd=2.731
+    [DC-PPO seed=42 EP 200] deadline=69.7%  λd=5.000
+    [DC-PPO seed=42 EP 300] deadline=72.9%  λd=5.000
+    [DC-PPO seed=42 EP 400] deadline=76.5%  λd=5.000
+    [DC-PPO seed=42 EP 500] deadline=74.5%  λd=5.000
+    [DC-PPO seed=42 EP 600] deadline=72.4%  λd=5.000
+    [DC-PPO seed=42 EP 700] deadline=73.7%  λd=5.000
+    [DC-PPO seed=42 EP 800] deadline=70.7%  λd=5.000
+    [DC-PPO seed=42 EP 900] deadline=74.0%  λd=5.000
+    [DC-PPO seed=42 EP1000] deadline=64.8%  λd=5.000
+    [DC-PPO seed=42 EP1100] deadline=75.1%  λd=5.000
+    [DC-PPO seed=42 EP1200] deadline=74.7%  λd=5.000
+    [DC-PPO seed=42 EP1300] deadline=75.2%  λd=5.000
+    [DC-PPO seed=42 EP1400] deadline=71.6%  λd=5.000
+    [DC-PPO seed=42 EP1500] deadline=73.2%  λd=5.000
+    [DC-PPO seed=42] Restored best checkpoint: 76.5%
+  → deadline=77.2%  λd=5.000  [131s]
+
+  seed=123
+    [DC-PPO seed=123 EP 100] deadline=73.7%  λd=2.713
+    [DC-PPO seed=123 EP 200] deadline=64.5%  λd=5.000
+    [DC-PPO seed=123 EP 300] deadline=71.9%  λd=5.000
+    [DC-PPO seed=123 EP 400] deadline=71.5%  λd=5.000
+    [DC-PPO seed=123 EP 500] deadline=77.8%  λd=5.000
+    [DC-PPO seed=123 EP 600] deadline=72.6%  λd=5.000
+    [DC-PPO seed=123 EP 700] deadline=68.2%  λd=5.000
+    [DC-PPO seed=123 EP 800] deadline=75.8%  λd=5.000
+    [DC-PPO seed=123 EP 900] deadline=74.9%  λd=5.000
+    [DC-PPO seed=123 EP1000] deadline=69.5%  λd=5.000
+    [DC-PPO seed=123 EP1100] deadline=77.0%  λd=5.000
+    [DC-PPO seed=123 EP1200] deadline=70.8%  λd=5.000
+    [DC-PPO seed=123 EP1300] deadline=60.2%  λd=5.000
+    [DC-PPO seed=123 EP1400] deadline=66.0%  λd=5.000
+    [DC-PPO seed=123 EP1500] deadline=62.7%  λd=5.000
+    [DC-PPO seed=123] Restored best checkpoint: 77.8%
+  → deadline=78.5%  λd=5.000  [265s]
+
+  seed=456
+    [DC-PPO seed=456 EP 100] deadline=70.0%  λd=2.646
+    [DC-PPO seed=456 EP 200] deadline=76.2%  λd=4.989
+    [DC-PPO seed=456 EP 300] deadline=75.1%  λd=5.000
+    [DC-PPO seed=456 EP 400] deadline=79.6%  λd=5.000
+    [DC-PPO seed=456 EP 500] deadline=76.2%  λd=5.000
+    [DC-PPO seed=456 EP 600] deadline=73.5%  λd=5.000
+    [DC-PPO seed=456 EP 700] deadline=68.2%  λd=5.000
+    [DC-PPO seed=456 EP 800] deadline=67.3%  λd=5.000
+    [DC-PPO seed=456 EP 900] deadline=77.2%  λd=5.000
+    [DC-PPO seed=456 EP1000] deadline=70.2%  λd=5.000
+    [DC-PPO seed=456 EP1100] deadline=68.7%  λd=5.000
+    [DC-PPO seed=456 EP1200] deadline=70.3%  λd=5.000
+    [DC-PPO seed=456 EP1300] deadline=70.3%  λd=5.000
+    [DC-PPO seed=456 EP1400] deadline=70.5%  λd=5.000
+    [DC-PPO seed=456 EP1500] deadline=70.4%  λd=5.000
+    [DC-PPO seed=456] Restored best checkpoint: 79.6%
+  → deadline=80.4%  λd=5.000  [396s]
+
+  seed=789
+    [DC-PPO seed=789 EP 100] deadline=71.2%  λd=2.813
+    [DC-PPO seed=789 EP 200] deadline=77.0%  λd=5.000
+    [DC-PPO seed=789 EP 300] deadline=72.1%  λd=5.000
+    [DC-PPO seed=789 EP 400] deadline=73.0%  λd=5.000
+    [DC-PPO seed=789 EP 500] deadline=69.7%  λd=5.000
+    [DC-PPO seed=789 EP 600] deadline=84.0%  λd=5.000
+    [DC-PPO seed=789 EP 700] deadline=75.2%  λd=5.000
+    [DC-PPO seed=789 EP 800] deadline=77.3%  λd=5.000
+    [DC-PPO seed=789 EP 900] deadline=70.1%  λd=5.000
+    [DC-PPO seed=789 EP1000] deadline=75.3%  λd=5.000
+    [DC-PPO seed=789 EP1100] deadline=72.8%  λd=5.000
+    [DC-PPO seed=789 EP1200] deadline=65.0%  λd=5.000
+    [DC-PPO seed=789 EP1300] deadline=60.1%  λd=5.000
+    [DC-PPO seed=789 EP1400] deadline=59.1%  λd=5.000
+    [DC-PPO seed=789 EP1500] deadline=61.8%  λd=5.000
+    [DC-PPO seed=789] Restored best checkpoint: 84.0%
+  → deadline=80.4%  λd=5.000  [528s]
+
+  seed=1024
+    [DC-PPO seed=1024 EP 100] deadline=68.6%  λd=2.722
+    [DC-PPO seed=1024 EP 200] deadline=76.8%  λd=5.000
+    [DC-PPO seed=1024 EP 300] deadline=81.9%  λd=5.000
+    [DC-PPO seed=1024 EP 400] deadline=75.1%  λd=5.000
+    [DC-PPO seed=1024 EP 500] deadline=77.9%  λd=5.000
+    [DC-PPO seed=1024 EP 600] deadline=76.6%  λd=5.000
+    [DC-PPO seed=1024 EP 700] deadline=77.9%  λd=5.000
+    [DC-PPO seed=1024 EP 800] deadline=76.1%  λd=5.000
+    [DC-PPO seed=1024 EP 900] deadline=76.2%  λd=5.000
+    [DC-PPO seed=1024 EP1000] deadline=72.2%  λd=5.000
+    [DC-PPO seed=1024 EP1100] deadline=77.5%  λd=5.000
+    [DC-PPO seed=1024 EP1200] deadline=78.5%  λd=5.000
+    [DC-PPO seed=1024 EP1300] deadline=70.1%  λd=5.000
+    [DC-PPO seed=1024 EP1400] deadline=66.5%  λd=5.000
+    [DC-PPO seed=1024 EP1500] deadline=61.3%  λd=5.000
+    [DC-PPO seed=1024] Restored best checkpoint: 81.9%
+  → deadline=81.5%  λd=5.000  [657s]
+
+  DC-PPO mean=79.6%±1.5%
+  CSV: /home/ggmx/my_workspace/my_project/V2X_MEC_Offloading_Thesis/results/dcppo_only_results.csv
+
+============================================================
+  FINAL TABLE  N=20  t_max=1.0s  f_uav=8GHz
+============================================================
+  Algorithm             Deadline%
+  -----------------------------------
+  DC-PPO               79.6± 1.5%  ◀ OURS
+  PPO-Lagrangian       80.5      
+  PPO                  73.8      
+  TD3                  60.4      
+  greedy               15.4±0.4%
+  random               63.0±0.6%
+
+  DC-PPO vs PPO: +5.8pp
+  G1(≥78%): PASS ✅  G3(≥5pp): PASS ✅
+
+  耗时: 10.9 min

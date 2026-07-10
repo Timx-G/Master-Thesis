@@ -1,0 +1,22 @@
+=== DC-PPO N=20 Quick Test ===
+N=20  f_uav=8GHz  t_max=1.0s  budget=0.5s  lr_lambda=0.03
+
+  DC-PPO EP 1: avg_cost=1.264  lambda_d=0.123
+  DC-PPO EP 100: avg_cost=1.294  lambda_d=2.594
+  DC-PPO EP 200: avg_cost=1.237  lambda_d=4.855
+  DC-PPO EP 300: avg_cost=1.145  lambda_d=6.779
+  DC-PPO EP 400: avg_cost=1.347  lambda_d=8.771
+  DC-PPO EP 500: avg_cost=1.364  lambda_d=11.108
+  DC-PPO EP 600: avg_cost=1.390  lambda_d=13.732
+  DC-PPO EP 700: avg_cost=1.482  lambda_d=16.649
+  DC-PPO EP 800: avg_cost=1.441  lambda_d=19.627
+  DC-PPO EP 900: avg_cost=1.207  lambda_d=20.000
+  DC-PPO EP 1000: avg_cost=1.013  lambda_d=20.000
+  DC-PPO:  R=918.7  viol=217.0  deadline=78.3%  λd=20.000  time=79s
+  PPO:     R=919.9  viol=250.8  deadline=75.0%  time=78s
+  Greedy:  R=907.9  viol=848.4  deadline=15.3%
+
+=== VERDICT ===
+DC-PPO viol=217.0 vs PPO=250.8 vs Greedy=848.4
+DC-PPO vs PPO: WIN ✅
+DC-PPO deadline=78.3% vs PPO=75.0%

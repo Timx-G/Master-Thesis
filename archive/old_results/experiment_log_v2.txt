@@ -1,0 +1,112 @@
+======================================================================
+  EXP1: Baseline Comparison (9 algorithms, 5 seeds)
+======================================================================
+
+--- Seed 42 ---
+  local          : R=-2102.5  delay=446.7  energy=8447  viol=404.5
+  full_offload   : R=-1748.6  delay=333.3  energy=8042  viol=333.7
+  random         : R=-1220.1  delay=264.8  energy=11007  viol=222.5
+  greedy         : R=-852.9  delay=209.2  energy=9971  viol=150.7
+  round_robin    : R=-1698.3  delay=362.5  energy=8357  viol=323.7
+  [DQN EP    1] R=-2134.5  delay=449.0  viol=410.2
+  [DQN EP 1000] R=-1042.3  delay=231.7  viol=190.8
+  DQN            : R=-1033.7  delay=225.6  energy=9084  viol=189.0
+  [PPO EP    1] R=-1177.7  delay=244.4  viol=219.4
+  [PPO EP 1000] R=-1400.6  delay=inf  viol=263.6
+  PPO            : R=-1299.0  delay=inf  energy=8366  viol=243.3
+  [TD3 EP    1] R=-1089.2  delay=238.8  viol=201.4
+  [TD3 EP 1000] R=-831.8  delay=216.9  viol=147.4
+  TD3            : R=-807.2  delay=211.9  energy=9666  viol=142.3
+  [EP    1] R=-1143.8  delay=243.1  energy=8412  viol=212.4  λe=0.100 λd=0.100 α=0.200
+  [EP 1000] R=-755.5  delay=208.6  energy=8588  viol=134.2  λe=0.000 λd=0.116 α=0.037
+  SAC-Lagrangian : R=-756.1  delay=205.3  energy=8567  viol=134.4
+
+--- Seed 123 ---
+  local          : R=-2112.9  delay=445.7  energy=8446  viol=406.6
+  full_offload   : R=-1714.2  delay=331.8  energy=8042  viol=326.8
+  random         : R=-1218.3  delay=263.8  energy=10991  viol=222.1
+  greedy         : R=-835.5  delay=206.0  energy=9957  viol=147.3
+  round_robin    : R=-1704.4  delay=362.9  energy=8357  viol=324.9
+  [DQN EP    1] R=-2009.7  delay=415.9  viol=385.4
+  [DQN EP 1000] R=-1079.9  delay=237.2  viol=198.4
+  DQN            : R=-1060.3  delay=232.1  energy=9020  viol=194.4
+  [PPO EP    1] R=-1160.7  delay=240.7  viol=216.0
+  [PPO EP 1000] R=-1546.4  delay=inf  viol=292.6
+  PPO            : R=-1469.9  delay=inf  energy=8434  viol=277.3
+  [TD3 EP    1] R=-1130.3  delay=244.5  viol=209.6
+  [TD3 EP 1000] R=-870.0  delay=218.7  viol=155.2
+  TD3            : R=-797.3  delay=210.6  energy=9731  viol=140.2
+  [EP    1] R=-1036.5  delay=234.9  energy=8379  viol=191.0  λe=0.100 λd=0.100 α=0.200
+  [EP 1000] R=-826.3  delay=215.5  energy=8575  viol=148.4  λe=0.000 λd=0.118 α=0.041
+  SAC-Lagrangian : R=-766.5  delay=207.6  energy=8568  viol=136.4
+
+--- Seed 456 ---
+  local          : R=-2122.2  delay=448.0  energy=8448  viol=408.4
+  full_offload   : R=-1744.8  delay=331.2  energy=8042  viol=333.0
+  random         : R=-1227.7  delay=265.6  energy=11001  viol=224.0
+  greedy         : R=-865.6  delay=210.1  energy=10004  viol=153.2
+  round_robin    : R=-1717.6  delay=364.6  energy=8359  viol=327.5
+  [DQN EP    1] R=-1409.6  delay=284.6  viol=264.0
+  [DQN EP 1000] R=-1102.6  delay=238.0  viol=203.2
+  DQN            : R=-1046.5  delay=229.4  energy=8940  viol=191.8
+  [PPO EP    1] R=-1153.5  delay=238.7  viol=214.6
+  [PPO EP 1000] R=-1382.6  delay=inf  viol=260.0
+  PPO            : R=-1359.7  delay=inf  energy=8363  viol=255.4
+  [TD3 EP    1] R=-1107.9  delay=239.6  viol=205.2
+  [TD3 EP 1000] R=-850.2  delay=222.5  viol=151.8
+  TD3            : R=-797.3  delay=211.7  energy=9278  viol=141.2
+  [EP    1] R=-1126.7  delay=240.8  energy=8407  viol=209.0  λe=0.100 λd=0.100 α=0.200
+  [EP 1000] R=-889.5  delay=220.9  energy=8696  viol=160.8  λe=0.000 λd=0.116 α=0.035
+  SAC-Lagrangian : R=-740.8  delay=204.7  energy=8705  viol=131.0
+
+--- Seed 789 ---
+  local          : R=-2122.4  delay=450.5  energy=8451  viol=408.5
+  full_offload   : R=-1750.6  delay=338.5  energy=8043  viol=334.1
+  random         : R=-1242.9  delay=267.4  energy=10996  viol=227.1
+  greedy         : R=-860.4  delay=210.5  energy=9979  viol=152.2
+  round_robin    : R=-1716.2  delay=366.9  energy=8361  viol=327.2
+  [DQN EP    1] R=-2160.0  delay=451.4  viol=415.4
+  [DQN EP 1000] R=-1073.3  delay=235.4  viol=196.2
+  DQN            : R=-1060.5  delay=229.2  energy=9643  viol=193.2
+  [PPO EP    1] R=-1159.5  delay=242.0  viol=215.8
+  [PPO EP 1000] R=-1450.4  delay=inf  viol=273.4
+  PPO            : R=-1351.7  delay=inf  energy=8408  viol=253.7
+  [TD3 EP    1] R=-1024.0  delay=231.7  viol=188.4
+  [TD3 EP 1000] R=-879.9  delay=221.0  viol=156.4
+  TD3            : R=-862.0  delay=217.7  energy=10011  viol=152.7
+  [EP    1] R=-1080.6  delay=238.9  energy=8392  viol=199.8  λe=0.100 λd=0.100 α=0.200
+  [EP 1000] R=-884.2  delay=219.7  energy=8765  viol=159.6  λe=0.000 λd=0.118 α=0.031
+  SAC-Lagrangian : R=-783.1  delay=209.9  energy=8747  viol=139.4
+
+--- Seed 1024 ---
+  local          : R=-2134.1  delay=451.6  energy=8452  viol=410.8
+  full_offload   : R=-1729.4  delay=331.9  energy=8042  viol=329.9
+  random         : R=-1247.2  delay=268.2  energy=10974  viol=228.0
+  greedy         : R=-861.9  delay=210.6  energy=10030  viol=152.4
+  round_robin    : R=-1719.3  delay=366.8  energy=8361  viol=327.9
+  [DQN EP    1] R=-1351.9  delay=269.5  viol=253.2
+  [DQN EP 1000] R=-1058.1  delay=231.4  viol=194.4
+  DQN            : R=-1056.5  delay=228.6  energy=8887  viol=193.9
+  [PPO EP    1] R=-1053.4  delay=231.4  viol=194.6
+  [PPO EP 1000] R=-1472.4  delay=inf  viol=277.8
+  PPO            : R=-1455.2  delay=inf  energy=8423  viol=274.4
+  [TD3 EP    1] R=-1085.8  delay=239.2  viol=200.8
+  [TD3 EP 1000] R=-869.1  delay=217.8  viol=154.8
+  TD3            : R=-793.2  delay=210.7  energy=9584  viol=139.7
+  [EP    1] R=-1154.9  delay=247.9  energy=8436  viol=214.6  λe=0.100 λd=0.100 α=0.200
+  [EP 1000] R=-940.4  delay=225.9  energy=8789  viol=170.8  λe=0.000 λd=0.119 α=0.034
+  SAC-Lagrangian : R=-812.4  delay=211.9  energy=8865  viol=145.0
+
+Saved: /home/ggmx/my_workspace/my_project/V2X_MEC_Offloading_Thesis/results/exp1_baseline.csv
+
+======================================================================
+  EXP2: Ablation Study (5 seeds, 1000ep)
+======================================================================
+
+--- Seed 42 ---
+  Full (Ours)              : R=-761.7  viol=135.5  deadline_rate=72.7%
+  w/o Lagrangian           : R=-689.9  viol=120.5  deadline_rate=75.7%
+  Fixed Lambda             : R=-1010.6  viol=183.8  deadline_rate=63.0%
+  w/o Entropy Tuning       : R=-743.6  viol=131.8  deadline_rate=73.5%
+
+--- Seed 123 ---

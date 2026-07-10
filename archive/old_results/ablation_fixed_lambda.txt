@@ -1,0 +1,115 @@
+=================================================================
+  CRITICAL ABLATION: Fixed-λ=5 PPO vs DC-PPO
+  If equal → DC-PPO adaptive mechanism = zero value
+  If DC-PPO wins → adaptation matters
+=================================================================
+
+--- seed=42 ---
+    [DC-PPO   seed=42 EP 300] 75.8%  λd=5.000
+    [DC-PPO   seed=42 EP 600] 73.0%  λd=5.000
+    [DC-PPO   seed=42 EP 900] 78.2%  λd=5.000
+    [DC-PPO   seed=42 EP1200] 74.7%  λd=5.000
+    [DC-PPO   seed=42 EP1500] 58.2%  λd=5.000
+    [DC-PPO   seed=42] Restored best: 78.2%
+  DC-PPO:    78.2%  [878s]
+    [Fixed-λ=5.0 seed=42 EP 300] 80.3%
+    [Fixed-λ=5.0 seed=42 EP 600] 75.3%
+    [Fixed-λ=5.0 seed=42 EP 900] 73.0%
+    [Fixed-λ=5.0 seed=42 EP1200] 72.8%
+    [Fixed-λ=5.0 seed=42 EP1500] 62.2%
+    [Fixed-λ=5.0 seed=42] Restored best: 80.3%
+  Fixed-λ=5: 80.4%  [128s]
+  Diff: -2.2pp
+
+--- seed=123 ---
+    [DC-PPO   seed=123 EP 300] 72.6%  λd=5.000
+    [DC-PPO   seed=123 EP 600] 63.5%  λd=5.000
+    [DC-PPO   seed=123 EP 900] 74.7%  λd=5.000
+    [DC-PPO   seed=123 EP1200] 56.4%  λd=5.000
+    [DC-PPO   seed=123 EP1500] 53.0%  λd=5.000
+    [DC-PPO   seed=123] Restored best: 74.7%
+  DC-PPO:    76.1%  [133s]
+    [Fixed-λ=5.0 seed=123 EP 300] 77.7%
+    [Fixed-λ=5.0 seed=123 EP 600] 77.0%
+    [Fixed-λ=5.0 seed=123 EP 900] 71.2%
+    [Fixed-λ=5.0 seed=123 EP1200] 65.5%
+    [Fixed-λ=5.0 seed=123 EP1500] 64.6%
+    [Fixed-λ=5.0 seed=123] Restored best: 77.7%
+  Fixed-λ=5: 77.7%  [133s]
+  Diff: -1.6pp
+
+--- seed=456 ---
+    [DC-PPO   seed=456 EP 300] 80.0%  λd=5.000
+    [DC-PPO   seed=456 EP 600] 77.5%  λd=5.000
+    [DC-PPO   seed=456 EP 900] 81.7%  λd=5.000
+    [DC-PPO   seed=456 EP1200] 77.7%  λd=5.000
+    [DC-PPO   seed=456 EP1500] 52.2%  λd=5.000
+    [DC-PPO   seed=456] Restored best: 81.7%
+  DC-PPO:    81.7%  [134s]
+    [Fixed-λ=5.0 seed=456 EP 300] 79.6%
+    [Fixed-λ=5.0 seed=456 EP 600] 79.4%
+    [Fixed-λ=5.0 seed=456 EP 900] 83.5%
+    [Fixed-λ=5.0 seed=456 EP1200] 81.9%
+    [Fixed-λ=5.0 seed=456 EP1500] 76.7%
+    [Fixed-λ=5.0 seed=456] Restored best: 83.5%
+  Fixed-λ=5: 83.4%  [135s]
+  Diff: -1.7pp
+
+--- seed=789 ---
+    [DC-PPO   seed=789 EP 300] 73.6%  λd=5.000
+    [DC-PPO   seed=789 EP 600] 78.4%  λd=5.000
+    [DC-PPO   seed=789 EP 900] 71.6%  λd=5.000
+    [DC-PPO   seed=789 EP1200] 63.3%  λd=5.000
+    [DC-PPO   seed=789 EP1500] 53.4%  λd=5.000
+    [DC-PPO   seed=789] Restored best: 78.4%
+  DC-PPO:    72.7%  [135s]
+    [Fixed-λ=5.0 seed=789 EP 300] 72.8%
+    [Fixed-λ=5.0 seed=789 EP 600] 78.8%
+    [Fixed-λ=5.0 seed=789 EP 900] 79.1%
+    [Fixed-λ=5.0 seed=789 EP1200] 75.0%
+    [Fixed-λ=5.0 seed=789 EP1500] 75.9%
+    [Fixed-λ=5.0 seed=789] Restored best: 79.1%
+  Fixed-λ=5: 77.2%  [134s]
+  Diff: -4.5pp
+
+--- seed=1024 ---
+    [DC-PPO   seed=1024 EP 300] 75.4%  λd=5.000
+    [DC-PPO   seed=1024 EP 600] 74.7%  λd=5.000
+    [DC-PPO   seed=1024 EP 900] 77.3%  λd=5.000
+    [DC-PPO   seed=1024 EP1200] 77.9%  λd=5.000
+    [DC-PPO   seed=1024 EP1500] 69.9%  λd=5.000
+    [DC-PPO   seed=1024] Restored best: 77.9%
+  DC-PPO:    76.0%  [134s]
+    [Fixed-λ=5.0 seed=1024 EP 300] 85.4%
+    [Fixed-λ=5.0 seed=1024 EP 600] 77.4%
+    [Fixed-λ=5.0 seed=1024 EP 900] 80.7%
+    [Fixed-λ=5.0 seed=1024 EP1200] 79.9%
+    [Fixed-λ=5.0 seed=1024 EP1500] 77.2%
+    [Fixed-λ=5.0 seed=1024] Restored best: 85.4%
+  Fixed-λ=5: 84.2%  [136s]
+  Diff: -8.1pp
+
+=================================================================
+  ABLATION RESULT
+=================================================================
+  DC-PPO (adaptive λ):  77.0 ± 2.9%
+  Fixed-λ=5 PPO:        80.6 ± 2.9%
+  Difference:           -3.6pp
+
+  Per-seed:
+    seed=42: DC-PPO=78.2%  Fixed=80.4%  diff=-2.2pp  [Fixed]
+    seed=123: DC-PPO=76.1%  Fixed=77.7%  diff=-1.6pp  [Fixed]
+    seed=456: DC-PPO=81.7%  Fixed=83.4%  diff=-1.7pp  [Fixed]
+    seed=789: DC-PPO=72.7%  Fixed=77.2%  diff=-4.5pp  [Fixed]
+    seed=1024: DC-PPO=76.0%  Fixed=84.2%  diff=-8.1pp  [Fixed]
+
+  Wilcoxon two-sided: stat=0.0, p=0.0625
+  DC-PPO wins: 0/5, Fixed wins: 5/5
+
+=================================================================
+  *** VERDICT: Fixed-λ PPO > DC-PPO ***
+  *** DC-PPO is WORSE than simple fixed penalty ***
+  *** Fundamental rethink required ***
+=================================================================
+
+  Total time: 34.7 min

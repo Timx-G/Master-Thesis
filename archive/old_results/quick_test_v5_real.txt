@@ -1,0 +1,38 @@
+============================================================
+  QUICK TEST: f_uav=10GHz, lambda_max=100, lr_lambda=1e-3
+  delay_budget=0.8s, 3 seeds, 500 episodes
+============================================================
+
+--- Seed=42 ---
+  SAC EP 50: R=399.2 λd=0.000
+  SAC EP 100: R=376.9 λd=0.000
+  SAC EP 150: R=364.6 λd=0.000
+  SAC EP 200: R=428.5 λd=0.000
+  SAC EP 250: R=406.9 λd=0.000
+  SAC EP 300: R=403.3 λd=0.002
+  SAC EP 350: R=399.3 λd=0.200
+  SAC EP 400: R=401.5 λd=0.717
+  SAC EP 450: R=397.1 λd=1.625
+  SAC EP 500: R=378.4 λd=2.864
+  SAC-Lag: R=401.1  viol=327.9  deadline=34.0%  λd=2.864  time=359s
+  PPO:     R=415.3  viol=240.9  deadline=51.5%  time=31s
+  Greedy:  R=397.3  viol=337.4  deadline=32.1%
+
+--- Seed=123 ---
+  SAC EP 50: R=387.1 λd=0.000
+  SAC EP 100: R=394.8 λd=0.000
+  SAC EP 150: R=418.9 λd=0.000
+  SAC EP 200: R=408.4 λd=0.000
+  SAC EP 250: R=383.1 λd=0.000
+  SAC EP 300: R=397.0 λd=0.000
+  SAC EP 350: R=427.6 λd=0.000
+  SAC EP 400: R=411.3 λd=0.044
+  SAC EP 450: R=407.2 λd=0.198
+  SAC EP 500: R=416.4 λd=0.427
+  SAC-Lag: R=405.4  viol=313.4  deadline=36.8%  λd=0.427  time=339s
+  PPO:     R=415.2  viol=239.5  deadline=51.7%  time=31s
+  Greedy:  R=397.1  viol=336.7  deadline=32.2%
+
+--- Seed=456 ---
+  SAC EP 50: R=392.9 λd=0.000
+  SAC EP 100: R=370.6 λd=0.000

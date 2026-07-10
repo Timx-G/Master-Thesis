@@ -1,0 +1,1458 @@
+======================================================================
+  EXP1: Baseline Comparison (8 algorithms)
+======================================================================
+
+--- Seed 42 ---
+  local          : R=-2143.4  delay=1193.5  energy=9193  viol=364.8
+  full_offload   : R=-2254.2  delay=1067.3  energy=8083  viol=394.4
+  random         : R=-1242.3  delay=757.4  energy=11385  viol=197.1
+  greedy         : R=-1552.4  delay=800.8  energy=10060  viol=261.2
+  round_robin    : R=-1729.8  delay=980.9  energy=8954  viol=291.8
+  [DQN EP    1] R=-1698.6  delay=873.9  viol=289.6
+  [DQN EP 1000] R=-1047.1  delay=677.0  viol=165.0
+  DQN            : R=-978.4  delay=652.8  energy=9492  viol=152.1
+  [PPO EP    1] R=-1133.1  delay=695.0  viol=183.6
+  [PPO EP 1000] R=-1121.7  delay=693.2  viol=181.4
+  PPO            : R=-1030.0  delay=664.7  energy=8661  viol=163.7
+  [TD3 EP    1] R=-1107.6  delay=703.5  viol=177.8
+  [TD3 EP 1000] R=-1369.3  delay=820.1  viol=221.8
+  TD3            : R=-1286.3  delay=782.1  energy=10738  viol=206.3
+  [EP    1] R=-1102.6  delay=701.3  energy=8899  viol=176.8  λe=0.100 λd=0.100 α=0.200
+  [EP 1000] R=-1015.6  delay=682.8  energy=9201  viol=159.6  λe=0.000 λd=0.000 α=0.031
+  SAC-Lagrangian : R=-942.5  delay=658.7  energy=9233  viol=145.6
+
+--- Seed 123 ---
+  local          : R=-2151.2  delay=1192.6  energy=9193  viol=366.2
+  full_offload   : R=-2231.7  delay=1055.9  energy=8080  viol=390.3
+  random         : R=-1241.7  delay=755.8  energy=11357  viol=197.1
+  greedy         : R=-1557.9  delay=797.8  energy=10034  viol=262.5
+  round_robin    : R=-1738.2  delay=984.3  energy=8958  viol=293.4
+  [DQN EP    1] R=-2173.0  delay=1150.0  viol=373.2
+  [DQN EP 1000] R=-1032.0  delay=676.8  viol=163.2
+  DQN            : R=-975.6  delay=649.9  energy=9008  viol=152.6
+  [PPO EP    1] R=-1080.5  delay=687.1  viol=173.4
+  [PPO EP 1000] R=-1100.0  delay=690.6  viol=177.2
+  PPO            : R=-1041.2  delay=665.6  energy=8639  viol=165.9
+  [TD3 EP    1] R=-1098.3  delay=703.8  viol=175.8
+  [TD3 EP 1000] R=-1390.2  delay=824.3  viol=226.0
+  TD3            : R=-1280.5  delay=770.3  energy=10465  viol=206.2
+  [EP    1] R=-1116.9  delay=706.6  energy=8844  viol=179.4  λe=0.100 λd=0.100 α=0.200
+  [EP 1000] R=-1044.9  delay=691.6  energy=9102  viol=165.6  λe=0.000 λd=0.000 α=0.037
+  SAC-Lagrangian : R=-973.1  delay=671.9  energy=9053  viol=151.6
+
+--- Seed 456 ---
+  local          : R=-2138.4  delay=1177.1  energy=9177  viol=364.6
+  full_offload   : R=-2228.8  delay=1062.9  energy=8084  viol=389.4
+  random         : R=-1228.5  delay=746.2  energy=11397  viol=194.7
+  greedy         : R=-1516.3  delay=790.5  energy=9942  viol=254.7
+  round_robin    : R=-1731.6  delay=969.6  energy=8944  viol=292.8
+  [DQN EP    1] R=-2205.6  delay=1224.4  viol=376.4
+  [DQN EP 1000] R=-987.1  delay=664.3  viol=154.6
+  DQN            : R=-935.7  delay=636.2  energy=9086  viol=145.1
+  [PPO EP    1] R=-1123.3  delay=701.5  viol=181.2
+  [PPO EP 1000] R=-1116.6  delay=698.1  viol=180.0
+  PPO            : R=-1027.9  delay=666.0  energy=8697  viol=163.2
+  [TD3 EP    1] R=-1009.0  delay=682.6  viol=159.0
+  [TD3 EP 1000] R=-1406.5  delay=833.3  viol=229.0
+  TD3            : R=-1327.2  delay=797.8  energy=10519  viol=214.4
+  [EP    1] R=-1037.6  delay=682.7  energy=8807  viol=164.8  λe=0.100 λd=0.100 α=0.200
+  [EP 1000] R=-966.5  delay=679.1  energy=9273  viol=150.0  λe=0.000 λd=0.000 α=0.034
+  SAC-Lagrangian : R=-908.6  delay=652.9  energy=9178  viol=139.1
+
+Saved: /home/ggmx/my_workspace/my_project/V2X_MEC_Offloading_Thesis/results/exp1_baseline.csv
+
+======================================================================
+  EXP2: Ablation Study
+======================================================================
+
+--- Seed 42 ---
+  Full (Ours)              : R=-1128.5  viol=181.2  deadline_rate=63.7%
+  w/o Lagrangian           : R=-942.5  viol=144.9  deadline_rate=70.9%
+  Fixed Lambda             : R=-1124.4  viol=180.4  deadline_rate=63.8%
+  w/o Entropy Tuning       : R=-1180.0  viol=190.9  deadline_rate=61.7%
+
+--- Seed 123 ---
+  Full (Ours)              : R=-1152.5  viol=184.8  deadline_rate=62.7%
+  w/o Lagrangian           : R=-1050.1  viol=165.6  deadline_rate=66.6%
+  Fixed Lambda             : R=-1094.5  viol=174.4  deadline_rate=64.8%
+  w/o Entropy Tuning       : R=-1138.9  viol=182.8  deadline_rate=63.1%
+
+Saved: /home/ggmx/my_workspace/my_project/V2X_MEC_Offloading_Thesis/results/exp2_ablation.csv
+
+======================================================================
+  EXP3: Scalability (varying N)
+======================================================================
+
+--- N=5 ---
+  [EP    1] R=-539.7  delay=305.5  energy=8385  viol=68.4  λe=0.100 λd=0.100 α=0.200
+  [EP  500] R=-310.7  delay=240.2  energy=8615  viol=27.8  λe=5.000 λd=0.000 α=0.082
+  SAC-Lagrangian: R=-317.5  viol=29.3  time=290s
+
+--- N=10 ---
+  [EP    1] R=-1083.4  delay=691.3  energy=8841  viol=173.4  λe=0.100 λd=0.100 α=0.200
+  [EP  500] R=-1068.4  delay=709.5  energy=9207  viol=169.4  λe=0.146 λd=0.027 α=0.065
+  SAC-Lagrangian: R=-1035.7  viol=163.4  time=380s
+
+--- N=15 ---
+  [EP    1] R=-2204.8  delay=1202.8  energy=9165  viol=393.0  λe=0.100 λd=0.100 α=0.200
+  [EP  500] R=-2154.3  delay=1264.1  energy=9685  viol=380.4  λe=0.000 λd=0.541 α=0.079
+  SAC-Lagrangian: R=-2167.2  viol=382.3  time=325s
+
+--- N=20 ---
+  [EP    1] R=-4164.7  delay=1981.6  energy=9643  viol=777.6  λe=0.100 λd=0.100 α=0.200
+  [EP  500] R=-3269.8  delay=1887.8  energy=10583  viol=598.8  λe=0.000 λd=0.856 α=0.102
+  SAC-Lagrangian: R=-3167.3  viol=578.5  time=960s
+
+Saved: /home/ggmx/my_workspace/my_project/V2X_MEC_Offloading_Thesis/results/exp3_scalability.csv
+
+======================================================================
+  EXP4: Convergence Curves
+======================================================================
+  [EP    1] R=-1042.8  delay=677.6  energy=8770  viol=166.0  λe=0.100 λd=0.100 α=0.200
+  [EP    5] R=-1066.6  delay=685.7  energy=8782  viol=170.4  λe=0.100 λd=0.100 α=0.200
+  [EP   10] R=-1097.4  delay=690.9  energy=8771  viol=176.4  λe=0.100 λd=0.100 α=0.200
+  [EP   15] R=-1081.5  delay=691.6  energy=8772  viol=173.2  λe=0.100 λd=0.100 α=0.200
+  [EP   20] R=-1082.4  delay=690.4  energy=8777  viol=173.4  λe=0.100 λd=0.100 α=0.200
+  [EP   25] R=-992.8  delay=690.7  energy=9366  viol=154.6  λe=0.156 λd=0.102 α=0.174
+  [EP   30] R=-1110.8  delay=717.6  energy=9460  viol=177.0  λe=0.206 λd=0.103 α=0.155
+  [EP   35] R=-1084.4  delay=712.2  energy=9609  viol=171.6  λe=0.254 λd=0.104 α=0.139
+  [EP   40] R=-1049.0  delay=706.0  energy=9449  viol=165.0  λe=0.293 λd=0.105 α=0.127
+  [EP   45] R=-1045.4  delay=701.6  energy=9302  viol=164.8  λe=0.327 λd=0.105 α=0.115
+  [EP   50] R=-1073.5  delay=702.6  energy=9322  viol=170.2  λe=0.355 λd=0.106 α=0.106
+  [EP   55] R=-963.1  delay=684.5  energy=9364  viol=148.8  λe=0.383 λd=0.106 α=0.097
+  [EP   60] R=-1000.7  delay=688.2  energy=9245  viol=156.4  λe=0.406 λd=0.106 α=0.090
+  [EP   65] R=-1041.2  delay=701.0  energy=9364  viol=163.8  λe=0.428 λd=0.107 α=0.084
+  [EP   70] R=-1050.3  delay=699.0  energy=9309  viol=165.8  λe=0.446 λd=0.106 α=0.078
+  [EP   75] R=-1025.7  delay=694.3  energy=9443  viol=160.8  λe=0.461 λd=0.106 α=0.073
+  [EP   80] R=-1098.2  delay=702.3  energy=9504  viol=174.8  λe=0.475 λd=0.106 α=0.069
+  [EP   85] R=-1072.4  delay=695.8  energy=9524  viol=170.0  λe=0.486 λd=0.106 α=0.065
+  [EP   90] R=-1046.0  delay=698.6  energy=9511  viol=164.6  λe=0.498 λd=0.106 α=0.062
+  [EP   95] R=-1057.0  delay=699.1  energy=9603  viol=166.6  λe=0.505 λd=0.106 α=0.059
+  [EP  100] R=-1070.8  delay=699.9  energy=9568  viol=169.4  λe=0.512 λd=0.105 α=0.057
+  [EP  105] R=-1090.7  delay=706.0  energy=9433  viol=173.4  λe=0.519 λd=0.105 α=0.056
+  [EP  110] R=-1106.7  delay=712.5  energy=9524  viol=176.0  λe=0.526 λd=0.105 α=0.056
+  [EP  115] R=-1104.1  delay=707.0  energy=9484  viol=175.8  λe=0.536 λd=0.104 α=0.056
+  [EP  120] R=-1157.9  delay=721.0  energy=9491  viol=186.0  λe=0.541 λd=0.103 α=0.057
+  [EP  125] R=-1124.2  delay=715.5  energy=9448  viol=179.6  λe=0.549 λd=0.103 α=0.059
+  [EP  130] R=-1107.2  delay=711.9  energy=9420  viol=176.4  λe=0.553 λd=0.102 α=0.061
+  [EP  135] R=-1070.2  delay=709.0  energy=9256  viol=169.4  λe=0.557 λd=0.102 α=0.063
+  [EP  140] R=-1169.4  delay=731.0  energy=9584  viol=187.8  λe=0.563 λd=0.101 α=0.065
+  [EP  145] R=-1124.9  delay=718.6  energy=9474  viol=179.6  λe=0.568 λd=0.101 α=0.067
+  [EP  150] R=-1132.4  delay=718.7  energy=9379  viol=181.2  λe=0.571 λd=0.100 α=0.068
+  [EP  155] R=-1162.3  delay=723.6  energy=9401  viol=187.0  λe=0.573 λd=0.100 α=0.069
+  [EP  160] R=-1166.2  delay=722.6  energy=9411  viol=187.8  λe=0.575 λd=0.099 α=0.070
+  [EP  165] R=-1052.1  delay=699.7  energy=9234  viol=166.2  λe=0.578 λd=0.098 α=0.071
+  [EP  170] R=-1111.6  delay=710.0  energy=9459  viol=177.4  λe=0.577 λd=0.098 α=0.073
+  [EP  175] R=-1158.8  delay=732.0  energy=9713  viol=185.4  λe=0.579 λd=0.097 α=0.074
+  [EP  180] R=-1081.1  delay=716.3  energy=9438  viol=171.0  λe=0.579 λd=0.097 α=0.075
+  [EP  185] R=-1094.2  delay=716.7  energy=9400  viol=173.6  λe=0.580 λd=0.096 α=0.077
+  [EP  190] R=-1129.7  delay=727.0  energy=9412  viol=180.4  λe=0.581 λd=0.096 α=0.079
+  [EP  195] R=-1086.1  delay=722.4  energy=9575  viol=171.6  λe=0.580 λd=0.095 α=0.080
+  [EP  200] R=-1169.9  delay=727.0  energy=9556  viol=188.2  λe=0.577 λd=0.095 α=0.080
+  [EP  205] R=-1157.4  delay=723.8  energy=9441  viol=186.0  λe=0.575 λd=0.094 α=0.082
+  [EP  210] R=-1085.3  delay=709.3  energy=9427  viol=172.2  λe=0.575 λd=0.093 α=0.084
+  [EP  215] R=-1108.0  delay=712.6  energy=9609  viol=176.2  λe=0.574 λd=0.093 α=0.084
+  [EP  220] R=-1056.0  delay=709.9  energy=9496  viol=166.2  λe=0.573 λd=0.092 α=0.084
+  [EP  225] R=-1066.1  delay=706.2  energy=9635  viol=168.0  λe=0.571 λd=0.091 α=0.084
+  [EP  230] R=-1129.2  delay=709.9  energy=9653  viol=180.4  λe=0.569 λd=0.091 α=0.086
+  [EP  235] R=-1072.4  delay=704.2  energy=9605  viol=169.4  λe=0.566 λd=0.090 α=0.087
+  [EP  240] R=-1107.6  delay=717.8  energy=9553  viol=176.0  λe=0.564 λd=0.089 α=0.087
+  [EP  245] R=-1100.1  delay=714.2  energy=9479  viol=174.8  λe=0.561 λd=0.089 α=0.088
+  [EP  250] R=-1063.8  delay=706.0  energy=9634  viol=167.6  λe=0.559 λd=0.088 α=0.088
+  [EP  255] R=-1059.1  delay=704.8  energy=9343  viol=167.2  λe=0.557 λd=0.087 α=0.087
+  [EP  260] R=-1136.5  delay=708.3  energy=9460  viol=182.4  λe=0.553 λd=0.086 α=0.087
+  [EP  265] R=-1084.2  delay=699.3  energy=9464  viol=172.2  λe=0.553 λd=0.086 α=0.087
+  [EP  270] R=-1134.7  delay=714.4  energy=9420  viol=181.8  λe=0.549 λd=0.085 α=0.088
+  [EP  275] R=-1050.0  delay=699.1  energy=9324  viol=165.6  λe=0.546 λd=0.084 α=0.088
+  [EP  280] R=-1082.7  delay=707.9  energy=9330  viol=171.8  λe=0.544 λd=0.084 α=0.088
+  [EP  285] R=-1021.9  delay=692.8  energy=9329  viol=160.2  λe=0.540 λd=0.083 α=0.088
+  [EP  290] R=-1086.2  delay=710.4  energy=9259  viol=172.6  λe=0.536 λd=0.082 α=0.089
+  [EP  295] R=-1081.6  delay=703.6  energy=9297  viol=172.0  λe=0.532 λd=0.082 α=0.087
+  [EP  300] R=-1077.6  delay=706.4  energy=9182  viol=171.2  λe=0.529 λd=0.081 α=0.088
+  [EP  305] R=-1085.5  delay=702.2  energy=9219  viol=172.8  λe=0.526 λd=0.080 α=0.088
+  [EP  310] R=-1076.2  delay=714.9  energy=9220  viol=170.4  λe=0.523 λd=0.079 α=0.088
+  [EP  315] R=-1122.3  delay=711.4  energy=9222  viol=179.8  λe=0.521 λd=0.079 α=0.088
+  [EP  320] R=-1120.6  delay=718.9  energy=9331  viol=179.0  λe=0.516 λd=0.078 α=0.087
+  [EP  325] R=-1094.3  delay=713.1  energy=9192  viol=174.2  λe=0.514 λd=0.077 α=0.088
+  [EP  330] R=-1092.8  delay=718.7  energy=9365  viol=173.4  λe=0.510 λd=0.077 α=0.088
+  [EP  335] R=-1125.4  delay=713.9  energy=9443  viol=180.0  λe=0.505 λd=0.076 α=0.090
+  [EP  340] R=-1061.7  delay=703.2  energy=9386  viol=167.8  λe=0.501 λd=0.075 α=0.089
+  [EP  345] R=-1065.1  delay=710.4  energy=9468  viol=168.0  λe=0.495 λd=0.074 α=0.089
+  [EP  350] R=-1090.5  delay=712.2  energy=9396  viol=173.2  λe=0.490 λd=0.074 α=0.089
+  [EP  355] R=-1072.5  delay=704.3  energy=9232  viol=170.2  λe=0.484 λd=0.073 α=0.088
+  [EP  360] R=-1126.7  delay=722.6  energy=9333  viol=180.2  λe=0.483 λd=0.072 α=0.088
+  [EP  365] R=-1137.8  delay=714.6  energy=9233  viol=182.8  λe=0.478 λd=0.071 α=0.087
+  [EP  370] R=-1072.0  delay=709.6  energy=9354  viol=169.6  λe=0.473 λd=0.071 α=0.087
+  [EP  375] R=-1085.0  delay=706.7  energy=9235  viol=172.6  λe=0.465 λd=0.070 α=0.088
+  [EP  380] R=-1104.4  delay=707.0  energy=9349  viol=176.2  λe=0.459 λd=0.069 α=0.087
+  [EP  385] R=-1099.6  delay=707.3  energy=9157  viol=175.6  λe=0.455 λd=0.069 α=0.087
+  [EP  390] R=-1137.3  delay=715.3  energy=9294  viol=182.6  λe=0.449 λd=0.068 α=0.085
+  [EP  395] R=-1066.6  delay=704.6  energy=9293  viol=168.8  λe=0.445 λd=0.067 α=0.085
+  [EP  400] R=-1071.2  delay=705.3  energy=9349  viol=169.6  λe=0.441 λd=0.066 α=0.086
+  [EP  405] R=-1051.0  delay=700.6  energy=9299  viol=165.8  λe=0.435 λd=0.066 α=0.084
+  [EP  410] R=-1001.6  delay=690.4  energy=9254  viol=156.4  λe=0.426 λd=0.065 α=0.085
+  [EP  415] R=-1005.1  delay=692.3  energy=9203  viol=157.2  λe=0.421 λd=0.064 α=0.085
+  [EP  420] R=-1065.5  delay=702.8  energy=9320  viol=168.6  λe=0.414 λd=0.064 α=0.085
+  [EP  425] R=-1077.9  delay=704.7  energy=9341  viol=171.0  λe=0.407 λd=0.063 α=0.084
+  [EP  430] R=-1013.6  delay=694.0  energy=9222  viol=158.8  λe=0.402 λd=0.062 α=0.084
+  [EP  435] R=-1055.8  delay=696.1  energy=9321  viol=167.0  λe=0.396 λd=0.061 α=0.084
+  [EP  440] R=-1057.7  delay=694.7  energy=9345  viol=167.4  λe=0.390 λd=0.061 α=0.083
+  [EP  445] R=-1091.8  delay=703.4  energy=9341  viol=173.8  λe=0.382 λd=0.060 α=0.082
+  [EP  450] R=-1026.1  delay=689.5  energy=9174  viol=161.6  λe=0.376 λd=0.059 α=0.081
+  [EP  455] R=-1006.9  delay=685.8  energy=9209  viol=157.8  λe=0.370 λd=0.058 α=0.082
+  [EP  460] R=-1069.1  delay=701.6  energy=9294  viol=169.4  λe=0.364 λd=0.057 α=0.081
+  [EP  465] R=-1028.6  delay=696.6  energy=9177  viol=161.8  λe=0.356 λd=0.057 α=0.081
+  [EP  470] R=-1008.1  delay=683.9  energy=9291  viol=158.0  λe=0.349 λd=0.056 α=0.081
+  [EP  475] R=-1019.2  delay=687.7  energy=9279  viol=160.0  λe=0.341 λd=0.055 α=0.081
+  [EP  480] R=-1060.1  delay=700.9  energy=9245  viol=167.8  λe=0.333 λd=0.055 α=0.081
+  [EP  485] R=-1099.2  delay=707.5  energy=9440  viol=175.0  λe=0.327 λd=0.054 α=0.079
+  [EP  490] R=-1047.9  delay=695.0  energy=9319  viol=165.4  λe=0.320 λd=0.053 α=0.079
+  [EP  495] R=-1044.1  delay=702.9  energy=9299  viol=164.4  λe=0.314 λd=0.052 α=0.079
+  [EP  500] R=-1050.3  delay=700.6  energy=9280  viol=165.8  λe=0.308 λd=0.051 α=0.078
+  [EP  505] R=-1031.8  delay=695.5  energy=9292  viol=162.2  λe=0.301 λd=0.051 α=0.077
+  [EP  510] R=-1025.5  delay=691.5  energy=9272  viol=161.2  λe=0.293 λd=0.050 α=0.077
+  [EP  515] R=-1027.9  delay=692.8  energy=9284  viol=161.6  λe=0.287 λd=0.049 α=0.077
+  [EP  520] R=-1034.1  delay=698.9  energy=9291  viol=162.6  λe=0.282 λd=0.048 α=0.077
+  [EP  525] R=-1023.1  delay=694.3  energy=9372  viol=160.4  λe=0.275 λd=0.048 α=0.075
+  [EP  530] R=-1041.8  delay=694.0  energy=9352  viol=164.2  λe=0.270 λd=0.047 α=0.075
+  [EP  535] R=-1051.7  delay=695.5  energy=9422  viol=166.0  λe=0.264 λd=0.046 α=0.074
+  [EP  540] R=-1024.4  delay=691.5  energy=9366  viol=160.8  λe=0.257 λd=0.045 α=0.075
+  [EP  545] R=-1068.6  delay=694.6  energy=9422  viol=169.4  λe=0.250 λd=0.044 α=0.073
+  [EP  550] R=-1065.9  delay=703.8  energy=9366  viol=168.6  λe=0.246 λd=0.044 α=0.073
+  [EP  555] R=-1016.2  delay=689.2  energy=9373  viol=159.2  λe=0.239 λd=0.043 α=0.072
+  [EP  560] R=-989.9  delay=685.4  energy=9341  viol=154.2  λe=0.232 λd=0.042 α=0.071
+  [EP  565] R=-1009.5  delay=687.1  energy=9452  viol=157.8  λe=0.226 λd=0.041 α=0.071
+  [EP  570] R=-1000.0  delay=685.2  energy=9354  viol=156.2  λe=0.221 λd=0.040 α=0.070
+  [EP  575] R=-961.3  delay=676.2  energy=9288  viol=149.0  λe=0.214 λd=0.039 α=0.069
+  [EP  580] R=-958.0  delay=679.8  energy=9258  viol=148.2  λe=0.209 λd=0.039 α=0.069
+  [EP  585] R=-944.1  delay=671.6  energy=9228  viol=145.8  λe=0.202 λd=0.038 α=0.067
+  [EP  590] R=-963.6  delay=677.7  energy=9255  viol=149.4  λe=0.195 λd=0.037 α=0.067
+  [EP  595] R=-1010.5  delay=691.1  energy=9272  viol=158.2  λe=0.190 λd=0.036 α=0.067
+  [EP  600] R=-1009.9  delay=688.5  energy=9281  viol=158.2  λe=0.182 λd=0.036 α=0.067
+  [EP  605] R=-998.5  delay=683.8  energy=9252  viol=156.2  λe=0.176 λd=0.035 α=0.065
+  [EP  610] R=-955.7  delay=671.0  energy=9082  viol=148.4  λe=0.172 λd=0.034 α=0.064
+  [EP  615] R=-1027.1  delay=687.5  energy=9204  viol=161.8  λe=0.165 λd=0.033 α=0.064
+  [EP  620] R=-1010.9  delay=686.0  energy=9226  viol=158.6  λe=0.158 λd=0.032 α=0.063
+  [EP  625] R=-1024.1  delay=687.3  energy=9142  viol=161.4  λe=0.153 λd=0.031 α=0.063
+  [EP  630] R=-1022.8  delay=686.2  energy=9156  viol=161.2  λe=0.145 λd=0.030 α=0.062
+  [EP  635] R=-1001.7  delay=685.4  energy=9251  viol=156.8  λe=0.139 λd=0.030 α=0.062
+  [EP  640] R=-1039.5  delay=693.4  energy=9255  viol=164.0  λe=0.133 λd=0.029 α=0.061
+  [EP  645] R=-977.5  delay=684.6  energy=9217  viol=152.0  λe=0.126 λd=0.028 α=0.061
+  [EP  650] R=-915.5  delay=674.6  energy=9233  viol=140.0  λe=0.120 λd=0.027 α=0.059
+  [EP  655] R=-996.1  delay=689.9  energy=9375  viol=155.2  λe=0.115 λd=0.026 α=0.059
+  [EP  660] R=-945.6  delay=678.2  energy=9277  viol=145.8  λe=0.110 λd=0.025 α=0.058
+  [EP  665] R=-978.0  delay=688.2  energy=9421  viol=151.6  λe=0.104 λd=0.024 α=0.058
+  [EP  670] R=-1047.2  delay=698.3  energy=9456  viol=165.0  λe=0.098 λd=0.023 α=0.057
+  [EP  675] R=-1026.8  delay=697.6  energy=9430  viol=161.0  λe=0.091 λd=0.022 α=0.056
+  [EP  680] R=-1039.0  delay=693.7  energy=9413  viol=163.6  λe=0.085 λd=0.022 α=0.056
+  [EP  685] R=-992.7  delay=686.6  energy=9318  viol=154.8  λe=0.078 λd=0.021 α=0.055
+  [EP  690] R=-959.3  delay=676.4  energy=9294  viol=148.6  λe=0.070 λd=0.020 α=0.055
+  [EP  695] R=-989.8  delay=684.8  energy=9241  viol=154.4  λe=0.063 λd=0.019 α=0.054
+  [EP  700] R=-1003.0  delay=687.3  energy=9538  viol=156.4  λe=0.057 λd=0.018 α=0.053
+  [EP  705] R=-1001.3  delay=684.7  energy=9389  viol=156.4  λe=0.050 λd=0.017 α=0.053
+  [EP  710] R=-970.3  delay=680.2  energy=9300  viol=150.6  λe=0.044 λd=0.016 α=0.053
+  [EP  715] R=-984.4  delay=678.8  energy=9317  viol=153.4  λe=0.037 λd=0.015 α=0.052
+  [EP  720] R=-1014.1  delay=686.0  energy=9431  viol=158.8  λe=0.030 λd=0.014 α=0.051
+  [EP  725] R=-991.1  delay=679.7  energy=9232  viol=154.8  λe=0.024 λd=0.013 α=0.050
+  [EP  730] R=-989.2  delay=679.8  energy=9037  viol=154.8  λe=0.018 λd=0.012 α=0.049
+  [EP  735] R=-918.6  delay=672.0  energy=9308  viol=140.6  λe=0.012 λd=0.011 α=0.049
+  [EP  740] R=-965.2  delay=680.9  energy=9331  viol=149.4  λe=0.004 λd=0.010 α=0.049
+  [EP  745] R=-1001.7  delay=686.4  energy=9400  viol=156.4  λe=0.000 λd=0.010 α=0.048
+  [EP  750] R=-984.4  delay=681.1  energy=9179  viol=153.6  λe=0.000 λd=0.009 α=0.048
+  [EP  755] R=-991.7  delay=688.1  energy=9361  viol=154.4  λe=0.000 λd=0.008 α=0.047
+  [EP  760] R=-1060.8  delay=698.9  energy=9143  viol=168.2  λe=0.000 λd=0.007 α=0.046
+  [EP  765] R=-1045.3  delay=694.1  energy=9203  viol=165.2  λe=0.000 λd=0.006 α=0.046
+  [EP  770] R=-1064.3  delay=702.8  energy=9337  viol=168.4  λe=0.000 λd=0.005 α=0.045
+  [EP  775] R=-983.6  delay=681.6  energy=9198  viol=153.4  λe=0.000 λd=0.004 α=0.045
+  [EP  780] R=-993.5  delay=688.1  energy=9263  viol=155.0  λe=0.000 λd=0.003 α=0.044
+  [EP  785] R=-1054.7  delay=701.4  energy=9307  viol=166.6  λe=0.000 λd=0.002 α=0.044
+  [EP  790] R=-969.0  delay=681.0  energy=9320  viol=150.2  λe=0.000 λd=0.001 α=0.043
+  [EP  795] R=-1044.9  delay=695.6  energy=9494  viol=164.6  λe=0.000 λd=0.000 α=0.044
+  [EP  800] R=-1037.8  delay=694.5  energy=9248  viol=163.6  λe=0.000 λd=0.000 α=0.043
+  [EP  805] R=-1068.5  delay=701.1  energy=9415  viol=169.2  λe=0.000 λd=0.000 α=0.042
+  [EP  810] R=-1047.5  delay=697.9  energy=9500  viol=165.0  λe=0.000 λd=0.000 α=0.042
+  [EP  815] R=-1105.0  delay=713.9  energy=9423  viol=176.0  λe=0.000 λd=0.000 α=0.042
+  [EP  820] R=-1111.4  delay=701.6  energy=9280  viol=178.0  λe=0.000 λd=0.000 α=0.041
+  [EP  825] R=-1079.4  delay=699.7  energy=9399  viol=171.4  λe=0.000 λd=0.000 α=0.041
+  [EP  830] R=-1042.4  delay=699.2  energy=9433  viol=164.0  λe=0.000 λd=0.000 α=0.041
+  [EP  835] R=-1041.1  delay=700.6  energy=9516  viol=163.6  λe=0.000 λd=0.000 α=0.041
+  [EP  840] R=-1057.5  delay=701.8  energy=9404  viol=167.0  λe=0.000 λd=0.000 α=0.040
+  [EP  845] R=-999.4  delay=689.5  energy=9233  viol=156.2  λe=0.000 λd=0.000 α=0.039
+  [EP  850] R=-1050.3  delay=700.6  energy=9194  viol=166.0  λe=0.000 λd=0.000 α=0.039
+  [EP  855] R=-1072.4  delay=699.4  energy=9322  viol=170.2  λe=0.000 λd=0.000 α=0.039
+  [EP  860] R=-1017.2  delay=690.6  energy=9162  viol=159.8  λe=0.000 λd=0.000 α=0.039
+  [EP  865] R=-1061.4  delay=700.2  energy=9231  viol=168.2  λe=0.001 λd=0.000 α=0.038
+  [EP  870] R=-1045.4  delay=697.5  energy=9247  viol=165.0  λe=0.000 λd=0.000 α=0.038
+  [EP  875] R=-1069.3  delay=698.1  energy=9385  viol=169.6  λe=0.000 λd=0.000 α=0.038
+  [EP  880] R=-1027.5  delay=699.8  energy=9289  viol=161.2  λe=0.000 λd=0.000 α=0.038
+  [EP  885] R=-1048.5  delay=698.3  energy=9386  viol=165.4  λe=0.001 λd=0.000 α=0.038
+  [EP  890] R=-1062.0  delay=699.1  energy=9289  viol=168.2  λe=0.000 λd=0.000 α=0.038
+  [EP  895] R=-1022.0  delay=692.6  energy=9245  viol=160.6  λe=0.000 λd=0.000 α=0.037
+  [EP  900] R=-995.5  delay=681.2  energy=9084  viol=156.0  λe=0.000 λd=0.000 α=0.038
+  [EP  905] R=-983.7  delay=684.9  energy=9235  viol=153.2  λe=0.000 λd=0.000 α=0.038
+  [EP  910] R=-1033.6  delay=695.2  energy=9344  viol=162.6  λe=0.000 λd=0.000 α=0.037
+  [EP  915] R=-1055.3  delay=695.1  energy=9206  viol=167.2  λe=0.000 λd=0.000 α=0.037
+  [EP  920] R=-1031.8  delay=685.5  energy=9107  viol=163.0  λe=0.000 λd=0.000 α=0.037
+  [EP  925] R=-1018.9  delay=692.5  energy=9300  viol=159.8  λe=0.000 λd=0.000 α=0.036
+  [EP  930] R=-1054.2  delay=705.8  energy=9196  viol=166.6  λe=0.000 λd=0.000 α=0.037
+  [EP  935] R=-1089.8  delay=712.9  energy=9406  viol=173.0  λe=0.000 λd=0.000 α=0.036
+  [EP  940] R=-1010.7  delay=687.0  energy=9272  viol=158.4  λe=0.000 λd=0.000 α=0.036
+  [EP  945] R=-1022.8  delay=697.4  energy=9205  viol=160.6  λe=0.000 λd=0.000 α=0.036
+  [EP  950] R=-1026.7  delay=690.1  energy=9143  viol=161.8  λe=0.000 λd=0.000 α=0.035
+  [EP  955] R=-1022.4  delay=692.8  energy=9199  viol=160.8  λe=0.000 λd=0.000 α=0.035
+  [EP  960] R=-1031.6  delay=704.2  energy=9252  viol=162.0  λe=0.000 λd=0.000 α=0.035
+  [EP  965] R=-1004.1  delay=689.1  energy=9184  viol=157.2  λe=0.000 λd=0.000 α=0.035
+  [EP  970] R=-976.9  delay=686.6  energy=9230  viol=151.8  λe=0.000 λd=0.000 α=0.034
+  [EP  975] R=-989.1  delay=683.9  energy=9114  viol=154.6  λe=0.000 λd=0.000 α=0.034
+  [EP  980] R=-1057.6  delay=701.9  energy=9175  viol=167.4  λe=0.000 λd=0.000 α=0.034
+  [EP  985] R=-1016.6  delay=696.3  energy=9235  viol=159.4  λe=0.000 λd=0.000 α=0.035
+  [EP  990] R=-1007.1  delay=693.5  energy=9373  viol=157.4  λe=0.000 λd=0.000 α=0.034
+  [EP  995] R=-1018.4  delay=689.1  energy=9200  viol=160.0  λe=0.000 λd=0.000 α=0.034
+  [EP 1000] R=-1036.5  delay=696.2  energy=9284  viol=163.2  λe=0.000 λd=0.000 α=0.034
+  [DQN EP    1] R=-1006.5  delay=666.9  viol=159.0
+  [DQN EP    5] R=-991.0  delay=663.7  viol=155.4
+  [DQN EP   10] R=-1018.1  delay=667.2  viol=158.8
+  [DQN EP   15] R=-1144.9  delay=699.2  viol=182.6
+  [DQN EP   20] R=-1059.4  delay=676.2  viol=166.8
+  [DQN EP   25] R=-1031.6  delay=671.8  viol=161.8
+  [DQN EP   30] R=-1127.6  delay=701.7  viol=179.8
+  [DQN EP   35] R=-1022.2  delay=670.4  viol=161.0
+  [DQN EP   40] R=-1088.0  delay=687.7  viol=171.4
+  [DQN EP   45] R=-1093.6  delay=688.2  viol=173.4
+  [DQN EP   50] R=-1095.6  delay=690.6  viol=173.0
+  [DQN EP   55] R=-1107.3  delay=690.6  viol=175.2
+  [DQN EP   60] R=-1055.0  delay=675.1  viol=165.6
+  [DQN EP   65] R=-1049.9  delay=679.8  viol=164.8
+  [DQN EP   70] R=-1055.5  delay=677.8  viol=166.2
+  [DQN EP   75] R=-1025.8  delay=669.0  viol=161.0
+  [DQN EP   80] R=-1056.2  delay=676.1  viol=165.6
+  [DQN EP   85] R=-1084.8  delay=703.2  viol=171.0
+  [DQN EP   90] R=-1059.5  delay=681.0  viol=165.8
+  [DQN EP   95] R=-1058.7  delay=678.2  viol=167.2
+  [DQN EP  100] R=-1066.1  delay=677.9  viol=167.0
+  [DQN EP  105] R=-1041.4  delay=677.2  viol=163.4
+  [DQN EP  110] R=-1058.9  delay=677.0  viol=166.2
+  [DQN EP  115] R=-1059.3  delay=678.0  viol=165.2
+  [DQN EP  120] R=-1070.6  delay=684.2  viol=167.8
+  [DQN EP  125] R=-1043.9  delay=673.8  viol=164.2
+  [DQN EP  130] R=-1087.8  delay=686.1  viol=171.4
+  [DQN EP  135] R=-1090.1  delay=688.5  viol=173.4
+  [DQN EP  140] R=-1049.2  delay=675.0  viol=164.4
+  [DQN EP  145] R=-1036.8  delay=673.4  viol=162.2
+  [DQN EP  150] R=-1056.7  delay=684.7  viol=165.8
+  [DQN EP  155] R=-1055.4  delay=678.3  viol=165.2
+  [DQN EP  160] R=-1061.7  delay=676.4  viol=166.2
+  [DQN EP  165] R=-1051.3  delay=676.7  viol=166.0
+  [DQN EP  170] R=-1083.3  delay=685.6  viol=170.8
+  [DQN EP  175] R=-1047.6  delay=674.7  viol=164.0
+  [DQN EP  180] R=-1118.7  delay=695.6  viol=178.2
+  [DQN EP  185] R=-1076.6  delay=678.8  viol=168.6
+  [DQN EP  190] R=-1042.7  delay=672.8  viol=164.2
+  [DQN EP  195] R=-1010.3  delay=668.0  viol=158.6
+  [DQN EP  200] R=-1030.6  delay=673.3  viol=162.6
+  [DQN EP  205] R=-1067.4  delay=680.5  viol=168.4
+  [DQN EP  210] R=-1070.0  delay=679.8  viol=167.2
+  [DQN EP  215] R=-1078.0  delay=690.8  viol=169.4
+  [DQN EP  220] R=-1115.9  delay=693.6  viol=176.6
+  [DQN EP  225] R=-1042.5  delay=675.7  viol=164.2
+  [DQN EP  230] R=-1075.4  delay=685.8  viol=169.8
+  [DQN EP  235] R=-1163.3  delay=726.7  viol=184.0
+  [DQN EP  240] R=-1017.7  delay=669.6  viol=159.2
+  [DQN EP  245] R=-1046.0  delay=674.4  viol=164.2
+  [DQN EP  250] R=-1029.5  delay=676.2  viol=161.8
+  [DQN EP  255] R=-1028.5  delay=671.8  viol=161.0
+  [DQN EP  260] R=-1050.1  delay=674.4  viol=166.0
+  [DQN EP  265] R=-1062.2  delay=679.5  viol=166.2
+  [DQN EP  270] R=-1001.3  delay=670.2  viol=157.0
+  [DQN EP  275] R=-993.3  delay=661.8  viol=155.2
+  [DQN EP  280] R=-1038.4  delay=671.9  viol=162.8
+  [DQN EP  285] R=-1010.4  delay=666.4  viol=158.0
+  [DQN EP  290] R=-1030.5  delay=671.1  viol=162.6
+  [DQN EP  295] R=-1041.6  delay=670.7  viol=162.6
+  [DQN EP  300] R=-1059.0  delay=681.2  viol=168.6
+  [DQN EP  305] R=-1054.7  delay=683.4  viol=166.8
+  [DQN EP  310] R=-1037.4  delay=678.7  viol=162.0
+  [DQN EP  315] R=-1049.3  delay=670.0  viol=165.2
+  [DQN EP  320] R=-1039.0  delay=675.4  viol=163.8
+  [DQN EP  325] R=-1156.3  delay=735.4  viol=183.0
+  [DQN EP  330] R=-990.1  delay=660.8  viol=154.4
+  [DQN EP  335] R=-1052.4  delay=683.2  viol=164.0
+  [DQN EP  340] R=-1021.7  delay=668.9  viol=158.8
+  [DQN EP  345] R=-1027.3  delay=671.3  viol=161.8
+  [DQN EP  350] R=-1070.0  delay=683.1  viol=169.2
+  [DQN EP  355] R=-1022.6  delay=668.5  viol=158.4
+  [DQN EP  360] R=-1019.8  delay=670.1  viol=160.2
+  [DQN EP  365] R=-1081.0  delay=694.1  viol=169.4
+  [DQN EP  370] R=-1028.3  delay=683.8  viol=161.4
+  [DQN EP  375] R=-1000.2  delay=669.5  viol=157.0
+  [DQN EP  380] R=-1094.8  delay=694.4  viol=173.8
+  [DQN EP  385] R=-1001.5  delay=665.3  viol=156.6
+  [DQN EP  390] R=-1045.1  delay=675.1  viol=164.8
+  [DQN EP  395] R=-1057.6  delay=680.5  viol=166.4
+  [DQN EP  400] R=-1026.5  delay=672.9  viol=161.6
+  [DQN EP  405] R=-1098.2  delay=693.3  viol=174.0
+  [DQN EP  410] R=-1182.5  delay=756.2  viol=188.2
+  [DQN EP  415] R=-1012.5  delay=668.3  viol=159.6
+  [DQN EP  420] R=-1024.5  delay=667.8  viol=160.8
+  [DQN EP  425] R=-1100.2  delay=691.2  viol=175.2
+  [DQN EP  430] R=-1037.6  delay=679.9  viol=162.8
+  [DQN EP  435] R=-1014.6  delay=668.7  viol=159.8
+  [DQN EP  440] R=-1097.2  delay=697.5  viol=172.4
+  [DQN EP  445] R=-1121.8  delay=700.2  viol=176.8
+  [DQN EP  450] R=-1040.3  delay=676.9  viol=164.0
+  [DQN EP  455] R=-1001.9  delay=664.5  viol=157.2
+  [DQN EP  460] R=-1037.1  delay=675.1  viol=163.4
+  [DQN EP  465] R=-1098.5  delay=688.7  viol=172.0
+  [DQN EP  470] R=-1009.1  delay=666.0  viol=157.8
+  [DQN EP  475] R=-1005.7  delay=666.0  viol=157.0
+  [DQN EP  480] R=-1098.2  delay=690.7  viol=172.6
+  [DQN EP  485] R=-1070.3  delay=679.3  viol=168.2
+  [DQN EP  490] R=-1031.0  delay=670.6  viol=162.6
+  [DQN EP  495] R=-1020.6  delay=671.8  viol=159.4
+  [DQN EP  500] R=-1045.6  delay=679.2  viol=163.8
+  [DQN EP  505] R=-1061.7  delay=679.8  viol=166.8
+  [DQN EP  510] R=-1208.2  delay=784.3  viol=192.8
+  [DQN EP  515] R=-1014.2  delay=664.7  viol=157.4
+  [DQN EP  520] R=-1018.7  delay=669.8  viol=159.4
+  [DQN EP  525] R=-995.7  delay=663.8  viol=155.4
+  [DQN EP  530] R=-1001.4  delay=665.2  viol=157.2
+  [DQN EP  535] R=-1038.9  delay=675.5  viol=163.0
+  [DQN EP  540] R=-1384.5  delay=857.5  viol=225.6
+  [DQN EP  545] R=-1027.0  delay=671.1  viol=160.2
+  [DQN EP  550] R=-1021.5  delay=667.1  viol=160.4
+  [DQN EP  555] R=-1054.1  delay=700.6  viol=164.6
+  [DQN EP  560] R=-1072.6  delay=683.7  viol=169.4
+  [DQN EP  565] R=-1034.7  delay=673.9  viol=161.0
+  [DQN EP  570] R=-1067.0  delay=679.3  viol=169.4
+  [DQN EP  575] R=-991.2  delay=666.9  viol=155.4
+  [DQN EP  580] R=-1107.3  delay=692.3  viol=176.6
+  [DQN EP  585] R=-1014.7  delay=667.8  viol=159.0
+  [DQN EP  590] R=-1000.6  delay=666.1  viol=157.0
+  [DQN EP  595] R=-1006.9  delay=663.2  viol=156.6
+  [DQN EP  600] R=-1008.3  delay=667.0  viol=157.4
+  [DQN EP  605] R=-1007.6  delay=665.3  viol=157.8
+  [DQN EP  610] R=-1046.4  delay=672.7  viol=164.6
+  [DQN EP  615] R=-999.0  delay=667.1  viol=156.2
+  [DQN EP  620] R=-998.8  delay=666.9  viol=156.0
+  [DQN EP  625] R=-1043.8  delay=675.6  viol=164.6
+  [DQN EP  630] R=-1001.4  delay=665.4  viol=156.8
+  [DQN EP  635] R=-1037.5  delay=672.7  viol=162.0
+  [DQN EP  640] R=-1024.8  delay=670.4  viol=160.2
+  [DQN EP  645] R=-1000.7  delay=663.6  viol=156.0
+  [DQN EP  650] R=-1015.3  delay=668.7  viol=159.0
+  [DQN EP  655] R=-1061.3  delay=681.0  viol=167.4
+  [DQN EP  660] R=-1008.3  delay=673.6  viol=157.4
+  [DQN EP  665] R=-1011.4  delay=666.1  viol=159.6
+  [DQN EP  670] R=-1041.1  delay=685.2  viol=163.2
+  [DQN EP  675] R=-1040.5  delay=673.5  viol=163.2
+  [DQN EP  680] R=-1024.1  delay=667.3  viol=159.8
+  [DQN EP  685] R=-1000.4  delay=664.5  viol=156.2
+  [DQN EP  690] R=-1037.5  delay=675.2  viol=163.2
+  [DQN EP  695] R=-989.8  delay=663.9  viol=154.0
+  [DQN EP  700] R=-1078.9  delay=702.1  viol=169.2
+  [DQN EP  705] R=-1025.1  delay=670.5  viol=160.2
+  [DQN EP  710] R=-1059.7  delay=687.7  viol=166.0
+  [DQN EP  715] R=-999.7  delay=664.7  viol=155.2
+  [DQN EP  720] R=-987.4  delay=659.6  viol=154.0
+  [DQN EP  725] R=-989.7  delay=668.2  viol=154.8
+  [DQN EP  730] R=-1033.6  delay=672.1  viol=162.4
+  [DQN EP  735] R=-1008.6  delay=675.7  viol=158.6
+  [DQN EP  740] R=-1003.4  delay=666.3  viol=157.6
+  [DQN EP  745] R=-1007.4  delay=669.5  viol=156.8
+  [DQN EP  750] R=-1017.7  delay=666.9  viol=158.6
+  [DQN EP  755] R=-1023.5  delay=673.8  viol=160.0
+  [DQN EP  760] R=-1005.6  delay=667.1  viol=156.6
+  [DQN EP  765] R=-1040.3  delay=673.4  viol=162.8
+  [DQN EP  770] R=-996.0  delay=664.2  viol=154.8
+  [DQN EP  775] R=-1036.1  delay=676.5  viol=163.2
+  [DQN EP  780] R=-1009.4  delay=673.0  viol=158.2
+  [DQN EP  785] R=-1026.3  delay=667.6  viol=161.8
+  [DQN EP  790] R=-1055.1  delay=677.5  viol=166.0
+  [DQN EP  795] R=-1056.6  delay=675.9  viol=165.4
+  [DQN EP  800] R=-1015.6  delay=668.0  viol=159.4
+  [DQN EP  805] R=-1051.7  delay=675.8  viol=164.2
+  [DQN EP  810] R=-1064.2  delay=691.2  viol=166.4
+  [DQN EP  815] R=-1009.1  delay=668.5  viol=157.8
+  [DQN EP  820] R=-1041.6  delay=674.4  viol=164.4
+  [DQN EP  825] R=-988.7  delay=661.6  viol=154.0
+  [DQN EP  830] R=-1003.0  delay=664.9  viol=156.6
+  [DQN EP  835] R=-986.6  delay=661.8  viol=153.8
+  [DQN EP  840] R=-1006.1  delay=667.1  viol=157.8
+  [DQN EP  845] R=-1008.9  delay=668.9  viol=157.0
+  [DQN EP  850] R=-1016.6  delay=667.6  viol=157.6
+  [DQN EP  855] R=-1003.2  delay=670.4  viol=157.0
+  [DQN EP  860] R=-995.8  delay=664.5  viol=156.4
+  [DQN EP  865] R=-1052.8  delay=676.0  viol=164.8
+  [DQN EP  870] R=-1003.1  delay=664.3  viol=155.4
+  [DQN EP  875] R=-1004.5  delay=667.6  viol=156.8
+  [DQN EP  880] R=-1012.1  delay=668.7  viol=159.0
+  [DQN EP  885] R=-1035.2  delay=673.5  viol=162.4
+  [DQN EP  890] R=-1023.7  delay=675.4  viol=161.4
+  [DQN EP  895] R=-1061.4  delay=688.5  viol=167.8
+  [DQN EP  900] R=-1054.1  delay=683.4  viol=165.0
+  [DQN EP  905] R=-1018.4  delay=664.4  viol=157.8
+  [DQN EP  910] R=-1005.1  delay=665.5  viol=156.0
+  [DQN EP  915] R=-1033.5  delay=671.1  viol=162.0
+  [DQN EP  920] R=-1019.2  delay=668.3  viol=158.8
+  [DQN EP  925] R=-1010.7  delay=668.4  viol=157.4
+  [DQN EP  930] R=-976.6  delay=661.0  viol=151.4
+  [DQN EP  935] R=-975.8  delay=658.6  viol=152.0
+  [DQN EP  940] R=-1029.2  delay=666.8  viol=159.6
+  [DQN EP  945] R=-1093.2  delay=694.9  viol=171.8
+  [DQN EP  950] R=-1023.6  delay=669.8  viol=159.8
+  [DQN EP  955] R=-1015.3  delay=668.2  viol=159.2
+  [DQN EP  960] R=-1021.9  delay=669.4  viol=159.6
+  [DQN EP  965] R=-1033.8  delay=675.0  viol=161.4
+  [DQN EP  970] R=-1050.6  delay=675.9  viol=166.2
+  [DQN EP  975] R=-1061.0  delay=683.9  viol=168.2
+  [DQN EP  980] R=-1064.0  delay=698.8  viol=166.0
+  [DQN EP  985] R=-1015.6  delay=671.6  viol=158.4
+  [DQN EP  990] R=-1056.0  delay=683.4  viol=166.4
+  [DQN EP  995] R=-990.1  delay=665.7  viol=155.2
+  [DQN EP 1000] R=-1013.2  delay=671.0  viol=157.8
+  [PPO EP    1] R=-1002.8  delay=665.6  viol=158.6
+  [PPO EP    5] R=-1005.2  delay=667.4  viol=159.0
+  [PPO EP   10] R=-999.2  delay=667.1  viol=157.8
+  [PPO EP   15] R=-999.2  delay=667.2  viol=157.8
+  [PPO EP   20] R=-999.2  delay=667.1  viol=157.8
+  [PPO EP   25] R=-1006.2  delay=667.2  viol=159.2
+  [PPO EP   30] R=-1000.3  delay=667.3  viol=158.0
+  [PPO EP   35] R=-1002.3  delay=667.3  viol=158.4
+  [PPO EP   40] R=-1004.3  delay=667.4  viol=158.8
+  [PPO EP   45] R=-1004.2  delay=667.2  viol=158.8
+  [PPO EP   50] R=-1007.3  delay=667.3  viol=159.4
+  [PPO EP   55] R=-1006.4  delay=667.8  viol=159.2
+  [PPO EP   60] R=-1007.3  delay=667.4  viol=159.4
+  [PPO EP   65] R=-1006.3  delay=667.4  viol=159.2
+  [PPO EP   70] R=-1009.3  delay=667.3  viol=159.8
+  [PPO EP   75] R=-1007.2  delay=667.2  viol=159.4
+  [PPO EP   80] R=-1007.3  delay=667.5  viol=159.4
+  [PPO EP   85] R=-1007.3  delay=667.4  viol=159.4
+  [PPO EP   90] R=-1006.3  delay=667.3  viol=159.2
+  [PPO EP   95] R=-1007.3  delay=667.5  viol=159.4
+  [PPO EP  100] R=-1008.3  delay=667.5  viol=159.6
+  [PPO EP  105] R=-1006.3  delay=667.5  viol=159.2
+  [PPO EP  110] R=-1005.3  delay=667.5  viol=159.0
+  [PPO EP  115] R=-1002.3  delay=667.5  viol=158.4
+  [PPO EP  120] R=-1003.3  delay=667.4  viol=158.6
+  [PPO EP  125] R=-1003.3  delay=667.5  viol=158.6
+  [PPO EP  130] R=-1005.3  delay=667.5  viol=159.0
+  [PPO EP  135] R=-1008.3  delay=667.4  viol=159.6
+  [PPO EP  140] R=-1007.3  delay=667.5  viol=159.4
+  [PPO EP  145] R=-1006.3  delay=667.6  viol=159.2
+  [PPO EP  150] R=-1005.3  delay=667.6  viol=159.0
+  [PPO EP  155] R=-1004.3  delay=667.5  viol=158.8
+  [PPO EP  160] R=-1003.3  delay=667.4  viol=158.6
+  [PPO EP  165] R=-1004.3  delay=667.5  viol=158.8
+  [PPO EP  170] R=-1005.3  delay=667.5  viol=159.0
+  [PPO EP  175] R=-1004.3  delay=667.5  viol=158.8
+  [PPO EP  180] R=-1005.3  delay=667.5  viol=159.0
+  [PPO EP  185] R=-1005.3  delay=667.6  viol=159.0
+  [PPO EP  190] R=-1005.3  delay=667.6  viol=159.0
+  [PPO EP  195] R=-1005.3  delay=667.6  viol=159.0
+  [PPO EP  200] R=-1005.3  delay=667.6  viol=159.0
+  [PPO EP  205] R=-1005.3  delay=667.5  viol=159.0
+  [PPO EP  210] R=-1006.3  delay=667.4  viol=159.2
+  [PPO EP  215] R=-1005.3  delay=667.5  viol=159.0
+  [PPO EP  220] R=-1004.3  delay=667.4  viol=158.8
+  [PPO EP  225] R=-1003.3  delay=667.4  viol=158.6
+  [PPO EP  230] R=-1004.3  delay=667.5  viol=158.8
+  [PPO EP  235] R=-1005.3  delay=667.5  viol=159.0
+  [PPO EP  240] R=-1005.3  delay=667.5  viol=159.0
+  [PPO EP  245] R=-1004.3  delay=667.5  viol=158.8
+  [PPO EP  250] R=-1006.3  delay=667.5  viol=159.2
+  [PPO EP  255] R=-1005.3  delay=667.6  viol=159.0
+  [PPO EP  260] R=-1005.3  delay=667.5  viol=159.0
+  [PPO EP  265] R=-1004.3  delay=667.5  viol=158.8
+  [PPO EP  270] R=-1006.3  delay=667.6  viol=159.2
+  [PPO EP  275] R=-1003.3  delay=667.5  viol=158.6
+  [PPO EP  280] R=-1003.3  delay=667.4  viol=158.6
+  [PPO EP  285] R=-1003.3  delay=667.4  viol=158.6
+  [PPO EP  290] R=-1003.3  delay=667.4  viol=158.6
+  [PPO EP  295] R=-1005.3  delay=667.5  viol=159.0
+  [PPO EP  300] R=-1005.3  delay=667.5  viol=159.0
+  [PPO EP  305] R=-1005.3  delay=667.5  viol=159.0
+  [PPO EP  310] R=-1005.3  delay=667.5  viol=159.0
+  [PPO EP  315] R=-1005.3  delay=667.5  viol=159.0
+  [PPO EP  320] R=-1005.3  delay=667.5  viol=159.0
+  [PPO EP  325] R=-1004.3  delay=667.5  viol=158.8
+  [PPO EP  330] R=-1004.3  delay=667.5  viol=158.8
+  [PPO EP  335] R=-1003.3  delay=667.4  viol=158.6
+  [PPO EP  340] R=-1005.3  delay=667.5  viol=159.0
+  [PPO EP  345] R=-1005.3  delay=667.6  viol=159.0
+  [PPO EP  350] R=-1004.3  delay=667.5  viol=158.8
+  [PPO EP  355] R=-1005.3  delay=667.5  viol=159.0
+  [PPO EP  360] R=-1005.3  delay=667.6  viol=159.0
+  [PPO EP  365] R=-1005.3  delay=667.6  viol=159.0
+  [PPO EP  370] R=-1006.3  delay=667.6  viol=159.2
+  [PPO EP  375] R=-1006.3  delay=667.6  viol=159.2
+  [PPO EP  380] R=-1006.3  delay=667.6  viol=159.2
+  [PPO EP  385] R=-1006.3  delay=667.5  viol=159.2
+  [PPO EP  390] R=-1006.3  delay=667.6  viol=159.2
+  [PPO EP  395] R=-1005.3  delay=667.6  viol=159.0
+  [PPO EP  400] R=-1004.3  delay=667.5  viol=158.8
+  [PPO EP  405] R=-1005.3  delay=667.5  viol=159.0
+  [PPO EP  410] R=-1005.3  delay=667.5  viol=159.0
+  [PPO EP  415] R=-1006.3  delay=667.6  viol=159.2
+  [PPO EP  420] R=-1006.3  delay=667.5  viol=159.2
+  [PPO EP  425] R=-1006.3  delay=667.5  viol=159.2
+  [PPO EP  430] R=-1006.3  delay=667.5  viol=159.2
+  [PPO EP  435] R=-1005.3  delay=667.5  viol=159.0
+  [PPO EP  440] R=-1004.3  delay=667.5  viol=158.8
+  [PPO EP  445] R=-1005.3  delay=667.5  viol=159.0
+  [PPO EP  450] R=-1003.3  delay=667.5  viol=158.6
+  [PPO EP  455] R=-1005.3  delay=667.6  viol=159.0
+  [PPO EP  460] R=-1004.3  delay=667.5  viol=158.8
+  [PPO EP  465] R=-1003.3  delay=667.4  viol=158.6
+  [PPO EP  470] R=-1006.3  delay=667.5  viol=159.2
+  [PPO EP  475] R=-1006.3  delay=667.5  viol=159.2
+  [PPO EP  480] R=-1005.3  delay=667.5  viol=159.0
+  [PPO EP  485] R=-1006.3  delay=667.5  viol=159.2
+  [PPO EP  490] R=-1006.3  delay=667.5  viol=159.2
+  [PPO EP  495] R=-1006.3  delay=667.5  viol=159.2
+  [PPO EP  500] R=-1006.3  delay=667.5  viol=159.2
+  [PPO EP  505] R=-1006.3  delay=667.5  viol=159.2
+  [PPO EP  510] R=-1006.3  delay=667.5  viol=159.2
+  [PPO EP  515] R=-1005.3  delay=667.5  viol=159.0
+  [PPO EP  520] R=-1005.3  delay=667.5  viol=159.0
+  [PPO EP  525] R=-1006.3  delay=667.5  viol=159.2
+  [PPO EP  530] R=-1006.3  delay=667.5  viol=159.2
+  [PPO EP  535] R=-1006.3  delay=667.5  viol=159.2
+  [PPO EP  540] R=-1005.3  delay=667.5  viol=159.0
+  [PPO EP  545] R=-1005.3  delay=667.5  viol=159.0
+  [PPO EP  550] R=-1005.3  delay=667.5  viol=159.0
+  [PPO EP  555] R=-1005.3  delay=667.6  viol=159.0
+  [PPO EP  560] R=-1005.3  delay=667.6  viol=159.0
+  [PPO EP  565] R=-1005.3  delay=667.6  viol=159.0
+  [PPO EP  570] R=-1005.3  delay=667.6  viol=159.0
+  [PPO EP  575] R=-1005.3  delay=667.6  viol=159.0
+  [PPO EP  580] R=-1005.3  delay=667.6  viol=159.0
+  [PPO EP  585] R=-1005.3  delay=667.6  viol=159.0
+  [PPO EP  590] R=-1005.3  delay=667.6  viol=159.0
+  [PPO EP  595] R=-1005.3  delay=667.6  viol=159.0
+  [PPO EP  600] R=-1005.3  delay=667.6  viol=159.0
+  [PPO EP  605] R=-1005.3  delay=667.6  viol=159.0
+  [PPO EP  610] R=-1005.3  delay=667.6  viol=159.0
+  [PPO EP  615] R=-1006.3  delay=667.6  viol=159.2
+  [PPO EP  620] R=-1006.3  delay=667.6  viol=159.2
+  [PPO EP  625] R=-1006.3  delay=667.6  viol=159.2
+  [PPO EP  630] R=-1006.3  delay=667.6  viol=159.2
+  [PPO EP  635] R=-1006.3  delay=667.7  viol=159.2
+  [PPO EP  640] R=-1005.3  delay=667.6  viol=159.0
+  [PPO EP  645] R=-1006.3  delay=667.6  viol=159.2
+  [PPO EP  650] R=-1006.3  delay=667.6  viol=159.2
+  [PPO EP  655] R=-1004.3  delay=667.5  viol=158.8
+  [PPO EP  660] R=-1006.3  delay=667.6  viol=159.2
+  [PPO EP  665] R=-1006.3  delay=667.6  viol=159.2
+  [PPO EP  670] R=-1006.3  delay=667.6  viol=159.2
+  [PPO EP  675] R=-1006.3  delay=667.6  viol=159.2
+  [PPO EP  680] R=-1006.3  delay=667.6  viol=159.2
+  [PPO EP  685] R=-1006.3  delay=667.6  viol=159.2
+  [PPO EP  690] R=-1004.3  delay=667.6  viol=158.8
+  [PPO EP  695] R=-1004.3  delay=667.6  viol=158.8
+  [PPO EP  700] R=-1003.3  delay=667.5  viol=158.6
+  [PPO EP  705] R=-1002.3  delay=667.4  viol=158.4
+  [PPO EP  710] R=-1002.3  delay=667.5  viol=158.4
+  [PPO EP  715] R=-1002.3  delay=667.5  viol=158.4
+  [PPO EP  720] R=-1003.3  delay=667.5  viol=158.6
+  [PPO EP  725] R=-1003.3  delay=667.5  viol=158.6
+  [PPO EP  730] R=-1003.3  delay=667.5  viol=158.6
+  [PPO EP  735] R=-1003.3  delay=667.5  viol=158.6
+  [PPO EP  740] R=-1002.3  delay=667.5  viol=158.4
+  [PPO EP  745] R=-1002.3  delay=667.5  viol=158.4
+  [PPO EP  750] R=-1002.3  delay=667.5  viol=158.4
+  [PPO EP  755] R=-1002.3  delay=667.5  viol=158.4
+  [PPO EP  760] R=-1002.3  delay=667.5  viol=158.4
+  [PPO EP  765] R=-1002.3  delay=667.5  viol=158.4
+  [PPO EP  770] R=-1002.3  delay=667.4  viol=158.4
+  [PPO EP  775] R=-1003.3  delay=667.5  viol=158.6
+  [PPO EP  780] R=-1003.3  delay=667.5  viol=158.6
+  [PPO EP  785] R=-1003.3  delay=667.5  viol=158.6
+  [PPO EP  790] R=-1003.3  delay=667.5  viol=158.6
+  [PPO EP  795] R=-1003.3  delay=667.5  viol=158.6
+  [PPO EP  800] R=-1003.3  delay=667.5  viol=158.6
+  [PPO EP  805] R=-1003.3  delay=667.5  viol=158.6
+  [PPO EP  810] R=-1003.3  delay=667.5  viol=158.6
+  [PPO EP  815] R=-1003.3  delay=667.5  viol=158.6
+  [PPO EP  820] R=-1003.3  delay=667.5  viol=158.6
+  [PPO EP  825] R=-1003.3  delay=667.5  viol=158.6
+  [PPO EP  830] R=-1003.3  delay=667.5  viol=158.6
+  [PPO EP  835] R=-1003.3  delay=667.5  viol=158.6
+  [PPO EP  840] R=-1003.3  delay=667.5  viol=158.6
+  [PPO EP  845] R=-1003.3  delay=667.5  viol=158.6
+  [PPO EP  850] R=-1003.3  delay=667.5  viol=158.6
+  [PPO EP  855] R=-1003.3  delay=667.5  viol=158.6
+  [PPO EP  860] R=-1003.3  delay=667.5  viol=158.6
+  [PPO EP  865] R=-1004.3  delay=667.6  viol=158.8
+  [PPO EP  870] R=-1004.3  delay=667.6  viol=158.8
+  [PPO EP  875] R=-1005.3  delay=667.6  viol=159.0
+  [PPO EP  880] R=-1003.3  delay=667.5  viol=158.6
+  [PPO EP  885] R=-1003.3  delay=667.5  viol=158.6
+  [PPO EP  890] R=-1003.3  delay=667.5  viol=158.6
+  [PPO EP  895] R=-1003.3  delay=667.5  viol=158.6
+  [PPO EP  900] R=-1002.3  delay=667.5  viol=158.4
+  [PPO EP  905] R=-1003.3  delay=667.5  viol=158.6
+  [PPO EP  910] R=-1003.3  delay=667.5  viol=158.6
+  [PPO EP  915] R=-1002.3  delay=667.4  viol=158.4
+  [PPO EP  920] R=-1003.3  delay=667.5  viol=158.6
+  [PPO EP  925] R=-1003.3  delay=667.4  viol=158.6
+  [PPO EP  930] R=-1002.3  delay=667.5  viol=158.4
+  [PPO EP  935] R=-1002.3  delay=667.5  viol=158.4
+  [PPO EP  940] R=-1002.3  delay=667.5  viol=158.4
+  [PPO EP  945] R=-1002.3  delay=667.5  viol=158.4
+  [PPO EP  950] R=-1002.3  delay=667.5  viol=158.4
+  [PPO EP  955] R=-1002.3  delay=667.5  viol=158.4
+  [PPO EP  960] R=-1002.3  delay=667.5  viol=158.4
+  [PPO EP  965] R=-1003.3  delay=667.5  viol=158.6
+  [PPO EP  970] R=-1002.3  delay=667.4  viol=158.4
+  [PPO EP  975] R=-1002.3  delay=667.4  viol=158.4
+  [PPO EP  980] R=-1003.3  delay=667.5  viol=158.6
+  [PPO EP  985] R=-1002.3  delay=667.4  viol=158.4
+  [PPO EP  990] R=-1003.3  delay=667.5  viol=158.6
+  [PPO EP  995] R=-1003.3  delay=667.5  viol=158.6
+  [PPO EP 1000] R=-1003.3  delay=667.4  viol=158.6
+  [TD3 EP    1] R=-1065.6  delay=686.2  viol=170.0
+  [TD3 EP    5] R=-1081.6  delay=684.6  viol=173.4
+  [TD3 EP   10] R=-1077.8  delay=686.2  viol=172.6
+  [TD3 EP   15] R=-1079.9  delay=687.0  viol=173.0
+  [TD3 EP   20] R=-1076.9  delay=687.1  viol=172.4
+  [TD3 EP   25] R=-1699.8  delay=852.7  viol=291.0
+  [TD3 EP   30] R=-1546.0  delay=928.4  viol=254.8
+  [TD3 EP   35] R=-1664.4  delay=963.8  viol=274.4
+  [TD3 EP   40] R=-1433.6  delay=848.8  viol=234.4
+  [TD3 EP   45] R=-1442.4  delay=878.0  viol=235.0
+  [TD3 EP   50] R=-1549.1  delay=908.4  viol=255.2
+  [TD3 EP   55] R=-1481.9  delay=881.7  viol=241.8
+  [TD3 EP   60] R=-1361.6  delay=821.1  viol=220.4
+  [TD3 EP   65] R=-1436.2  delay=859.4  viol=232.0
+  [TD3 EP   70] R=-1464.4  delay=862.1  viol=237.2
+  [TD3 EP   75] R=-1491.3  delay=875.1  viol=241.2
+  [TD3 EP   80] R=-1511.4  delay=890.6  viol=244.8
+  [TD3 EP   85] R=-1499.4  delay=886.5  viol=243.4
+  [TD3 EP   90] R=-1443.4  delay=856.3  viol=234.0
+  [TD3 EP   95] R=-1407.3  delay=843.5  viol=227.6
+  [TD3 EP  100] R=-1407.4  delay=847.9  viol=227.8
+  [TD3 EP  105] R=-1418.3  delay=843.8  viol=231.2
+  [TD3 EP  110] R=-1318.4  delay=811.8  viol=212.4
+  [TD3 EP  115] R=-1339.7  delay=818.9  viol=216.4
+  [TD3 EP  120] R=-1374.9  delay=821.5  viol=223.4
+  [TD3 EP  125] R=-1369.0  delay=823.9  viol=222.2
+  [TD3 EP  130] R=-1336.1  delay=816.2  viol=215.8
+  [TD3 EP  135] R=-1346.6  delay=816.4  viol=218.2
+  [TD3 EP  140] R=-1348.2  delay=821.8  viol=217.8
+  [TD3 EP  145] R=-1489.6  delay=865.4  viol=244.2
+  [TD3 EP  150] R=-1439.1  delay=860.1  viol=233.8
+  [TD3 EP  155] R=-1492.2  delay=865.8  viol=244.4
+  [TD3 EP  160] R=-1482.0  delay=864.4  viol=242.6
+  [TD3 EP  165] R=-1486.0  delay=863.8  viol=243.6
+  [TD3 EP  170] R=-1496.6  delay=875.4  viol=245.0
+  [TD3 EP  175] R=-1476.8  delay=855.9  viol=242.2
+  [TD3 EP  180] R=-1473.3  delay=846.4  viol=242.0
+  [TD3 EP  185] R=-1450.9  delay=845.0  viol=236.6
+  [TD3 EP  190] R=-1461.8  delay=841.9  viol=239.2
+  [TD3 EP  195] R=-1439.4  delay=842.5  viol=234.8
+  [TD3 EP  200] R=-1442.2  delay=835.4  viol=235.4
+  [TD3 EP  205] R=-1413.7  delay=828.2  viol=229.8
+  [TD3 EP  210] R=-1425.0  delay=828.5  viol=232.6
+  [TD3 EP  215] R=-1429.3  delay=823.3  viol=233.2
+  [TD3 EP  220] R=-1411.7  delay=820.0  viol=230.6
+  [TD3 EP  225] R=-1357.1  delay=802.2  viol=220.6
+  [TD3 EP  230] R=-1347.0  delay=800.2  viol=218.6
+  [TD3 EP  235] R=-1327.5  delay=805.7  viol=214.6
+  [TD3 EP  240] R=-1315.6  delay=799.6  viol=212.4
+  [TD3 EP  245] R=-1365.2  delay=814.2  viol=221.2
+  [TD3 EP  250] R=-1410.3  delay=833.4  viol=229.4
+  [TD3 EP  255] R=-1419.1  delay=830.3  viol=230.6
+  [TD3 EP  260] R=-1358.4  delay=801.2  viol=219.6
+  [TD3 EP  265] R=-1391.8  delay=826.7  viol=225.2
+  [TD3 EP  270] R=-1349.6  delay=806.6  viol=218.8
+  [TD3 EP  275] R=-1348.7  delay=810.5  viol=218.4
+  [TD3 EP  280] R=-1342.6  delay=808.9  viol=217.6
+  [TD3 EP  285] R=-1348.5  delay=800.8  viol=218.8
+  [TD3 EP  290] R=-1356.9  delay=810.4  viol=220.4
+  [TD3 EP  295] R=-1371.4  delay=808.8  viol=224.0
+  [TD3 EP  300] R=-1373.1  delay=803.5  viol=224.0
+  [TD3 EP  305] R=-1397.4  delay=829.9  viol=227.2
+  [TD3 EP  310] R=-1397.3  delay=823.5  viol=227.4
+  [TD3 EP  315] R=-1388.1  delay=821.2  viol=226.2
+  [TD3 EP  320] R=-1384.2  delay=825.3  viol=225.0
+  [TD3 EP  325] R=-1355.6  delay=812.5  viol=220.4
+  [TD3 EP  330] R=-1336.6  delay=804.5  viol=217.0
+  [TD3 EP  335] R=-1368.7  delay=813.0  viol=223.0
+  [TD3 EP  340] R=-1370.8  delay=810.7  viol=223.6
+  [TD3 EP  345] R=-1345.6  delay=798.8  viol=219.0
+  [TD3 EP  350] R=-1379.9  delay=804.7  viol=225.4
+  [TD3 EP  355] R=-1327.0  delay=800.7  viol=215.4
+  [TD3 EP  360] R=-1352.5  delay=804.1  viol=220.2
+  [TD3 EP  365] R=-1331.7  delay=798.2  viol=216.4
+  [TD3 EP  370] R=-1338.4  delay=796.0  viol=217.6
+  [TD3 EP  375] R=-1369.9  delay=808.1  viol=223.4
+  [TD3 EP  380] R=-1344.8  delay=807.5  viol=218.2
+  [TD3 EP  385] R=-1353.1  delay=805.0  viol=219.6
+  [TD3 EP  390] R=-1369.4  delay=817.5  viol=222.6
+  [TD3 EP  395] R=-1355.8  delay=815.5  viol=219.8
+  [TD3 EP  400] R=-1334.8  delay=802.2  viol=216.4
+  [TD3 EP  405] R=-1329.9  delay=806.0  viol=215.0
+  [TD3 EP  410] R=-1365.1  delay=815.6  viol=221.6
+  [TD3 EP  415] R=-1377.6  delay=826.2  viol=223.8
+  [TD3 EP  420] R=-1351.0  delay=816.0  viol=218.8
+  [TD3 EP  425] R=-1391.5  delay=839.6  viol=226.4
+  [TD3 EP  430] R=-1337.9  delay=814.3  viol=216.6
+  [TD3 EP  435] R=-1340.3  delay=814.8  viol=217.0
+  [TD3 EP  440] R=-1403.4  delay=841.1  viol=228.0
+  [TD3 EP  445] R=-1376.9  delay=821.3  viol=223.8
+  [TD3 EP  450] R=-1381.8  delay=821.7  viol=224.8
+  [TD3 EP  455] R=-1382.2  delay=828.6  viol=224.0
+  [TD3 EP  460] R=-1342.8  delay=810.7  viol=217.2
+  [TD3 EP  465] R=-1329.7  delay=811.8  viol=214.8
+  [TD3 EP  470] R=-1351.4  delay=816.2  viol=218.8
+  [TD3 EP  475] R=-1398.2  delay=830.7  viol=227.4
+  [TD3 EP  480] R=-1364.3  delay=821.9  viol=221.0
+  [TD3 EP  485] R=-1372.1  delay=831.2  viol=222.6
+  [TD3 EP  490] R=-1411.5  delay=838.5  viol=229.6
+  [TD3 EP  495] R=-1379.7  delay=830.0  viol=223.6
+  [TD3 EP  500] R=-1401.0  delay=838.1  viol=227.6
+  [TD3 EP  505] R=-1317.9  delay=809.4  viol=212.8
+  [TD3 EP  510] R=-1389.9  delay=835.9  viol=226.0
+  [TD3 EP  515] R=-1371.4  delay=818.6  viol=222.8
+  [TD3 EP  520] R=-1339.2  delay=801.5  viol=217.4
+  [TD3 EP  525] R=-1354.6  delay=796.5  viol=221.0
+  [TD3 EP  530] R=-1342.5  delay=796.1  viol=218.2
+  [TD3 EP  535] R=-1367.5  delay=796.2  viol=223.4
+  [TD3 EP  540] R=-1341.6  delay=798.3  viol=218.0
+  [TD3 EP  545] R=-1338.9  delay=802.5  viol=217.4
+  [TD3 EP  550] R=-1300.0  delay=783.4  viol=210.4
+  [TD3 EP  555] R=-1314.1  delay=783.2  viol=213.6
+  [TD3 EP  560] R=-1311.8  delay=786.2  viol=212.8
+  [TD3 EP  565] R=-1320.0  delay=793.3  viol=214.0
+  [TD3 EP  570] R=-1377.3  delay=799.7  viol=224.6
+  [TD3 EP  575] R=-1347.7  delay=798.8  viol=219.0
+  [TD3 EP  580] R=-1358.9  delay=801.1  viol=221.0
+  [TD3 EP  585] R=-1378.0  delay=802.8  viol=224.6
+  [TD3 EP  590] R=-1383.3  delay=799.0  viol=226.2
+  [TD3 EP  595] R=-1417.1  delay=823.6  viol=231.4
+  [TD3 EP  600] R=-1423.9  delay=820.7  viol=233.2
+  [TD3 EP  605] R=-1475.5  delay=862.9  viol=242.0
+  [TD3 EP  610] R=-1406.5  delay=822.9  viol=229.8
+  [TD3 EP  615] R=-1369.0  delay=819.5  viol=223.0
+  [TD3 EP  620] R=-1419.2  delay=825.6  viol=232.4
+  [TD3 EP  625] R=-1422.4  delay=831.3  viol=233.4
+  [TD3 EP  630] R=-1393.6  delay=825.7  viol=227.2
+  [TD3 EP  635] R=-1423.8  delay=835.1  viol=232.6
+  [TD3 EP  640] R=-1388.3  delay=823.9  viol=226.2
+  [TD3 EP  645] R=-1495.3  delay=876.9  viol=244.6
+  [TD3 EP  650] R=-1512.6  delay=881.5  viol=248.0
+  [TD3 EP  655] R=-1403.8  delay=825.2  viol=229.0
+  [TD3 EP  660] R=-1449.2  delay=852.5  viol=236.6
+  [TD3 EP  665] R=-1417.4  delay=848.5  viol=230.4
+  [TD3 EP  670] R=-1436.6  delay=846.9  viol=234.4
+  [TD3 EP  675] R=-1478.2  delay=860.0  viol=242.0
+  [TD3 EP  680] R=-1405.5  delay=838.2  viol=228.8
+  [TD3 EP  685] R=-1427.9  delay=850.9  viol=232.6
+  [TD3 EP  690] R=-1396.1  delay=843.2  viol=226.4
+  [TD3 EP  695] R=-1489.5  delay=868.4  viol=243.6
+  [TD3 EP  700] R=-1419.8  delay=835.8  viol=230.8
+  [TD3 EP  705] R=-1427.2  delay=840.0  viol=232.4
+  [TD3 EP  710] R=-1454.0  delay=856.5  viol=236.8
+  [TD3 EP  715] R=-1403.4  delay=831.2  viol=228.0
+  [TD3 EP  720] R=-1375.8  delay=811.3  viol=223.8
+  [TD3 EP  725] R=-1420.9  delay=851.3  viol=230.4
+  [TD3 EP  730] R=-1464.5  delay=858.5  viol=239.4
+  [TD3 EP  735] R=-1414.5  delay=844.9  viol=230.4
+  [TD3 EP  740] R=-1376.7  delay=831.8  viol=223.6
+  [TD3 EP  745] R=-1375.9  delay=837.4  viol=223.2
+  [TD3 EP  750] R=-1402.8  delay=834.8  viol=228.4
+  [TD3 EP  755] R=-1413.6  delay=841.7  viol=230.0
+  [TD3 EP  760] R=-1376.5  delay=827.6  viol=223.2
+  [TD3 EP  765] R=-1394.6  delay=839.3  viol=227.0
+  [TD3 EP  770] R=-1387.0  delay=825.6  viol=225.8
+  [TD3 EP  775] R=-1390.3  delay=833.0  viol=226.0
+  [TD3 EP  780] R=-1430.4  delay=843.6  viol=233.2
+  [TD3 EP  785] R=-1388.2  delay=828.4  viol=226.0
+  [TD3 EP  790] R=-1396.2  delay=837.0  viol=227.0
+  [TD3 EP  795] R=-1420.6  delay=840.4  viol=232.0
+  [TD3 EP  800] R=-1412.1  delay=835.1  viol=230.6
+  [TD3 EP  805] R=-1415.9  delay=844.1  viol=231.0
+  [TD3 EP  810] R=-1356.5  delay=827.7  viol=219.6
+  [TD3 EP  815] R=-1397.5  delay=837.9  viol=227.6
+  [TD3 EP  820] R=-1352.3  delay=820.0  viol=219.2
+  [TD3 EP  825] R=-1434.6  delay=853.0  viol=234.4
+  [TD3 EP  830] R=-1359.7  delay=824.5  viol=220.4
+  [TD3 EP  835] R=-1375.0  delay=821.8  viol=223.2
+  [TD3 EP  840] R=-1391.2  delay=834.2  viol=226.0
+  [TD3 EP  845] R=-1398.1  delay=837.9  viol=227.2
+  [TD3 EP  850] R=-1387.4  delay=808.2  viol=227.2
+  [TD3 EP  855] R=-1420.2  delay=838.5  viol=231.4
+  [TD3 EP  860] R=-1384.9  delay=835.7  viol=224.8
+  [TD3 EP  865] R=-1405.3  delay=835.5  viol=228.8
+  [TD3 EP  870] R=-1434.7  delay=838.4  viol=234.4
+  [TD3 EP  875] R=-1457.8  delay=857.8  viol=237.8
+  [TD3 EP  880] R=-1445.1  delay=842.7  viol=236.2
+  [TD3 EP  885] R=-1472.9  delay=860.9  viol=241.0
+  [TD3 EP  890] R=-1406.0  delay=834.5  viol=228.6
+  [TD3 EP  895] R=-1418.5  delay=839.6  viol=231.0
+  [TD3 EP  900] R=-1437.5  delay=845.6  viol=234.8
+  [TD3 EP  905] R=-1396.9  delay=830.6  viol=227.2
+  [TD3 EP  910] R=-1421.5  delay=848.4  viol=231.4
+  [TD3 EP  915] R=-1394.6  delay=834.3  viol=226.6
+  [TD3 EP  920] R=-1411.3  delay=833.9  viol=230.0
+  [TD3 EP  925] R=-1434.4  delay=838.6  viol=234.2
+  [TD3 EP  930] R=-1379.0  delay=819.3  viol=223.8
+  [TD3 EP  935] R=-1338.3  delay=818.5  viol=215.8
+  [TD3 EP  940] R=-1415.2  delay=838.8  viol=230.0
+  [TD3 EP  945] R=-1365.6  delay=827.8  viol=220.6
+  [TD3 EP  950] R=-1387.9  delay=828.6  viol=225.0
+  [TD3 EP  955] R=-1427.9  delay=844.1  viol=232.2
+  [TD3 EP  960] R=-1403.0  delay=834.8  viol=227.6
+  [TD3 EP  965] R=-1396.8  delay=832.8  viol=226.6
+  [TD3 EP  970] R=-1367.0  delay=823.8  viol=221.4
+  [TD3 EP  975] R=-1386.7  delay=824.3  viol=225.0
+  [TD3 EP  980] R=-1392.9  delay=826.1  viol=226.8
+  [TD3 EP  985] R=-1412.2  delay=835.9  viol=230.0
+  [TD3 EP  990] R=-1382.9  delay=820.2  viol=225.2
+  [TD3 EP  995] R=-1377.6  delay=814.1  viol=225.0
+  [TD3 EP 1000] R=-1374.6  delay=819.9  viol=223.2
+
+Saved: /home/ggmx/my_workspace/my_project/V2X_MEC_Offloading_Thesis/results/exp4_convergence.json
+
+======================================================================
+  EXP5: Lagrangian Multiplier Dynamics
+======================================================================
+  [EP    1] R=-1091.4  delay=687.7  energy=8734  viol=175.4  λe=0.100 λd=0.100 α=0.200
+  [EP    2] R=-1056.8  delay=680.2  energy=8718  viol=168.8  λe=0.100 λd=0.100 α=0.200
+  [EP    4] R=-1048.6  delay=678.4  energy=8722  viol=167.2  λe=0.100 λd=0.100 α=0.200
+  [EP    6] R=-1047.5  delay=678.0  energy=8722  viol=167.0  λe=0.100 λd=0.100 α=0.200
+  [EP    8] R=-1053.4  delay=677.4  energy=8722  viol=168.2  λe=0.100 λd=0.100 α=0.200
+  [EP   10] R=-1052.4  delay=677.3  energy=8722  viol=168.0  λe=0.100 λd=0.100 α=0.200
+  [EP   12] R=-1051.4  delay=677.3  energy=8722  viol=167.8  λe=0.100 λd=0.100 α=0.200
+  [EP   14] R=-1053.3  delay=677.1  energy=8722  viol=168.2  λe=0.100 λd=0.100 α=0.200
+  [EP   16] R=-1053.4  delay=677.3  energy=8723  viol=168.2  λe=0.100 λd=0.100 α=0.200
+  [EP   18] R=-1055.4  delay=677.6  energy=8723  viol=168.6  λe=0.100 λd=0.100 α=0.200
+  [EP   20] R=-1084.5  delay=684.2  energy=8715  viol=174.2  λe=0.100 λd=0.100 α=0.200
+  [EP   22] R=-1041.2  delay=683.0  energy=8644  viol=166.0  λe=0.122 λd=0.101 α=0.189
+  [EP   24] R=-1049.1  delay=685.8  energy=9206  viol=166.2  λe=0.144 λd=0.101 α=0.179
+  [EP   26] R=-1005.6  delay=685.2  energy=9257  viol=157.4  λe=0.164 λd=0.102 α=0.170
+  [EP   28] R=-1111.9  delay=706.3  energy=9461  viol=177.4  λe=0.184 λd=0.102 α=0.163
+  [EP   30] R=-1067.1  delay=699.9  energy=9209  viol=169.2  λe=0.205 λd=0.103 α=0.156
+  [EP   32] R=-1073.7  delay=693.6  energy=9295  viol=170.6  λe=0.221 λd=0.103 α=0.149
+  [EP   34] R=-1087.7  delay=702.8  energy=9395  viol=172.8  λe=0.239 λd=0.103 α=0.143
+  [EP   36] R=-1120.6  delay=707.7  energy=9286  viol=179.4  λe=0.254 λd=0.103 α=0.137
+  [EP   38] R=-1042.5  delay=694.2  energy=9193  viol=164.6  λe=0.270 λd=0.104 α=0.132
+  [EP   40] R=-1119.9  delay=709.0  energy=8952  viol=180.0  λe=0.285 λd=0.104 α=0.127
+  [EP   42] R=-1082.2  delay=701.7  energy=8952  viol=172.8  λe=0.298 λd=0.104 α=0.122
+  [EP   44] R=-1020.0  delay=692.4  energy=9009  viol=160.6  λe=0.311 λd=0.104 α=0.117
+  [EP   46] R=-1024.0  delay=685.5  energy=9076  viol=161.6  λe=0.322 λd=0.104 α=0.113
+  [EP   48] R=-1036.3  delay=687.1  energy=8944  viol=164.2  λe=0.333 λd=0.104 α=0.109
+  [EP   50] R=-1008.1  delay=682.3  energy=8923  viol=158.8  λe=0.341 λd=0.104 α=0.105
+  [EP   52] R=-1039.6  delay=690.5  energy=8995  viol=164.6  λe=0.351 λd=0.104 α=0.102
+  [EP   54] R=-1046.1  delay=688.2  energy=8999  viol=166.0  λe=0.360 λd=0.104 α=0.098
+  [EP   56] R=-1057.1  delay=689.4  energy=9006  viol=168.2  λe=0.369 λd=0.104 α=0.095
+  [EP   58] R=-1025.8  delay=685.2  energy=9054  viol=162.0  λe=0.376 λd=0.104 α=0.092
+  [EP   60] R=-1049.0  delay=689.8  energy=9069  viol=166.4  λe=0.383 λd=0.104 α=0.089
+  [EP   62] R=-1051.0  delay=692.1  energy=9035  viol=166.8  λe=0.392 λd=0.104 α=0.086
+  [EP   64] R=-1032.1  delay=686.3  energy=9034  viol=163.2  λe=0.397 λd=0.104 α=0.084
+  [EP   66] R=-1098.8  delay=698.4  energy=9046  viol=176.0  λe=0.402 λd=0.104 α=0.081
+  [EP   68] R=-1088.8  delay=699.7  energy=9042  viol=174.0  λe=0.407 λd=0.104 α=0.079
+  [EP   70] R=-1075.7  delay=695.2  energy=9121  viol=171.4  λe=0.411 λd=0.103 α=0.076
+  [EP   72] R=-1099.7  delay=701.4  energy=9030  viol=176.2  λe=0.414 λd=0.103 α=0.074
+  [EP   74] R=-1103.7  delay=702.2  energy=9125  viol=176.8  λe=0.420 λd=0.103 α=0.072
+  [EP   76] R=-1076.9  delay=705.4  energy=9155  viol=171.2  λe=0.424 λd=0.103 α=0.070
+  [EP   78] R=-1131.2  delay=709.3  energy=9234  viol=181.8  λe=0.427 λd=0.103 α=0.068
+  [EP   80] R=-1080.7  delay=697.1  energy=9266  viol=172.2  λe=0.432 λd=0.103 α=0.067
+  [EP   82] R=-1048.9  delay=693.8  energy=9339  viol=165.8  λe=0.434 λd=0.102 α=0.065
+  [EP   84] R=-1048.2  delay=691.5  energy=9428  viol=165.6  λe=0.437 λd=0.102 α=0.064
+  [EP   86] R=-1104.5  delay=700.8  energy=9262  viol=176.8  λe=0.441 λd=0.102 α=0.062
+  [EP   88] R=-1087.3  delay=697.4  energy=9395  viol=173.2  λe=0.444 λd=0.102 α=0.061
+  [EP   90] R=-1097.3  delay=699.9  energy=9230  viol=175.4  λe=0.448 λd=0.101 α=0.060
+  [EP   92] R=-1103.1  delay=702.7  energy=9328  viol=176.2  λe=0.451 λd=0.101 α=0.058
+  [EP   94] R=-1120.7  delay=700.1  energy=9353  viol=179.8  λe=0.453 λd=0.101 α=0.057
+  [EP   96] R=-1086.5  delay=701.7  energy=9380  viol=172.8  λe=0.455 λd=0.101 α=0.056
+  [EP   98] R=-1073.7  delay=695.6  energy=9424  viol=170.4  λe=0.457 λd=0.100 α=0.055
+  [EP  100] R=-1090.7  delay=700.2  energy=9339  viol=173.8  λe=0.458 λd=0.100 α=0.055
+  [EP  102] R=-1083.7  delay=693.1  energy=9365  viol=172.6  λe=0.458 λd=0.100 α=0.054
+  [EP  104] R=-1095.5  delay=700.7  energy=9258  viol=175.0  λe=0.460 λd=0.099 α=0.053
+  [EP  106] R=-1145.0  delay=710.5  energy=9406  viol=184.2  λe=0.462 λd=0.099 α=0.053
+  [EP  108] R=-1140.2  delay=716.0  energy=9425  viol=183.0  λe=0.464 λd=0.099 α=0.052
+  [EP  110] R=-1143.8  delay=707.6  energy=9301  viol=184.2  λe=0.466 λd=0.098 α=0.052
+  [EP  112] R=-1134.0  delay=713.0  energy=9318  viol=182.0  λe=0.467 λd=0.098 α=0.052
+  [EP  114] R=-1162.4  delay=728.5  energy=9249  viol=187.2  λe=0.470 λd=0.098 α=0.051
+  [EP  116] R=-1202.7  delay=728.5  energy=9194  viol=195.4  λe=0.471 λd=0.097 α=0.051
+  [EP  118] R=-1197.4  delay=727.9  energy=9185  viol=194.4  λe=0.472 λd=0.097 α=0.051
+  [EP  120] R=-1195.3  delay=716.2  energy=9186  viol=194.4  λe=0.474 λd=0.097 α=0.051
+  [EP  122] R=-1174.1  delay=724.5  energy=9207  viol=189.8  λe=0.473 λd=0.096 α=0.051
+  [EP  124] R=-1157.5  delay=719.8  energy=9225  viol=186.6  λe=0.475 λd=0.096 α=0.051
+  [EP  126] R=-1118.6  delay=719.1  energy=9185  viol=179.0  λe=0.476 λd=0.096 α=0.052
+  [EP  128] R=-1154.4  delay=718.7  energy=9167  viol=186.2  λe=0.476 λd=0.095 α=0.051
+  [EP  130] R=-1111.6  delay=722.5  energy=9225  viol=177.4  λe=0.475 λd=0.095 α=0.052
+  [EP  132] R=-1140.5  delay=716.2  energy=9125  viol=183.6  λe=0.476 λd=0.095 α=0.052
+  [EP  134] R=-1113.7  delay=714.1  energy=9210  viol=178.2  λe=0.475 λd=0.094 α=0.052
+  [EP  136] R=-1114.0  delay=716.1  energy=9169  viol=178.2  λe=0.475 λd=0.094 α=0.053
+  [EP  138] R=-1121.1  delay=717.7  energy=9200  viol=179.4  λe=0.475 λd=0.094 α=0.054
+  [EP  140] R=-1152.9  delay=722.2  energy=9243  viol=185.6  λe=0.477 λd=0.093 α=0.055
+  [EP  142] R=-1153.9  delay=722.7  energy=9264  viol=185.8  λe=0.476 λd=0.093 α=0.055
+  [EP  144] R=-1146.9  delay=717.3  energy=9242  viol=184.6  λe=0.476 λd=0.093 α=0.055
+  [EP  146] R=-1153.3  delay=719.9  energy=9232  viol=185.8  λe=0.477 λd=0.092 α=0.055
+  [EP  148] R=-1108.3  delay=709.2  energy=9243  viol=177.2  λe=0.477 λd=0.092 α=0.056
+  [EP  150] R=-1071.2  delay=702.5  energy=9250  viol=170.0  λe=0.476 λd=0.092 α=0.057
+  [EP  152] R=-1105.7  delay=717.5  energy=9169  viol=176.4  λe=0.477 λd=0.091 α=0.057
+  [EP  154] R=-1118.7  delay=708.1  energy=9173  viol=179.4  λe=0.476 λd=0.091 α=0.057
+  [EP  156] R=-1092.9  delay=711.9  energy=9238  viol=174.0  λe=0.476 λd=0.091 α=0.058
+  [EP  158] R=-1114.6  delay=711.2  energy=9214  viol=178.4  λe=0.474 λd=0.090 α=0.058
+  [EP  160] R=-1090.7  delay=709.1  energy=9182  viol=173.8  λe=0.475 λd=0.090 α=0.059
+  [EP  162] R=-1098.3  delay=712.5  energy=9300  viol=175.0  λe=0.473 λd=0.090 α=0.060
+  [EP  164] R=-1146.3  delay=715.8  energy=9187  viol=184.6  λe=0.473 λd=0.089 α=0.059
+  [EP  166] R=-1112.2  delay=721.1  energy=9090  viol=177.8  λe=0.473 λd=0.089 α=0.060
+  [EP  168] R=-1132.5  delay=717.7  energy=9176  viol=181.8  λe=0.473 λd=0.088 α=0.061
+  [EP  170] R=-1107.4  delay=717.8  energy=9170  viol=176.8  λe=0.473 λd=0.088 α=0.060
+  [EP  172] R=-1133.2  delay=718.7  energy=9192  viol=181.8  λe=0.472 λd=0.088 α=0.061
+  [EP  174] R=-1074.5  delay=708.5  energy=9222  viol=170.4  λe=0.471 λd=0.087 α=0.061
+  [EP  176] R=-1113.1  delay=708.4  energy=9131  viol=178.4  λe=0.468 λd=0.087 α=0.061
+  [EP  178] R=-1153.6  delay=727.0  energy=9180  viol=185.6  λe=0.466 λd=0.087 α=0.062
+  [EP  180] R=-1113.0  delay=712.8  energy=9209  viol=178.0  λe=0.465 λd=0.086 α=0.062
+  [EP  182] R=-1138.9  delay=721.6  energy=9237  viol=182.8  λe=0.464 λd=0.086 α=0.061
+  [EP  184] R=-1109.8  delay=716.5  energy=9202  viol=177.2  λe=0.462 λd=0.085 α=0.061
+  [EP  186] R=-1090.5  delay=706.5  energy=9286  viol=173.6  λe=0.460 λd=0.085 α=0.062
+  [EP  188] R=-1090.6  delay=708.6  energy=9228  viol=173.6  λe=0.457 λd=0.085 α=0.063
+  [EP  190] R=-1145.7  delay=721.9  energy=9189  viol=184.2  λe=0.456 λd=0.084 α=0.063
+  [EP  192] R=-1119.7  delay=711.6  energy=9199  viol=179.4  λe=0.454 λd=0.084 α=0.063
+  [EP  194] R=-1126.6  delay=715.8  energy=9201  viol=180.6  λe=0.452 λd=0.083 α=0.063
+  [EP  196] R=-1163.3  delay=719.6  energy=9202  viol=187.8  λe=0.449 λd=0.083 α=0.062
+  [EP  198] R=-1141.7  delay=717.9  energy=9086  viol=183.8  λe=0.447 λd=0.083 α=0.063
+  [EP  200] R=-1153.8  delay=724.1  energy=9171  viol=185.8  λe=0.446 λd=0.082 α=0.064
+  [EP  202] R=-1093.7  delay=709.3  energy=9147  viol=174.4  λe=0.443 λd=0.082 α=0.064
+  [EP  204] R=-1127.4  delay=715.2  energy=9176  viol=180.8  λe=0.442 λd=0.082 α=0.064
+  [EP  206] R=-1082.4  delay=707.7  energy=9239  viol=172.0  λe=0.438 λd=0.081 α=0.064
+  [EP  208] R=-1120.7  delay=718.9  energy=9248  viol=179.2  λe=0.437 λd=0.081 α=0.063
+  [EP  210] R=-1117.8  delay=712.9  energy=9291  viol=178.8  λe=0.435 λd=0.080 α=0.063
+  [EP  212] R=-1088.2  delay=704.8  energy=9208  viol=173.4  λe=0.433 λd=0.080 α=0.063
+  [EP  214] R=-1144.2  delay=725.1  energy=9302  viol=183.6  λe=0.430 λd=0.080 α=0.064
+  [EP  216] R=-1141.2  delay=720.3  energy=9278  viol=183.2  λe=0.429 λd=0.079 α=0.064
+  [EP  218] R=-1105.5  delay=708.8  energy=9216  viol=176.6  λe=0.426 λd=0.079 α=0.064
+  [EP  220] R=-1081.1  delay=700.9  energy=9239  viol=172.0  λe=0.423 λd=0.078 α=0.064
+  [EP  222] R=-1071.8  delay=702.5  energy=9274  viol=170.0  λe=0.420 λd=0.078 α=0.065
+  [EP  224] R=-1116.1  delay=707.6  energy=9281  viol=178.6  λe=0.417 λd=0.078 α=0.065
+  [EP  226] R=-1116.8  delay=716.4  energy=9402  viol=178.2  λe=0.415 λd=0.077 α=0.066
+  [EP  228] R=-1097.8  delay=699.8  energy=9231  viol=175.4  λe=0.413 λd=0.077 α=0.066
+  [EP  230] R=-1113.4  delay=713.7  energy=9330  viol=177.8  λe=0.412 λd=0.076 α=0.066
+  [EP  232] R=-1104.4  delay=712.3  energy=9237  viol=176.2  λe=0.410 λd=0.076 α=0.067
+  [EP  234] R=-1098.4  delay=707.1  energy=9166  viol=175.4  λe=0.408 λd=0.076 α=0.067
+  [EP  236] R=-1158.0  delay=722.3  energy=9121  viol=186.8  λe=0.404 λd=0.075 α=0.067
+  [EP  238] R=-1100.2  delay=710.5  energy=9160  viol=175.6  λe=0.401 λd=0.075 α=0.068
+  [EP  240] R=-1119.4  delay=712.9  energy=9137  viol=179.4  λe=0.398 λd=0.075 α=0.068
+  [EP  242] R=-1116.6  delay=710.3  energy=9212  viol=178.8  λe=0.397 λd=0.074 α=0.068
+  [EP  244] R=-1081.5  delay=707.8  energy=9147  viol=172.0  λe=0.394 λd=0.074 α=0.068
+  [EP  246] R=-1050.2  delay=701.5  energy=9135  viol=166.0  λe=0.390 λd=0.073 α=0.068
+  [EP  248] R=-1078.7  delay=700.1  energy=9102  viol=171.8  λe=0.390 λd=0.073 α=0.068
+  [EP  250] R=-1051.4  delay=700.4  energy=9069  viol=166.4  λe=0.387 λd=0.073 α=0.068
+  [EP  252] R=-1065.3  delay=709.3  energy=9177  viol=168.6  λe=0.384 λd=0.072 α=0.068
+  [EP  254] R=-1084.9  delay=707.6  energy=9064  viol=172.8  λe=0.380 λd=0.072 α=0.068
+  [EP  256] R=-1042.3  delay=701.9  energy=9059  viol=164.6  λe=0.377 λd=0.072 α=0.069
+  [EP  258] R=-1069.3  delay=701.9  energy=9062  viol=170.0  λe=0.373 λd=0.071 α=0.069
+  [EP  260] R=-1101.0  delay=709.6  energy=9079  viol=176.0  λe=0.370 λd=0.071 α=0.069
+  [EP  262] R=-1073.6  delay=699.4  energy=9027  viol=171.0  λe=0.368 λd=0.070 α=0.069
+  [EP  264] R=-1116.0  delay=707.3  energy=9017  viol=179.2  λe=0.364 λd=0.070 α=0.070
+  [EP  266] R=-1088.8  delay=708.2  energy=9073  viol=173.6  λe=0.363 λd=0.070 α=0.069
+  [EP  268] R=-1117.4  delay=709.1  energy=9018  viol=179.4  λe=0.361 λd=0.069 α=0.069
+  [EP  270] R=-1087.9  delay=706.2  energy=9032  viol=173.6  λe=0.360 λd=0.069 α=0.071
+  [EP  272] R=-1056.0  delay=693.9  energy=8980  viol=167.8  λe=0.357 λd=0.068 α=0.070
+  [EP  274] R=-1076.6  delay=700.0  energy=8977  viol=171.6  λe=0.354 λd=0.068 α=0.070
+  [EP  276] R=-1077.8  delay=702.8  energy=8973  viol=171.8  λe=0.351 λd=0.068 α=0.070
+  [EP  278] R=-1100.8  delay=703.6  energy=9005  viol=176.4  λe=0.350 λd=0.067 α=0.070
+  [EP  280] R=-1107.1  delay=712.6  energy=9013  viol=177.2  λe=0.348 λd=0.067 α=0.069
+  [EP  282] R=-1114.8  delay=715.1  energy=9084  viol=178.6  λe=0.345 λd=0.067 α=0.070
+  [EP  284] R=-1100.9  delay=709.2  energy=9078  viol=176.0  λe=0.342 λd=0.066 α=0.069
+  [EP  286] R=-1112.2  delay=714.6  energy=9118  viol=178.0  λe=0.338 λd=0.066 α=0.070
+  [EP  288] R=-1096.1  delay=707.2  energy=9051  viol=175.2  λe=0.333 λd=0.065 α=0.069
+  [EP  290] R=-1080.1  delay=704.0  energy=9209  viol=171.8  λe=0.330 λd=0.065 α=0.069
+  [EP  292] R=-1050.0  delay=697.5  energy=9016  viol=166.4  λe=0.328 λd=0.065 α=0.070
+  [EP  294] R=-1070.8  delay=704.3  energy=9176  viol=170.0  λe=0.324 λd=0.064 α=0.070
+  [EP  296] R=-1063.3  delay=700.2  energy=9098  viol=168.8  λe=0.321 λd=0.064 α=0.069
+  [EP  298] R=-1078.3  delay=705.9  energy=9163  viol=171.4  λe=0.318 λd=0.064 α=0.070
+  [EP  300] R=-1067.6  delay=704.3  energy=9149  viol=169.4  λe=0.314 λd=0.063 α=0.069
+  [EP  302] R=-1102.2  delay=710.9  energy=9165  viol=176.0  λe=0.311 λd=0.063 α=0.068
+  [EP  304] R=-1073.6  delay=704.0  energy=9137  viol=170.6  λe=0.306 λd=0.063 α=0.069
+  [EP  306] R=-1060.4  delay=695.4  energy=9065  viol=168.4  λe=0.303 λd=0.062 α=0.069
+  [EP  308] R=-1080.3  delay=708.0  energy=9241  viol=171.6  λe=0.299 λd=0.062 α=0.069
+  [EP  310] R=-1092.5  delay=702.9  energy=9142  viol=174.4  λe=0.294 λd=0.061 α=0.069
+  [EP  312] R=-1097.4  delay=712.4  energy=9259  viol=174.8  λe=0.291 λd=0.061 α=0.069
+  [EP  314] R=-1074.8  delay=698.1  energy=9175  viol=171.0  λe=0.286 λd=0.061 α=0.069
+  [EP  316] R=-1110.5  delay=708.6  energy=9146  viol=177.8  λe=0.281 λd=0.060 α=0.069
+  [EP  318] R=-1043.9  delay=709.7  energy=9063  viol=164.6  λe=0.277 λd=0.060 α=0.069
+  [EP  320] R=-1037.3  delay=706.5  energy=9184  viol=163.2  λe=0.273 λd=0.060 α=0.070
+  [EP  322] R=-1048.4  delay=694.9  energy=9196  viol=165.8  λe=0.268 λd=0.059 α=0.069
+  [EP  324] R=-1035.2  delay=693.5  energy=9085  viol=163.4  λe=0.264 λd=0.059 α=0.069
+  [EP  326] R=-1048.9  delay=698.9  energy=9050  viol=166.0  λe=0.259 λd=0.059 α=0.069
+  [EP  328] R=-1082.7  delay=707.5  energy=9110  viol=172.2  λe=0.254 λd=0.058 α=0.068
+  [EP  330] R=-1113.6  delay=709.4  energy=9116  viol=178.4  λe=0.250 λd=0.058 α=0.069
+  [EP  332] R=-1084.2  delay=707.9  energy=9146  viol=172.4  λe=0.246 λd=0.057 α=0.069
+  [EP  334] R=-1109.1  delay=715.6  energy=9140  viol=177.2  λe=0.241 λd=0.057 α=0.069
+  [EP  336] R=-1092.4  delay=709.1  energy=9181  viol=174.0  λe=0.237 λd=0.057 α=0.068
+  [EP  338] R=-1103.9  delay=707.8  energy=9156  viol=176.4  λe=0.232 λd=0.056 α=0.068
+  [EP  340] R=-1094.8  delay=704.1  energy=9125  viol=174.8  λe=0.229 λd=0.056 α=0.069
+  [EP  342] R=-1058.9  delay=703.4  energy=9148  viol=167.6  λe=0.224 λd=0.056 α=0.069
+  [EP  344] R=-1054.3  delay=701.2  energy=9169  viol=166.8  λe=0.218 λd=0.055 α=0.069
+  [EP  346] R=-1065.2  delay=704.6  energy=9176  viol=168.8  λe=0.214 λd=0.055 α=0.069
+  [EP  348] R=-1131.4  delay=716.1  energy=9176  viol=181.6  λe=0.209 λd=0.055 α=0.068
+  [EP  350] R=-1110.2  delay=706.7  energy=9125  viol=177.8  λe=0.203 λd=0.054 α=0.068
+  [EP  352] R=-1089.2  delay=707.9  energy=9209  viol=173.4  λe=0.200 λd=0.054 α=0.068
+  [EP  354] R=-1090.4  delay=715.0  energy=9198  viol=173.4  λe=0.194 λd=0.053 α=0.067
+  [EP  356] R=-1060.2  delay=706.4  energy=9252  viol=167.6  λe=0.190 λd=0.053 α=0.067
+  [EP  358] R=-1097.4  delay=709.1  energy=9214  viol=175.0  λe=0.185 λd=0.053 α=0.068
+  [EP  360] R=-1131.4  delay=722.5  energy=9242  viol=181.2  λe=0.179 λd=0.052 α=0.067
+  [EP  362] R=-1108.8  delay=711.3  energy=9225  viol=177.2  λe=0.176 λd=0.052 α=0.067
+  [EP  364] R=-1147.8  delay=731.8  energy=9231  viol=184.2  λe=0.171 λd=0.052 α=0.067
+  [EP  366] R=-1104.1  delay=710.4  energy=9177  viol=176.4  λe=0.166 λd=0.051 α=0.066
+  [EP  368] R=-1112.4  delay=709.1  energy=9163  viol=178.2  λe=0.163 λd=0.051 α=0.066
+  [EP  370] R=-1155.8  delay=724.8  energy=9171  viol=186.2  λe=0.158 λd=0.051 α=0.065
+  [EP  372] R=-1105.9  delay=713.3  energy=9201  viol=176.6  λe=0.154 λd=0.050 α=0.065
+  [EP  374] R=-1084.9  delay=711.8  energy=9237  viol=172.4  λe=0.149 λd=0.050 α=0.065
+  [EP  376] R=-1140.8  delay=720.6  energy=9075  viol=183.6  λe=0.145 λd=0.049 α=0.065
+  [EP  378] R=-1137.9  delay=719.5  energy=9081  viol=183.0  λe=0.140 λd=0.049 α=0.065
+  [EP  380] R=-1118.6  delay=716.3  energy=9121  viol=179.2  λe=0.135 λd=0.049 α=0.065
+  [EP  382] R=-1128.5  delay=717.4  energy=9095  viol=181.2  λe=0.130 λd=0.048 α=0.065
+  [EP  384] R=-1141.2  delay=719.5  energy=9128  viol=183.6  λe=0.125 λd=0.048 α=0.064
+  [EP  386] R=-1138.5  delay=724.9  energy=9176  viol=182.8  λe=0.120 λd=0.048 α=0.064
+  [EP  388] R=-1124.4  delay=718.5  energy=9090  viol=180.4  λe=0.115 λd=0.047 α=0.064
+  [EP  390] R=-1095.7  delay=704.7  energy=9099  viol=175.2  λe=0.110 λd=0.047 α=0.065
+  [EP  392] R=-1081.9  delay=709.7  energy=9089  viol=172.2  λe=0.104 λd=0.047 α=0.064
+  [EP  394] R=-1114.7  delay=712.3  energy=9173  viol=178.6  λe=0.100 λd=0.046 α=0.064
+  [EP  396] R=-1101.4  delay=720.0  energy=9210  viol=175.4  λe=0.094 λd=0.046 α=0.063
+  [EP  398] R=-1104.5  delay=717.2  energy=9109  viol=176.4  λe=0.089 λd=0.045 α=0.062
+  [EP  400] R=-1073.1  delay=709.6  energy=8982  viol=170.6  λe=0.082 λd=0.045 α=0.062
+  [EP  402] R=-1102.4  delay=717.6  energy=9094  viol=176.0  λe=0.076 λd=0.045 α=0.062
+  [EP  404] R=-1081.2  delay=708.4  energy=9122  viol=172.0  λe=0.071 λd=0.044 α=0.062
+  [EP  406] R=-1084.8  delay=713.9  energy=9180  viol=172.4  λe=0.068 λd=0.044 α=0.061
+  [EP  408] R=-1073.5  delay=707.5  energy=9048  viol=170.6  λe=0.062 λd=0.044 α=0.061
+  [EP  410] R=-1101.9  delay=712.1  energy=9139  viol=176.0  λe=0.056 λd=0.043 α=0.061
+  [EP  412] R=-1133.0  delay=719.4  energy=9084  viol=182.0  λe=0.050 λd=0.043 α=0.061
+  [EP  414] R=-1097.8  delay=708.9  energy=9161  viol=175.2  λe=0.044 λd=0.043 α=0.061
+  [EP  416] R=-1102.9  delay=709.4  energy=9184  viol=176.2  λe=0.038 λd=0.042 α=0.060
+  [EP  418] R=-1136.9  delay=722.0  energy=9114  viol=182.6  λe=0.037 λd=0.042 α=0.060
+  [EP  420] R=-1141.5  delay=723.0  energy=9170  viol=183.4  λe=0.030 λd=0.041 α=0.060
+  [EP  422] R=-1071.2  delay=703.8  energy=9115  viol=170.2  λe=0.026 λd=0.041 α=0.059
+  [EP  424] R=-1136.2  delay=718.9  energy=9137  viol=182.6  λe=0.021 λd=0.041 α=0.059
+  [EP  426] R=-1071.3  delay=709.4  energy=9043  viol=170.2  λe=0.015 λd=0.040 α=0.059
+  [EP  428] R=-1128.4  delay=720.8  energy=9093  viol=181.0  λe=0.010 λd=0.040 α=0.058
+  [EP  430] R=-1144.7  delay=722.6  energy=9107  viol=184.2  λe=0.004 λd=0.039 α=0.059
+  [EP  432] R=-1101.6  delay=709.2  energy=9060  viol=176.2  λe=0.000 λd=0.039 α=0.059
+  [EP  434] R=-1128.4  delay=717.6  energy=9061  viol=181.2  λe=0.000 λd=0.039 α=0.058
+  [EP  436] R=-1115.6  delay=713.5  energy=9072  viol=178.8  λe=0.000 λd=0.038 α=0.057
+  [EP  438] R=-1146.7  delay=724.8  energy=9076  viol=184.6  λe=0.000 λd=0.038 α=0.057
+  [EP  440] R=-1150.0  delay=725.7  energy=9070  viol=185.2  λe=0.000 λd=0.038 α=0.057
+  [EP  442] R=-1145.3  delay=725.7  energy=9088  viol=184.2  λe=0.000 λd=0.037 α=0.057
+  [EP  444] R=-1113.4  delay=718.5  energy=9068  viol=178.2  λe=0.000 λd=0.037 α=0.057
+  [EP  446] R=-1145.4  delay=730.9  energy=9142  viol=184.0  λe=0.000 λd=0.037 α=0.057
+  [EP  448] R=-1115.0  delay=716.2  energy=9080  viol=178.6  λe=0.000 λd=0.036 α=0.057
+  [EP  450] R=-1114.0  delay=720.2  energy=9123  viol=178.2  λe=0.000 λd=0.036 α=0.057
+  [EP  452] R=-1074.4  delay=711.8  energy=9015  viol=170.8  λe=0.000 λd=0.035 α=0.056
+  [EP  454] R=-1116.3  delay=715.7  energy=9025  viol=179.0  λe=0.000 λd=0.035 α=0.056
+  [EP  456] R=-1107.9  delay=723.3  energy=9047  viol=177.0  λe=0.000 λd=0.035 α=0.056
+  [EP  458] R=-1124.9  delay=721.3  energy=9114  viol=180.4  λe=0.000 λd=0.034 α=0.055
+  [EP  460] R=-1118.8  delay=721.0  energy=9080  viol=179.2  λe=0.000 λd=0.034 α=0.054
+  [EP  462] R=-1099.0  delay=712.7  energy=9060  viol=175.6  λe=0.000 λd=0.034 α=0.055
+  [EP  464] R=-1102.3  delay=710.1  energy=9137  viol=176.2  λe=0.000 λd=0.033 α=0.055
+  [EP  466] R=-1115.7  delay=716.4  energy=9040  viol=178.8  λe=0.000 λd=0.033 α=0.055
+  [EP  468] R=-1097.6  delay=717.4  energy=9039  viol=175.2  λe=0.000 λd=0.032 α=0.054
+  [EP  470] R=-1118.3  delay=721.6  energy=9024  viol=179.2  λe=0.000 λd=0.032 α=0.054
+  [EP  472] R=-1100.1  delay=709.7  energy=9036  viol=176.0  λe=0.000 λd=0.032 α=0.054
+  [EP  474] R=-1092.8  delay=707.4  energy=9045  viol=174.6  λe=0.000 λd=0.031 α=0.054
+  [EP  476] R=-1135.4  delay=719.2  energy=9238  viol=182.4  λe=0.000 λd=0.031 α=0.054
+  [EP  478] R=-1115.8  delay=717.9  energy=9043  viol=178.8  λe=0.000 λd=0.031 α=0.054
+  [EP  480] R=-1150.9  delay=724.6  energy=9122  viol=185.4  λe=0.000 λd=0.030 α=0.054
+  [EP  482] R=-1134.7  delay=717.9  energy=9056  viol=182.6  λe=0.000 λd=0.030 α=0.054
+  [EP  484] R=-1122.3  delay=716.6  energy=9119  viol=180.0  λe=0.000 λd=0.030 α=0.053
+  [EP  486] R=-1082.8  delay=703.4  energy=9023  viol=172.8  λe=0.000 λd=0.029 α=0.053
+  [EP  488] R=-1130.9  delay=715.2  energy=9082  viol=181.8  λe=0.000 λd=0.029 α=0.053
+  [EP  490] R=-1104.5  delay=710.4  energy=9024  viol=176.8  λe=0.000 λd=0.028 α=0.053
+  [EP  492] R=-1118.7  delay=714.7  energy=9153  viol=179.2  λe=0.000 λd=0.028 α=0.052
+  [EP  494] R=-1116.0  delay=712.2  energy=9154  viol=178.8  λe=0.000 λd=0.028 α=0.052
+  [EP  496] R=-1105.6  delay=712.0  energy=9198  viol=176.6  λe=0.000 λd=0.027 α=0.052
+  [EP  498] R=-1081.6  delay=710.0  energy=9139  viol=172.0  λe=0.000 λd=0.027 α=0.052
+  [EP  500] R=-1124.9  delay=715.2  energy=9168  viol=180.4  λe=0.000 λd=0.027 α=0.052
+  [EP  502] R=-1087.3  delay=708.5  energy=9209  viol=173.0  λe=0.000 λd=0.026 α=0.052
+  [EP  504] R=-1105.1  delay=710.3  energy=9175  viol=176.6  λe=0.000 λd=0.026 α=0.052
+  [EP  506] R=-1137.3  delay=716.0  energy=9182  viol=182.8  λe=0.000 λd=0.025 α=0.052
+  [EP  508] R=-1087.3  delay=702.8  energy=9164  viol=173.4  λe=0.000 λd=0.025 α=0.051
+  [EP  510] R=-1090.4  delay=707.7  energy=9164  viol=173.8  λe=0.000 λd=0.025 α=0.052
+  [EP  512] R=-1124.0  delay=718.0  energy=9236  viol=180.0  λe=0.000 λd=0.024 α=0.052
+  [EP  514] R=-1101.9  delay=713.0  energy=9186  viol=175.8  λe=0.000 λd=0.024 α=0.052
+  [EP  516] R=-1140.6  delay=713.0  energy=9194  viol=183.6  λe=0.000 λd=0.023 α=0.051
+  [EP  518] R=-1141.5  delay=714.8  energy=9212  viol=183.6  λe=0.000 λd=0.023 α=0.051
+  [EP  520] R=-1101.9  delay=708.6  energy=9195  viol=176.0  λe=0.000 λd=0.023 α=0.050
+  [EP  522] R=-1125.6  delay=713.3  energy=9183  viol=180.6  λe=0.000 λd=0.022 α=0.051
+  [EP  524] R=-1093.1  delay=709.3  energy=9104  viol=174.4  λe=0.000 λd=0.022 α=0.051
+  [EP  526] R=-1109.9  delay=716.9  energy=9234  viol=177.2  λe=0.000 λd=0.022 α=0.051
+  [EP  528] R=-1127.8  delay=713.6  energy=9194  viol=181.0  λe=0.000 λd=0.021 α=0.051
+  [EP  530] R=-1114.0  delay=715.9  energy=9192  viol=178.2  λe=0.000 λd=0.021 α=0.051
+  [EP  532] R=-1083.6  delay=708.9  energy=9080  viol=172.6  λe=0.000 λd=0.020 α=0.051
+  [EP  534] R=-1082.9  delay=707.5  energy=9124  viol=172.4  λe=0.000 λd=0.020 α=0.051
+  [EP  536] R=-1099.6  delay=711.0  energy=9155  viol=175.6  λe=0.000 λd=0.020 α=0.050
+  [EP  538] R=-1097.2  delay=709.9  energy=9105  viol=175.2  λe=0.000 λd=0.019 α=0.050
+  [EP  540] R=-1078.3  delay=705.3  energy=9008  viol=171.8  λe=0.000 λd=0.019 α=0.050
+  [EP  542] R=-1082.6  delay=704.1  energy=8989  viol=172.8  λe=0.000 λd=0.018 α=0.050
+  [EP  544] R=-1060.9  delay=704.6  energy=8983  viol=168.4  λe=0.000 λd=0.018 α=0.050
+  [EP  546] R=-1069.2  delay=701.8  energy=8997  viol=170.2  λe=0.000 λd=0.018 α=0.050
+  [EP  548] R=-1046.7  delay=698.7  energy=8999  viol=165.8  λe=0.000 λd=0.017 α=0.049
+  [EP  550] R=-1072.2  delay=704.8  energy=9038  viol=170.6  λe=0.000 λd=0.017 α=0.050
+  [EP  552] R=-1027.4  delay=697.6  energy=8980  viol=162.0  λe=0.000 λd=0.017 α=0.050
+  [EP  554] R=-1029.1  delay=700.8  energy=8982  viol=162.2  λe=0.000 λd=0.016 α=0.050
+  [EP  556] R=-1051.0  delay=697.4  energy=8939  viol=166.8  λe=0.000 λd=0.016 α=0.051
+  [EP  558] R=-1040.2  delay=697.1  energy=8976  viol=164.6  λe=0.000 λd=0.015 α=0.050
+  [EP  560] R=-1028.4  delay=692.4  energy=8982  viol=162.4  λe=0.000 λd=0.015 α=0.050
+  [EP  562] R=-1053.5  delay=693.2  energy=8981  viol=167.4  λe=0.000 λd=0.015 α=0.050
+  [EP  564] R=-1064.7  delay=702.6  energy=8991  viol=169.2  λe=0.000 λd=0.014 α=0.050
+  [EP  566] R=-1055.1  delay=700.9  energy=9005  viol=167.4  λe=0.000 λd=0.014 α=0.050
+  [EP  568] R=-1071.1  delay=701.7  energy=8975  viol=170.6  λe=0.000 λd=0.014 α=0.050
+  [EP  570] R=-1021.7  delay=691.9  energy=9015  viol=161.0  λe=0.000 λd=0.013 α=0.050
+  [EP  572] R=-1069.1  delay=704.1  energy=9036  viol=170.0  λe=0.000 λd=0.013 α=0.050
+  [EP  574] R=-1036.7  delay=696.4  energy=9039  viol=163.8  λe=0.000 λd=0.012 α=0.050
+  [EP  576] R=-1045.9  delay=700.0  energy=8992  viol=165.6  λe=0.000 λd=0.012 α=0.049
+  [EP  578] R=-1042.9  delay=691.1  energy=8975  viol=165.4  λe=0.000 λd=0.012 α=0.049
+  [EP  580] R=-1035.2  delay=693.7  energy=8958  viol=163.8  λe=0.000 λd=0.011 α=0.050
+  [EP  582] R=-1036.4  delay=693.6  energy=8985  viol=164.0  λe=0.000 λd=0.011 α=0.049
+  [EP  584] R=-1032.8  delay=693.5  energy=9011  viol=163.2  λe=0.000 λd=0.011 α=0.049
+  [EP  586] R=-1028.4  delay=689.7  energy=8972  viol=162.6  λe=0.000 λd=0.010 α=0.049
+  [EP  588] R=-1030.9  delay=692.1  energy=8957  viol=163.0  λe=0.000 λd=0.010 α=0.050
+  [EP  590] R=-995.9  delay=686.1  energy=8955  viol=156.2  λe=0.000 λd=0.009 α=0.050
+  [EP  592] R=-1033.6  delay=689.7  energy=8928  viol=163.6  λe=0.000 λd=0.009 α=0.050
+  [EP  594] R=-1034.9  delay=687.5  energy=8916  viol=164.0  λe=0.000 λd=0.009 α=0.050
+  [EP  596] R=-1030.8  delay=690.5  energy=8986  viol=163.0  λe=0.000 λd=0.008 α=0.050
+  [EP  598] R=-1008.4  delay=688.5  energy=8950  viol=158.6  λe=0.000 λd=0.008 α=0.049
+  [EP  600] R=-1045.7  delay=698.7  energy=8969  viol=165.6  λe=0.000 λd=0.007 α=0.049
+  [EP  602] R=-1027.3  delay=684.5  energy=8915  viol=162.6  λe=0.000 λd=0.007 α=0.049
+  [EP  604] R=-1061.1  delay=691.1  energy=8981  viol=169.0  λe=0.000 λd=0.007 α=0.049
+  [EP  606] R=-1051.5  delay=697.1  energy=8999  viol=166.8  λe=0.000 λd=0.006 α=0.049
+  [EP  608] R=-1080.0  delay=702.5  energy=9042  viol=172.2  λe=0.000 λd=0.006 α=0.049
+  [EP  610] R=-1031.3  delay=694.5  energy=8997  viol=162.8  λe=0.000 λd=0.006 α=0.048
+  [EP  612] R=-1035.0  delay=695.7  energy=9062  viol=163.4  λe=0.000 λd=0.005 α=0.048
+  [EP  614] R=-1002.4  delay=685.7  energy=9010  viol=157.4  λe=0.000 λd=0.005 α=0.049
+  [EP  616] R=-1022.2  delay=690.4  energy=8979  viol=161.2  λe=0.000 λd=0.005 α=0.049
+  [EP  618] R=-1029.3  delay=688.8  energy=9036  viol=162.6  λe=0.000 λd=0.004 α=0.049
+  [EP  620] R=-1032.0  delay=691.1  energy=9070  viol=163.0  λe=0.000 λd=0.004 α=0.048
+  [EP  622] R=-1042.1  delay=696.1  energy=9046  viol=164.8  λe=0.000 λd=0.003 α=0.048
+  [EP  624] R=-1051.6  delay=697.4  energy=9081  viol=166.6  λe=0.000 λd=0.003 α=0.049
+  [EP  626] R=-1093.1  delay=701.3  energy=9072  viol=174.8  λe=0.000 λd=0.003 α=0.049
+  [EP  628] R=-1042.4  delay=696.0  energy=9086  viol=164.8  λe=0.000 λd=0.002 α=0.048
+  [EP  630] R=-1046.7  delay=692.4  energy=9097  viol=165.8  λe=0.000 λd=0.002 α=0.048
+  [EP  632] R=-1070.4  delay=700.1  energy=9084  viol=170.2  λe=0.000 λd=0.001 α=0.049
+  [EP  634] R=-1067.2  delay=702.6  energy=9171  viol=169.4  λe=0.000 λd=0.001 α=0.049
+  [EP  636] R=-1079.6  delay=703.6  energy=9164  viol=171.8  λe=0.000 λd=0.001 α=0.048
+  [EP  638] R=-1072.1  delay=698.4  energy=9109  viol=170.6  λe=0.000 λd=0.000 α=0.048
+  [EP  640] R=-1046.8  delay=696.1  energy=9143  viol=165.6  λe=0.000 λd=0.000 α=0.048
+  [EP  642] R=-1067.9  delay=696.3  energy=9042  viol=170.0  λe=0.000 λd=0.000 α=0.047
+  [EP  644] R=-1068.0  delay=699.5  energy=9099  viol=169.8  λe=0.000 λd=0.000 α=0.048
+  [EP  646] R=-1053.1  delay=698.2  energy=9112  viol=166.8  λe=0.000 λd=0.000 α=0.048
+  [EP  648] R=-1074.1  delay=697.5  energy=9131  viol=171.0  λe=0.000 λd=0.000 α=0.048
+  [EP  650] R=-1098.1  delay=698.8  energy=9126  viol=175.8  λe=0.000 λd=0.000 α=0.048
+  [EP  652] R=-1082.8  delay=700.9  energy=9132  viol=172.6  λe=0.000 λd=0.000 α=0.048
+  [EP  654] R=-1050.8  delay=699.3  energy=9152  viol=166.2  λe=0.000 λd=0.000 α=0.048
+  [EP  656] R=-1069.1  delay=701.6  energy=9132  viol=169.8  λe=0.000 λd=0.000 α=0.048
+  [EP  658] R=-1059.5  delay=707.2  energy=9080  viol=167.8  λe=0.000 λd=0.000 α=0.048
+  [EP  660] R=-1066.9  delay=701.2  energy=9118  viol=169.4  λe=0.000 λd=0.000 α=0.048
+  [EP  662] R=-1086.5  delay=707.6  energy=9035  viol=173.2  λe=0.000 λd=0.000 α=0.048
+  [EP  664] R=-1062.9  delay=703.6  energy=9098  viol=168.6  λe=0.000 λd=0.000 α=0.048
+  [EP  666] R=-1052.6  delay=700.2  energy=9021  viol=166.8  λe=0.000 λd=0.000 α=0.048
+  [EP  668] R=-1086.7  delay=702.0  energy=9111  viol=173.4  λe=0.000 λd=0.000 α=0.048
+  [EP  670] R=-1080.0  delay=701.0  energy=9053  viol=172.2  λe=0.000 λd=0.000 α=0.048
+  [EP  672] R=-1046.4  delay=697.2  energy=9070  viol=165.6  λe=0.000 λd=0.000 α=0.048
+  [EP  674] R=-1103.4  delay=705.7  energy=9125  viol=176.6  λe=0.000 λd=0.000 α=0.048
+  [EP  676] R=-1094.9  delay=705.5  energy=9039  viol=175.0  λe=0.000 λd=0.000 α=0.048
+  [EP  678] R=-1125.6  delay=704.2  energy=9037  viol=181.2  λe=0.000 λd=0.000 α=0.047
+  [EP  680] R=-1070.1  delay=695.6  energy=9050  viol=170.4  λe=0.000 λd=0.000 α=0.047
+  [EP  682] R=-1072.5  delay=700.3  energy=9113  viol=170.6  λe=0.000 λd=0.000 α=0.047
+  [EP  684] R=-1105.2  delay=705.4  energy=9073  viol=177.0  λe=0.000 λd=0.000 α=0.047
+  [EP  686] R=-1081.3  delay=696.7  energy=9032  viol=172.6  λe=0.000 λd=0.000 α=0.047
+  [EP  688] R=-1111.9  delay=711.4  energy=9090  viol=178.0  λe=0.000 λd=0.000 α=0.047
+  [EP  690] R=-1109.2  delay=707.9  energy=9140  viol=177.6  λe=0.000 λd=0.000 α=0.047
+  [EP  692] R=-1126.3  delay=711.3  energy=9070  viol=181.0  λe=0.000 λd=0.000 α=0.047
+  [EP  694] R=-1126.4  delay=713.7  energy=9118  viol=180.8  λe=0.000 λd=0.000 α=0.047
+  [EP  696] R=-1087.8  delay=704.4  energy=9047  viol=173.6  λe=0.000 λd=0.000 α=0.047
+  [EP  698] R=-1135.0  delay=712.5  energy=9028  viol=182.8  λe=0.000 λd=0.000 α=0.047
+  [EP  700] R=-1087.7  delay=703.5  energy=9067  viol=173.6  λe=0.000 λd=0.000 α=0.046
+  [EP  702] R=-1124.8  delay=711.1  energy=9115  viol=180.6  λe=0.000 λd=0.000 α=0.046
+  [EP  704] R=-1115.3  delay=710.8  energy=9086  viol=178.8  λe=0.000 λd=0.000 α=0.046
+  [EP  706] R=-1081.9  delay=704.5  energy=9060  viol=172.4  λe=0.000 λd=0.000 α=0.047
+  [EP  708] R=-1101.3  delay=706.6  energy=9131  viol=176.0  λe=0.000 λd=0.000 α=0.047
+  [EP  710] R=-1105.1  delay=714.0  energy=9085  viol=176.6  λe=0.000 λd=0.000 α=0.047
+  [EP  712] R=-1099.0  delay=707.5  energy=9101  viol=175.6  λe=0.000 λd=0.000 α=0.047
+  [EP  714] R=-1073.2  delay=699.4  energy=9083  viol=170.8  λe=0.000 λd=0.000 α=0.047
+  [EP  716] R=-1091.9  delay=704.0  energy=9057  viol=174.4  λe=0.000 λd=0.000 α=0.047
+  [EP  718] R=-1101.5  delay=707.0  energy=9074  viol=176.2  λe=0.000 λd=0.000 α=0.047
+  [EP  720] R=-1111.4  delay=710.9  energy=9057  viol=178.0  λe=0.000 λd=0.000 α=0.047
+  [EP  722] R=-1108.6  delay=716.0  energy=9071  viol=177.2  λe=0.000 λd=0.000 α=0.047
+  [EP  724] R=-1095.5  delay=704.8  energy=9009  viol=175.2  λe=0.000 λd=0.000 α=0.046
+  [EP  726] R=-1097.8  delay=707.5  energy=9042  viol=175.4  λe=0.000 λd=0.000 α=0.047
+  [EP  728] R=-1044.7  delay=702.3  energy=9059  viol=165.0  λe=0.000 λd=0.000 α=0.047
+  [EP  730] R=-1114.6  delay=712.3  energy=9043  viol=178.6  λe=0.000 λd=0.000 α=0.047
+  [EP  732] R=-1062.3  delay=704.9  energy=9092  viol=168.4  λe=0.000 λd=0.000 α=0.047
+  [EP  734] R=-1082.0  delay=706.3  energy=9021  viol=172.4  λe=0.000 λd=0.000 α=0.047
+  [EP  736] R=-1027.5  delay=696.1  energy=9060  viol=161.8  λe=0.000 λd=0.000 α=0.046
+  [EP  738] R=-1065.7  delay=701.9  energy=9061  viol=169.2  λe=0.000 λd=0.000 α=0.046
+  [EP  740] R=-1041.1  delay=698.8  energy=9072  viol=164.4  λe=0.000 λd=0.000 α=0.046
+  [EP  742] R=-1050.9  delay=699.1  energy=9047  viol=166.4  λe=0.000 λd=0.000 α=0.046
+  [EP  744] R=-1070.5  delay=700.8  energy=9078  viol=170.2  λe=0.000 λd=0.000 α=0.046
+  [EP  746] R=-1082.2  delay=702.1  energy=9026  viol=172.6  λe=0.000 λd=0.000 α=0.046
+  [EP  748] R=-1059.6  delay=698.5  energy=9038  viol=168.2  λe=0.000 λd=0.000 α=0.046
+  [EP  750] R=-1059.6  delay=704.4  energy=9120  viol=167.8  λe=0.000 λd=0.000 α=0.046
+  [EP  752] R=-1033.6  delay=695.5  energy=9113  viol=163.0  λe=0.000 λd=0.000 α=0.046
+  [EP  754] R=-1118.2  delay=711.1  energy=9025  viol=179.4  λe=0.000 λd=0.000 α=0.046
+  [EP  756] R=-1092.6  delay=708.9  energy=9018  viol=174.4  λe=0.000 λd=0.000 α=0.046
+  [EP  758] R=-1074.2  delay=702.3  energy=9127  viol=170.8  λe=0.000 λd=0.000 α=0.045
+  [EP  760] R=-1085.7  delay=704.2  energy=9011  viol=173.2  λe=0.000 λd=0.000 α=0.046
+  [EP  762] R=-1140.0  delay=713.3  energy=8989  viol=183.8  λe=0.000 λd=0.000 α=0.046
+  [EP  764] R=-1121.2  delay=708.9  energy=9081  viol=180.0  λe=0.000 λd=0.000 α=0.046
+  [EP  766] R=-1081.7  delay=708.2  energy=9058  viol=172.2  λe=0.000 λd=0.000 α=0.046
+  [EP  768] R=-1048.6  delay=702.6  energy=9023  viol=165.8  λe=0.000 λd=0.000 α=0.046
+  [EP  770] R=-1103.1  delay=703.6  energy=9097  viol=176.6  λe=0.000 λd=0.000 α=0.046
+  [EP  772] R=-1098.0  delay=705.8  energy=9025  viol=175.6  λe=0.000 λd=0.000 α=0.045
+  [EP  774] R=-1072.1  delay=705.7  energy=9034  viol=170.4  λe=0.000 λd=0.000 α=0.046
+  [EP  776] R=-1105.6  delay=713.2  energy=9028  viol=176.8  λe=0.000 λd=0.000 α=0.045
+  [EP  778] R=-1095.6  delay=708.5  energy=9017  viol=175.0  λe=0.000 λd=0.000 α=0.045
+  [EP  780] R=-1156.5  delay=715.3  energy=9078  viol=186.8  λe=0.000 λd=0.000 α=0.045
+  [EP  782] R=-1079.2  delay=708.1  energy=9077  viol=171.6  λe=0.000 λd=0.000 α=0.045
+  [EP  784] R=-1062.5  delay=700.5  energy=9070  viol=168.6  λe=0.000 λd=0.000 α=0.046
+  [EP  786] R=-1083.5  delay=712.5  energy=9070  viol=172.4  λe=0.000 λd=0.000 α=0.046
+  [EP  788] R=-1101.0  delay=714.7  energy=9025  viol=175.8  λe=0.000 λd=0.000 α=0.046
+  [EP  790] R=-1063.7  delay=702.3  energy=9176  viol=168.6  λe=0.000 λd=0.000 α=0.046
+  [EP  792] R=-1076.3  delay=703.7  energy=9127  viol=171.2  λe=0.000 λd=0.000 α=0.046
+  [EP  794] R=-1017.5  delay=702.4  energy=9086  viol=159.6  λe=0.000 λd=0.000 α=0.046
+  [EP  796] R=-1070.2  delay=700.0  energy=9178  viol=170.0  λe=0.000 λd=0.000 α=0.045
+  [EP  798] R=-1031.8  delay=698.1  energy=9152  viol=162.4  λe=0.000 λd=0.000 α=0.046
+  [EP  800] R=-1107.4  delay=710.5  energy=9129  viol=177.0  λe=0.000 λd=0.000 α=0.045
+  [EP  802] R=-1102.8  delay=704.3  energy=9061  viol=176.6  λe=0.000 λd=0.000 α=0.046
+  [EP  804] R=-1087.4  delay=700.6  energy=9173  viol=173.4  λe=0.000 λd=0.000 α=0.046
+  [EP  806] R=-1102.0  delay=714.3  energy=9186  viol=175.8  λe=0.000 λd=0.000 α=0.046
+  [EP  808] R=-1059.8  delay=705.4  energy=9133  viol=167.8  λe=0.000 λd=0.000 α=0.046
+  [EP  810] R=-1075.6  delay=699.4  energy=9138  viol=171.2  λe=0.000 λd=0.000 α=0.046
+  [EP  812] R=-1049.5  delay=698.0  energy=9145  viol=166.0  λe=0.000 λd=0.000 α=0.046
+  [EP  814] R=-1095.5  delay=707.2  energy=9144  viol=174.8  λe=0.000 λd=0.000 α=0.046
+  [EP  816] R=-1107.0  delay=710.1  energy=9162  viol=177.0  λe=0.000 λd=0.000 α=0.046
+  [EP  818] R=-1057.5  delay=698.2  energy=9151  viol=167.6  λe=0.000 λd=0.000 α=0.046
+  [EP  820] R=-1108.6  delay=706.8  energy=9186  viol=177.4  λe=0.000 λd=0.000 α=0.046
+  [EP  822] R=-1088.5  delay=709.3  energy=9197  viol=173.2  λe=0.000 λd=0.000 α=0.046
+  [EP  824] R=-1106.8  delay=709.0  energy=9157  viol=177.0  λe=0.000 λd=0.000 α=0.046
+  [EP  826] R=-1081.0  delay=705.0  energy=9138  viol=172.0  λe=0.000 λd=0.000 α=0.046
+  [EP  828] R=-1106.9  delay=713.6  energy=9158  viol=176.8  λe=0.000 λd=0.000 α=0.046
+  [EP  830] R=-1124.4  delay=708.2  energy=9105  viol=180.6  λe=0.000 λd=0.000 α=0.046
+  [EP  832] R=-1091.8  delay=706.1  energy=9130  viol=174.2  λe=0.000 λd=0.000 α=0.045
+  [EP  834] R=-1112.0  delay=702.1  energy=9141  viol=178.4  λe=0.000 λd=0.000 α=0.045
+  [EP  836] R=-1105.3  delay=711.7  energy=9166  viol=176.6  λe=0.000 λd=0.000 α=0.045
+  [EP  838] R=-1106.4  delay=708.2  energy=9127  viol=177.0  λe=0.000 λd=0.000 α=0.045
+  [EP  840] R=-1105.3  delay=708.7  energy=9114  viol=176.8  λe=0.000 λd=0.000 α=0.045
+  [EP  842] R=-1118.7  delay=711.2  energy=9122  viol=179.4  λe=0.000 λd=0.000 α=0.045
+  [EP  844] R=-1133.6  delay=709.2  energy=9119  viol=182.4  λe=0.000 λd=0.000 α=0.045
+  [EP  846] R=-1064.1  delay=700.8  energy=9121  viol=168.8  λe=0.000 λd=0.000 α=0.044
+  [EP  848] R=-1107.3  delay=709.7  energy=9120  viol=177.2  λe=0.000 λd=0.000 α=0.045
+  [EP  850] R=-1108.5  delay=705.2  energy=9126  viol=177.6  λe=0.000 λd=0.000 α=0.045
+  [EP  852] R=-1081.9  delay=702.0  energy=9119  viol=172.4  λe=0.000 λd=0.000 α=0.045
+  [EP  854] R=-1103.8  delay=706.7  energy=9120  viol=176.6  λe=0.000 λd=0.000 α=0.045
+  [EP  856] R=-1098.7  delay=696.0  energy=9116  viol=176.0  λe=0.000 λd=0.000 α=0.045
+  [EP  858] R=-1108.3  delay=700.6  energy=9070  viol=177.8  λe=0.000 λd=0.000 α=0.044
+  [EP  860] R=-1137.8  delay=713.6  energy=9085  viol=183.2  λe=0.000 λd=0.000 α=0.044
+  [EP  862] R=-1126.5  delay=703.7  energy=9147  viol=181.2  λe=0.000 λd=0.000 α=0.044
+  [EP  864] R=-1096.6  delay=708.7  energy=9145  viol=175.0  λe=0.000 λd=0.000 α=0.045
+  [EP  866] R=-1070.8  delay=697.0  energy=9103  viol=170.4  λe=0.000 λd=0.000 α=0.045
+  [EP  868] R=-1045.2  delay=695.0  energy=9097  viol=165.4  λe=0.000 λd=0.000 α=0.045
+  [EP  870] R=-1060.9  delay=693.5  energy=9074  viol=168.6  λe=0.000 λd=0.000 α=0.045
+  [EP  872] R=-1051.7  delay=691.9  energy=9094  viol=166.8  λe=0.000 λd=0.000 α=0.045
+  [EP  874] R=-1004.1  delay=683.7  energy=9089  viol=157.6  λe=0.000 λd=0.000 α=0.044
+  [EP  876] R=-1054.5  delay=695.6  energy=9098  viol=167.2  λe=0.000 λd=0.000 α=0.044
+  [EP  878] R=-1033.7  delay=690.2  energy=9119  viol=163.2  λe=0.000 λd=0.000 α=0.045
+  [EP  880] R=-1037.6  delay=688.9  energy=9156  viol=164.0  λe=0.000 λd=0.000 α=0.045
+  [EP  882] R=-1069.5  delay=696.8  energy=9052  viol=170.2  λe=0.000 λd=0.000 α=0.044
+  [EP  884] R=-1020.8  delay=686.9  energy=9081  viol=160.8  λe=0.000 λd=0.000 α=0.044
+  [EP  886] R=-1047.8  delay=690.7  energy=9120  viol=166.0  λe=0.000 λd=0.000 α=0.044
+  [EP  888] R=-1038.8  delay=684.8  energy=9048  viol=164.6  λe=0.000 λd=0.000 α=0.044
+  [EP  890] R=-1044.8  delay=686.2  energy=9026  viol=165.8  λe=0.000 λd=0.000 α=0.044
+  [EP  892] R=-1008.4  delay=679.9  energy=9108  viol=158.6  λe=0.000 λd=0.000 α=0.044
+  [EP  894] R=-1053.3  delay=692.5  energy=9038  viol=167.2  λe=0.000 λd=0.000 α=0.044
+  [EP  896] R=-1031.1  delay=683.1  energy=9014  viol=163.2  λe=0.000 λd=0.000 α=0.044
+  [EP  898] R=-1009.3  delay=686.4  energy=9081  viol=158.6  λe=0.000 λd=0.000 α=0.044
+  [EP  900] R=-1037.3  delay=687.5  energy=9043  viol=164.2  λe=0.000 λd=0.000 α=0.044
+  [EP  902] R=-1038.2  delay=684.7  energy=9087  viol=164.4  λe=0.000 λd=0.000 α=0.044
+  [EP  904] R=-1058.3  delay=691.8  energy=9071  viol=168.2  λe=0.000 λd=0.000 α=0.044
+  [EP  906] R=-1083.7  delay=696.9  energy=9112  viol=173.0  λe=0.000 λd=0.000 α=0.044
+  [EP  908] R=-1056.4  delay=694.4  energy=9037  viol=167.8  λe=0.000 λd=0.000 α=0.045
+  [EP  910] R=-1107.3  delay=706.1  energy=8995  viol=177.6  λe=0.000 λd=0.000 α=0.045
+  [EP  912] R=-1112.8  delay=702.7  energy=9071  viol=178.6  λe=0.000 λd=0.000 α=0.045
+  [EP  914] R=-1066.6  delay=697.1  energy=9066  viol=169.6  λe=0.000 λd=0.000 α=0.044
+  [EP  916] R=-1062.7  delay=693.2  energy=9048  viol=169.0  λe=0.000 λd=0.000 α=0.044
+  [EP  918] R=-1027.9  delay=691.6  energy=9095  viol=162.0  λe=0.000 λd=0.000 α=0.044
+  [EP  920] R=-1064.6  delay=697.6  energy=9063  viol=169.2  λe=0.000 λd=0.000 α=0.044
+  [EP  922] R=-1029.7  delay=691.8  energy=9093  viol=162.4  λe=0.000 λd=0.000 α=0.045
+  [EP  924] R=-1047.6  delay=692.1  energy=9096  viol=166.0  λe=0.000 λd=0.000 α=0.044
+  [EP  926] R=-1058.5  delay=692.0  energy=9068  viol=168.2  λe=0.000 λd=0.000 α=0.045
+  [EP  928] R=-1049.3  delay=695.2  energy=9080  viol=166.2  λe=0.000 λd=0.000 α=0.045
+  [EP  930] R=-1091.6  delay=700.4  energy=9114  viol=174.4  λe=0.000 λd=0.000 α=0.044
+  [EP  932] R=-1032.9  delay=689.2  energy=9073  viol=163.2  λe=0.000 λd=0.000 α=0.045
+  [EP  934] R=-1077.0  delay=700.2  energy=9054  viol=171.6  λe=0.000 λd=0.000 α=0.045
+  [EP  936] R=-1081.1  delay=700.6  energy=9070  viol=172.4  λe=0.000 λd=0.000 α=0.045
+  [EP  938] R=-1038.2  delay=698.1  energy=9118  viol=163.8  λe=0.000 λd=0.000 α=0.044
+  [EP  940] R=-1069.9  delay=697.3  energy=9096  viol=170.2  λe=0.000 λd=0.000 α=0.044
+  [EP  942] R=-1039.4  delay=693.5  energy=9128  viol=164.2  λe=0.000 λd=0.000 α=0.044
+  [EP  944] R=-1057.0  delay=689.1  energy=9087  viol=168.0  λe=0.000 λd=0.000 α=0.044
+  [EP  946] R=-1055.3  delay=693.5  energy=9046  viol=167.6  λe=0.000 λd=0.000 α=0.044
+  [EP  948] R=-1073.3  delay=700.2  energy=9122  viol=170.8  λe=0.000 λd=0.000 α=0.044
+  [EP  950] R=-1084.4  delay=700.0  energy=9110  viol=173.0  λe=0.000 λd=0.000 α=0.044
+  [EP  952] R=-1064.1  delay=697.6  energy=9143  viol=169.0  λe=0.000 λd=0.000 α=0.044
+  [EP  954] R=-1064.1  delay=694.7  energy=9093  viol=169.2  λe=0.000 λd=0.000 α=0.045
+  [EP  956] R=-988.8  delay=683.4  energy=9092  viol=154.6  λe=0.000 λd=0.000 α=0.045
+  [EP  958] R=-1049.9  delay=695.2  energy=9066  viol=166.4  λe=0.000 λd=0.000 α=0.045
+  [EP  960] R=-1075.8  delay=701.1  energy=9050  viol=171.4  λe=0.000 λd=0.000 α=0.045
+  [EP  962] R=-1082.5  delay=705.3  energy=9117  viol=172.4  λe=0.000 λd=0.000 α=0.044
+  [EP  964] R=-1058.5  delay=701.6  energy=9095  viol=167.8  λe=0.000 λd=0.000 α=0.045
+  [EP  966] R=-1028.8  delay=693.8  energy=9096  viol=162.2  λe=0.000 λd=0.000 α=0.045
+  [EP  968] R=-1075.0  delay=700.4  energy=9071  viol=171.2  λe=0.000 λd=0.000 α=0.045
+  [EP  970] R=-1057.8  delay=690.0  energy=9060  viol=168.2  λe=0.000 λd=0.000 α=0.045
+  [EP  972] R=-1072.6  delay=697.9  energy=9065  viol=170.8  λe=0.000 λd=0.000 α=0.045
+  [EP  974] R=-1007.7  delay=683.5  energy=9044  viol=158.4  λe=0.000 λd=0.000 α=0.045
+  [EP  976] R=-1035.9  delay=686.1  energy=9056  viol=164.0  λe=0.000 λd=0.000 α=0.045
+  [EP  978] R=-1018.2  delay=681.0  energy=9050  viol=160.6  λe=0.000 λd=0.000 α=0.045
+  [EP  980] R=-1028.1  delay=685.2  energy=9073  viol=162.4  λe=0.000 λd=0.000 α=0.045
+  [EP  982] R=-1049.3  delay=692.2  energy=9034  viol=166.4  λe=0.000 λd=0.000 α=0.045
+  [EP  984] R=-1028.5  delay=692.2  energy=9099  viol=162.2  λe=0.000 λd=0.000 α=0.045
+  [EP  986] R=-988.7  delay=678.5  energy=9092  viol=154.8  λe=0.000 λd=0.000 α=0.045
+  [EP  988] R=-1020.3  delay=684.7  energy=9128  viol=160.8  λe=0.000 λd=0.000 α=0.044
+  [EP  990] R=-1050.0  delay=689.8  energy=9060  viol=166.6  λe=0.000 λd=0.000 α=0.044
+  [EP  992] R=-985.7  delay=679.0  energy=9068  viol=154.2  λe=0.000 λd=0.000 α=0.044
+  [EP  994] R=-1016.5  delay=684.1  energy=9039  viol=160.2  λe=0.000 λd=0.000 α=0.044
+  [EP  996] R=-998.1  delay=681.6  energy=9071  viol=156.6  λe=0.000 λd=0.000 α=0.044
+  [EP  998] R=-974.7  delay=679.9  energy=9060  viol=152.0  λe=0.000 λd=0.000 α=0.044
+  [EP 1000] R=-1039.5  delay=692.8  energy=9078  viol=164.4  λe=0.000 λd=0.000 α=0.044
+
+Saved: /home/ggmx/my_workspace/my_project/V2X_MEC_Offloading_Thesis/results/exp5_lagrangian.csv
+Saved: /home/ggmx/my_workspace/my_project/V2X_MEC_Offloading_Thesis/figures/fig1_baseline.pdf
+Saved: /home/ggmx/my_workspace/my_project/V2X_MEC_Offloading_Thesis/figures/fig2_convergence.pdf
+Saved: /home/ggmx/my_workspace/my_project/V2X_MEC_Offloading_Thesis/figures/fig3_lagrangian.pdf
+Saved: /home/ggmx/my_workspace/my_project/V2X_MEC_Offloading_Thesis/figures/fig4_scalability.pdf
+
+======================================================================
+  TABLE 1: Baseline Comparison (mean ± std)
+======================================================================
+Algorithm                Reward     Delay(s)    Energy(J)    Deadline%
+--------------------------------------------------------------------
+local              -2144.3± 6.4 1187.7± 9.2   9188±   9  26.6± 0.4
+full_offload       -2238.3±13.9 1062.0± 5.7   8082±   2  21.3± 0.4
+random             -1237.5± 7.8  753.2± 6.1  11379±  21  60.5± 0.3
+greedy             -1542.2±22.6  796.4± 5.3  10012±  62  47.8± 0.9
+round_robin        -1733.2± 4.4  978.3± 7.6   8952±   8  41.1± 0.3
+DQN                -963.2±23.9  646.3± 8.9   9195± 260  69.9± 0.9
+PPO                -1033.1± 7.1  665.4± 0.6   8665±  29  67.0± 0.4
+TD3                -1298.0±25.4  783.4±13.8  10574± 145  58.0± 0.9
+SAC-Lagrangian     -941.4±32.2  661.2± 9.7   9155±  92  70.8± 1.3
+
+======================================================================
+  TABLE 2: Ablation Study (mean ± std)
+======================================================================
+Config                           Reward    Deadline%   Violations
+----------------------------------------------------------------
+Full (Ours)                -1140.5±17.0  63.2± 0.7 183.0± 2.5
+w/o Lagrangian             -996.3±76.1  68.8± 3.1 155.3±14.6
+Fixed Lambda               -1109.4±21.1  64.3± 0.7 177.4± 4.2
+w/o Entropy Tuning         -1159.4±29.1  62.4± 1.0 186.8± 5.8
+
+======================================================================
+  TOTAL: 10761s (179.4 min)
+  Results: /home/ggmx/my_workspace/my_project/V2X_MEC_Offloading_Thesis/results/
+  Figures: /home/ggmx/my_workspace/my_project/V2X_MEC_Offloading_Thesis/figures/
+======================================================================

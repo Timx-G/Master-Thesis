@@ -1,0 +1,172 @@
+\relax 
+\citation{mao2017mec_survey,shi2016mec_vision}
+\citation{zeng2019uav_survey,mozaffari2019uav_tutorial}
+\citation{ding2017noma,liu2017noma_proc,ding2017noma_survey}
+\citation{tessler2019rcpo}
+\citation{zeng2019uav_survey,zhan2020uav_mec,xie2020uav_mec_joint,cao2021uav_mec_offload}
+\citation{luong2019drl_comms,mnih2015dqn}
+\citation{fujimoto2018td3}
+\@writefile{toc}{\contentsline {section}{\numberline {I}Introduction}{1}{}\protected@file@percent }
+\newlabel{sec:intro}{{I}{1}}
+\citation{tessler2019rcpo}
+\citation{achiam2017cpo}
+\citation{zhang2020focops}
+\citation{yang2022cup}
+\citation{stooke2020pid_lagrangian}
+\citation{wang2023uav_mec_drl}
+\citation{zhang2023uav_noma_iot}
+\citation{chen2024uav_mec_multi}
+\citation{hu2023uav_noma_mec}
+\citation{li2022noma_uav_drl}
+\citation{zeng2019uav_survey}
+\citation{zeng2019uav_survey}
+\citation{zeng2019uav_survey}
+\@writefile{toc}{\contentsline {section}{\numberline {II}System Model and Problem Formulation}{2}{}\protected@file@percent }
+\newlabel{sec:model}{{II}{2}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {II-A}}Network Topology}{2}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {II-B}}UAV Mobility Model}{2}{}\protected@file@percent }
+\newlabel{eq:speed}{{1}{2}}
+\newlabel{eq:mobility}{{2}{2}}
+\newlabel{eq:fly_energy}{{3}{2}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {II-C}}Air-to-Ground NOMA Channel}{2}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {II-C}1}Channel Model}{2}{}\protected@file@percent }
+\newlabel{eq:plos}{{4}{2}}
+\newlabel{eq:pl}{{5}{2}}
+\citation{liu2021uav_mec_survey}
+\citation{altman1999cmdp}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {II-C}2}NOMA Uplink with SIC}{3}{}\protected@file@percent }
+\newlabel{eq:sinr}{{6}{3}}
+\newlabel{eq:rate}{{7}{3}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {II-D}}Task Model and Computation Offloading}{3}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {II-D}1}Task Arrival}{3}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {II-D}2}Partial Offloading}{3}{}\protected@file@percent }
+\newlabel{eq:delay}{{8}{3}}
+\newlabel{eq:energy}{{9}{3}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {II-E}}Problem Formulation as CMDP}{3}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {II-E}1}State Space}{3}{}\protected@file@percent }
+\newlabel{eq:state}{{10}{3}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {II-E}2}Action Space}{3}{}\protected@file@percent }
+\newlabel{eq:action}{{11}{3}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {II-E}3}Reward Function}{3}{}\protected@file@percent }
+\newlabel{eq:reward}{{12}{3}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {II-E}4}Constraint}{3}{}\protected@file@percent }
+\newlabel{eq:constraint}{{13}{3}}
+\@writefile{toc}{\contentsline {subsubsection}{\numberline {\mbox  {II-E}5}CMDP Objective}{3}{}\protected@file@percent }
+\newlabel{eq:obj}{{14}{3}}
+\newlabel{eq:cstr}{{15}{3}}
+\newlabel{lem:nphard}{{1}{3}}
+\citation{luo2008dynamic}
+\citation{luo2008dynamic}
+\citation{altman1999cmdp,tessler2019rcpo}
+\citation{sutton2018rl_book}
+\citation{agarwal2021theory}
+\@writefile{toc}{\contentsline {section}{\numberline {III}Proposed DC-PPO Algorithm}{4}{}\protected@file@percent }
+\newlabel{sec:algorithm}{{III}{4}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-A}}Lagrangian Relaxation of the CMDP}{4}{}\protected@file@percent }
+\newlabel{eq:lagrangian}{{16}{4}}
+\newlabel{eq:aug_reward}{{17}{4}}
+\newlabel{eq:lambda_update}{{18}{4}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-B}}Physical Upper Bound for $\lambda _{\qopname  \relax m{max}}$}{4}{}\protected@file@percent }
+\newlabel{lem:rpc}{{2}{4}}
+\newlabel{eq:rbar_bound}{{19}{4}}
+\newlabel{eq:cbar_bound}{{20}{4}}
+\newlabel{thm:convergence}{{1}{4}}
+\citation{tessler2019rcpo}
+\citation{altman1999cmdp}
+\citation{tessler2019rcpo}
+\citation{tessler2019rcpo}
+\citation{agarwal2021theory,tessler2019rcpo}
+\citation{schulman2017ppo}
+\citation{sutton2018rl_book}
+\citation{welford1962note}
+\newlabel{cor:rho}{{1}{5}}
+\newlabel{rem:rho}{{1}{5}}
+\newlabel{rem:saturation}{{2}{5}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-C}}Policy Optimization with PPO}{5}{}\protected@file@percent }
+\@writefile{loa}{\contentsline {algorithm}{\numberline {1}{\ignorespaces DC-PPO: Dual-Constrained PPO}}{5}{}\protected@file@percent }
+\newlabel{alg:dcppo}{{1}{5}}
+\newlabel{eq:ppo}{{21}{5}}
+\newlabel{eq:gae}{{22}{5}}
+\newlabel{eq:total_loss}{{23}{5}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-D}}DC-PPO: Full Algorithm}{5}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-E}}Complexity Analysis}{5}{}\protected@file@percent }
+\citation{tessler2019rcpo}
+\citation{tessler2019rcpo}
+\citation{altman1999cmdp}
+\citation{fujimoto2018td3}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {III-F}}Convergence Guarantee}{6}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {section}{\numberline {IV}Experimental Setup}{6}{}\protected@file@percent }
+\newlabel{sec:setup}{{IV}{6}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-A}}Simulation Environment}{6}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-B}}Parameter Configuration}{6}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-C}}Baselines}{6}{}\protected@file@percent }
+\@writefile{lot}{\contentsline {table}{\numberline {I}{\ignorespaces Simulation Parameters}}{6}{}\protected@file@percent }
+\newlabel{tab:params}{{I}{6}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {IV-D}}Evaluation Metrics}{6}{}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces Deadline satisfaction rate of all algorithms ($N{=}20$, $t_{\qopname  \relax m{max}}{=}1.0$\,s, 5 seeds, mean\,$\pm $\,std). DC-PPO achieves 82.5\%, outperforming all baselines. The dashed line marks the 78\% target threshold.}}{7}{}\protected@file@percent }
+\newlabel{fig:main_bar}{{1}{7}}
+\@writefile{toc}{\contentsline {section}{\numberline {V}Performance Evaluation}{7}{}\protected@file@percent }
+\newlabel{sec:results}{{V}{7}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {V-A}}Comparison with Baselines}{7}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {V-B}}Statistical Validity and Limitations}{7}{}\protected@file@percent }
+\newlabel{sec:stats_note}{{\mbox  {V-B}}{7}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {V-C}}Greedy Anomaly: NOMA Interference Saturation}{7}{}\protected@file@percent }
+\newlabel{sec:greedy}{{\mbox  {V-C}}{7}}
+\@writefile{lot}{\contentsline {table}{\numberline {II}{\ignorespaces Performance Comparison ($N{=}20$, $t_{\qopname  \relax m{max}}{=}1.0$\,s, $f_{\text  {UAV}}{=}8$\,GHz, 1500 episodes$^\ddagger $, 5 seeds)}}{8}{}\protected@file@percent }
+\newlabel{tab:main}{{II}{8}}
+\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces Convergence of the Lagrangian multiplier $\lambda _d$ during training. DC-PPO stabilizes at $\lambda _{\qopname  \relax m{max}}{=}5$ within $\sim $200 episodes (184--203 across 5 seeds); PPO-Lagrangian saturates at 20, distorting the augmented reward signal. Shaded regions: $\pm $1 std across 5 seeds.}}{8}{}\protected@file@percent }
+\newlabel{fig:lambda}{{2}{8}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {V-D}}$\lambda _d$ Convergence Analysis}{8}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {V-E}}Scalability Analysis}{8}{}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces Scalability comparison. Left: deadline satisfaction rate vs.\ number of users. Right: DC-PPO advantage over PPO. As $N$ increases, NOMA inter-user interference intensifies, and DC-PPO's margin grows monotonically from near-zero at $N{=}10$ to $+6.8$\,pp at $N{=}25$.}}{8}{}\protected@file@percent }
+\newlabel{fig:scalability}{{3}{8}}
+\@writefile{lot}{\contentsline {table}{\numberline {III}{\ignorespaces Scalability Results (3 seeds, best-checkpoint evaluation)}}{8}{}\protected@file@percent }
+\newlabel{tab:scalability}{{III}{8}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {V-F}}Training Convergence}{8}{}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces Training reward convergence (5 seeds, smoothed with a 50-episode moving average). DC-PPO converges within $\sim $800 episodes; TD3 requires substantially more samples. Shaded regions: $\pm $1 std.}}{9}{}\protected@file@percent }
+\newlabel{fig:convergence}{{4}{9}}
+\@writefile{lot}{\contentsline {table}{\numberline {IV}{\ignorespaces NOMA vs.\ OMA-TDMA ($N{=}20$, 5 seeds)}}{9}{}\protected@file@percent }
+\newlabel{tab:noma_oma}{{IV}{9}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {V-G}}NOMA vs.\ OMA Comparison}{9}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {V-H}}UAV Trajectory Visualization}{9}{}\protected@file@percent }
+\@writefile{toc}{\contentsline {subsection}{\numberline {\mbox  {V-I}}$\lambda _{\qopname  \relax m{max}}$ Sensitivity Analysis}{9}{}\protected@file@percent }
+\@writefile{lof}{\contentsline {figure}{\numberline {5}{\ignorespaces UAV trajectory comparison for a single episode. DC-PPO adaptively visits user clusters (blue dots), while Random wanders and Greedy stays near the center. Stars mark the starting position.}}{9}{}\protected@file@percent }
+\newlabel{fig:trajectory}{{5}{9}}
+\@writefile{lot}{\contentsline {table}{\numberline {V}{\ignorespaces $\lambda _{\qopname  \relax m{max}}$ Sensitivity (3 seeds, 1500 episodes)}}{9}{}\protected@file@percent }
+\newlabel{tab:lambda_sens}{{V}{9}}
+\@writefile{toc}{\contentsline {section}{\numberline {VI}Conclusion}{9}{}\protected@file@percent }
+\newlabel{sec:conclusion}{{VI}{9}}
+\bibstyle{IEEEtran}
+\bibdata{refs}
+\bibcite{mao2017mec_survey}{1}
+\bibcite{shi2016mec_vision}{2}
+\bibcite{zeng2019uav_survey}{3}
+\bibcite{mozaffari2019uav_tutorial}{4}
+\bibcite{ding2017noma}{5}
+\bibcite{liu2017noma_proc}{6}
+\bibcite{ding2017noma_survey}{7}
+\bibcite{tessler2019rcpo}{8}
+\bibcite{zhan2020uav_mec}{9}
+\bibcite{xie2020uav_mec_joint}{10}
+\bibcite{cao2021uav_mec_offload}{11}
+\bibcite{luong2019drl_comms}{12}
+\bibcite{mnih2015dqn}{13}
+\bibcite{fujimoto2018td3}{14}
+\bibcite{achiam2017cpo}{15}
+\bibcite{zhang2020focops}{16}
+\bibcite{yang2022cup}{17}
+\bibcite{stooke2020pid_lagrangian}{18}
+\bibcite{wang2023uav_mec_drl}{19}
+\bibcite{zhang2023uav_noma_iot}{20}
+\bibcite{chen2024uav_mec_multi}{21}
+\bibcite{hu2023uav_noma_mec}{22}
+\bibcite{li2022noma_uav_drl}{23}
+\bibcite{liu2021uav_mec_survey}{24}
+\bibcite{altman1999cmdp}{25}
+\bibcite{luo2008dynamic}{26}
+\bibcite{sutton2018rl_book}{27}
+\bibcite{agarwal2021theory}{28}
+\@writefile{toc}{\contentsline {section}{References}{10}{}\protected@file@percent }
+\bibcite{schulman2017ppo}{29}
+\bibcite{welford1962note}{30}
+\gdef \@abspage@last{11}

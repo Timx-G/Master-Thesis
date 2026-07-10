@@ -1,0 +1,17 @@
+EP 100: DR=8.8%  ld=5.79  lf=1.19  rew=295.2
+EP 200: DR=5.3%  ld=6.70  lf=1.42  rew=332.9
+EP 300: DR=6.4%  ld=7.62  lf=1.67  rew=340.3
+EP 400: DR=10.2%  ld=8.55  lf=1.96  rew=314.5
+EP 500: DR=11.6%  ld=9.45  lf=2.26  rew=293.2
+EP 600: DR=13.4%  ld=10.00  lf=2.57  rew=305.8
+EP 700: DR=14.7%  ld=10.00  lf=2.88  rew=297.5
+EP 800: DR=15.1%  ld=10.00  lf=3.18  rew=297.4
+EP 900: DR=14.9%  ld=10.00  lf=3.49  rew=288.2
+EP1000: DR=15.0%  ld=10.00  lf=3.79  rew=295.3
+EP1100: DR=17.0%  ld=10.00  lf=4.08  rew=286.1
+EP1200: DR=17.9%  ld=10.00  lf=4.36  rew=279.2
+EP1300: DR=20.1%  ld=10.00  lf=4.63  rew=269.0
+EP1400: DR=20.2%  ld=10.00  lf=4.88  rew=269.8
+EP1500: DR=20.0%  ld=10.00  lf=5.00  rew=271.9
+FINAL: DR=20.8%  best_train=20.2%  time=160s
+Gate: FAIL (need>65%, handcraft=60%)

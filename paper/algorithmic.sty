@@ -1,0 +1,22 @@
+%% Minimal algorithmic.sty stub for DC-PPO paper
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{algorithmic}[2024/01/01 minimal stub]
+
+\newcounter{ALG@line}
+\newenvironment{algorithmic}[1][0]{%
+  \setcounter{ALG@line}{0}%
+  \newcommand{\STATE}{\stepcounter{ALG@line}\item[\footnotesize\theALG@line:] }%
+  \newcommand{\FOR}[1]{\stepcounter{ALG@line}\item[\footnotesize\theALG@line:] \textbf{for} ##1 \textbf{do}}%
+  \newcommand{\ENDFOR}{\stepcounter{ALG@line}\item[\footnotesize\theALG@line:] \textbf{end for}}%
+  \newcommand{\FORALL}[1]{\stepcounter{ALG@line}\item[\footnotesize\theALG@line:] \textbf{for all} ##1 \textbf{do}}%
+  \newcommand{\IF}[1]{\stepcounter{ALG@line}\item[\footnotesize\theALG@line:] \textbf{if} ##1 \textbf{then}}%
+  \newcommand{\ENDIF}{\stepcounter{ALG@line}\item[\footnotesize\theALG@line:] \textbf{end if}}%
+  \newcommand{\REQUIRE}{\item[\textbf{Input:}] }%
+  \newcommand{\RETURN}{\stepcounter{ALG@line}\item[\footnotesize\theALG@line:] \textbf{return} }%
+  \newcommand{\WHILE}[1]{\stepcounter{ALG@line}\item[\footnotesize\theALG@line:] \textbf{while} ##1 \textbf{do}}%
+  \newcommand{\ENDWHILE}{\stepcounter{ALG@line}\item[\footnotesize\theALG@line:] \textbf{end while}}%
+  \newcommand{\COMMENT}[1]{\hfill\(\triangleright\) \textit{##1}}%
+  \begin{list}{}{\leftmargin=1.5em\itemsep=0pt\parsep=0pt\topsep=2pt}%
+}{%
+  \end{list}%
+}

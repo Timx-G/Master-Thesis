@@ -1,0 +1,40 @@
+============================================================
+  BCD ESTIMATE: optimizer-only, UAV at center
+============================================================
+  BCD (optimizer+center): 53.0+-3.1%
+  BCD alpha_base=-0.6: DR=46.3%
+  BCD alpha_base=-0.2: DR=58.2%
+  BCD alpha_base=0.0: DR=63.6%
+  BCD alpha_base=0.2: DR=66.0%
+  [8s]
+
+============================================================
+  3-SEED HYBRID VALIDATION
+============================================================
+  seed=42 EP 500: DR=62.4%  [75s]
+  seed=42 EP1000: DR=60.6%  [133s]
+  seed=42 EP1500: DR=62.5%  [192s]
+  seed=42 EP2000: DR=63.4%  [250s]
+  seed=42: FINAL=62.1% best=63.4%
+  seed=123 EP 500: DR=63.5%  [312s]
+/home/ggmx/.local/lib/python3.10/site-packages/scipy/_lib/_util.py:440: UserWarning: One of the clusters is empty. Re-run kmeans with a different initialization.
+  return fun(*args, **kwargs)
+  seed=123 EP1000: DR=64.8%  [371s]
+  seed=123 EP1500: DR=64.6%  [433s]
+  seed=123 EP2000: DR=58.6%  [494s]
+  seed=123: FINAL=63.1% best=64.8%
+  seed=456 EP 500: DR=37.5%  [558s]
+  seed=456 EP1000: DR=37.0%  [619s]
+  seed=456 EP1500: DR=40.4%  [681s]
+  seed=456 EP2000: DR=39.4%  [743s]
+  seed=456: FINAL=42.1% best=40.4%
+
+============================================================
+  KILL CONDITION CHECK
+============================================================
+  3-seed results: ['62.1%', '63.1%', '42.1%']
+  Mean: 55.8%  Min: 42.1%
+  BCD estimate: 53.0%
+  Kill 1 (mean>62%, min>58%): FAIL
+  Kill 2 (Hybrid>BCD):        PASS
+  Time: 12.4 min

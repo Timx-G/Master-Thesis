@@ -1,0 +1,25 @@
+{
+  "phase": "dynamic_grouping_drl",
+  "date": "2026-04-12",
+  "config": {
+    "t_max": 0.7,
+    "n_sub": 3,
+    "arrival_prob": 0.8,
+    "user_mobility": true,
+    "random_burst": true
+  },
+  "baselines": {
+    "greedy": 52.26771794432491,
+    "fixed_best": 52.26771794432491,
+    "random": 36.95326302915127
+  },
+  "ppo_3seed_mean": 52.199999999999996,
+  "ppo_seeds": {
+    "42": 52.22,
+    "123": 52.16,
+    "456": 52.22
+  },
+  "gap_vs_greedy": -0.06771794432491163,
+  "gate_pass": false,
+  "elapsed_seconds": 1159.3
+}

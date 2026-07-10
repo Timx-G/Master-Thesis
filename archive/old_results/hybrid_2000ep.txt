@@ -1,0 +1,14 @@
+EP 200: DR=61.8%  [27s]
+EP 400: DR=63.0%  [50s]
+/home/ggmx/.local/lib/python3.10/site-packages/scipy/_lib/_util.py:440: UserWarning: One of the clusters is empty. Re-run kmeans with a different initialization.
+  return fun(*args, **kwargs)
+EP 600: DR=61.4%  [74s]
+EP 800: DR=64.7%  [98s]
+EP1000: DR=62.9%  [121s]
+EP1200: DR=62.8%  [146s]
+EP1400: DR=60.9%  [170s]
+EP1600: DR=65.5%  [194s]
+EP1800: DR=64.4%  [217s]
+EP2000: DR=62.9%  [241s]
+FINAL: DR=64.4% best=65.5% time=244s
+Gate65: FAIL  DRL>hand: YES

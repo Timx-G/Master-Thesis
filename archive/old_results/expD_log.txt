@@ -1,0 +1,25 @@
+=== Exp-D: Scalability 5seeds ===
+
+=== N=10 ===
+    [DC-PPO N=10 seed=42 EP 300] deadline=97.8%  λd=3.934
+    [DC-PPO N=10 seed=42 EP 600] deadline=98.6%  λd=5.000
+    [DC-PPO N=10 seed=42 EP 900] deadline=96.4%  λd=5.000
+    [DC-PPO N=10 seed=42 EP1200] deadline=97.6%  λd=5.000
+    [DC-PPO N=10 seed=42 EP1500] deadline=92.9%  λd=5.000
+    [PPO     N=10 seed=42 EP 300] deadline=94.1%
+    [PPO     N=10 seed=42 EP 600] deadline=96.9%
+    [PPO     N=10 seed=42 EP 900] deadline=98.2%
+    [PPO     N=10 seed=42 EP1200] deadline=74.6%
+    [PPO     N=10 seed=42 EP1500] deadline=73.5%
+  N=10 seed=42: DC-PPO=98.8%  PPO=98.1%  margin=+0.6pp
+    [DC-PPO N=10 seed=123 EP 300] deadline=98.2%  λd=3.996
+    [DC-PPO N=10 seed=123 EP 600] deadline=92.3%  λd=5.000
+    [DC-PPO N=10 seed=123 EP 900] deadline=98.1%  λd=5.000
+    [DC-PPO N=10 seed=123 EP1200] deadline=87.4%  λd=5.000
+    [DC-PPO N=10 seed=123 EP1500] deadline=84.0%  λd=5.000
+    [PPO     N=10 seed=123 EP 300] deadline=94.4%
+    [PPO     N=10 seed=123 EP 600] deadline=95.8%
+    [PPO     N=10 seed=123 EP 900] deadline=98.4%
+    [PPO     N=10 seed=123 EP1200] deadline=82.7%
+    [PPO     N=10 seed=123 EP1500] deadline=68.2%
+  N=10 seed=123: DC-PPO=98.4%  PPO=98.6%  margin=-0.2pp

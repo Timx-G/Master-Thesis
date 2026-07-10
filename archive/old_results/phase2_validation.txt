@@ -1,0 +1,47 @@
+=================================================================
+  PHASE 2 VALIDATION: 3-seed MAPPO + baselines
+=================================================================
+
+[1/3] MAPPO 3-seed dynamic burst
+  [MAPPO-dyn seed=42 EP500] DR=81.3%  [92s]
+  [MAPPO-dyn seed=42 EP1000] DR=82.9%  [176s]
+  [MAPPO-dyn seed=42 EP1500] DR=73.2%  [260s]
+  [MAPPO-dyn seed=42 EP2000] DR=65.4%  [345s]
+  seed=42: final=69.5% best=82.9%
+  [MAPPO-dyn seed=123 EP500] DR=58.9%  [85s]
+  [MAPPO-dyn seed=123 EP1000] DR=59.4%  [173s]
+  [MAPPO-dyn seed=123 EP1500] DR=58.8%  [261s]
+  [MAPPO-dyn seed=123 EP2000] DR=54.9%  [349s]
+  seed=123: final=60.6% best=59.4%
+  [MAPPO-dyn seed=456 EP500] DR=64.2%  [88s]
+  [MAPPO-dyn seed=456 EP1000] DR=64.3%  [177s]
+  [MAPPO-dyn seed=456 EP1500] DR=61.7%  [265s]
+  [MAPPO-dyn seed=456 EP2000] DR=67.7%  [352s]
+  seed=456: final=69.0% best=67.7%
+  MAPPO mean=66.4% min=60.6%
+
+[2/3] Independent PPO (no coordination)
+  [Independent EP500] DR=81.4%  [97s]
+  [Independent EP1000] DR=79.2%  [195s]
+  [Independent EP1500] DR=76.1%  [292s]
+  [Independent EP2000] DR=79.1%  [390s]
+  Independent: final=78.6% best=81.4%
+
+[3/3] MAPPO static scenario
+  [MAPPO-stat seed=42 EP500] DR=51.5%  [89s]
+  [MAPPO-stat seed=42 EP1000] DR=51.7%  [178s]
+  MAPPO static: final=51.2% best=51.7%
+
+=================================================================
+  GATE CHECK
+=================================================================
+  MAPPO(dyn) 3-seed: ['69.5%', '60.6%', '69.0%']  mean=66.4% min=60.6%
+  Independent(dyn):  78.6%
+  MAPPO(static):     51.2%
+  BCD-greedy(dyn):   63.3%
+  BCD-static(dyn):   76.6%
+
+  G5:  mean>73.3%?   66.4% ❌
+  G5b: min>65%?      60.6% ❌
+  G6:  MAPPO>Ind+10? 66.4%>88.6% ❌
+  G4:  stat>BCD_g+5? (BCD-greedy static ~56%) 51.2%>61%? ❌

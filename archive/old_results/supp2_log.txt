@@ -1,0 +1,24 @@
+=================================================================
+  SUPPLEMENTARY EXPERIMENTS v2
+=================================================================
+
+============================================================
+  Exp-A: PID-Lagrangian (Stooke 2020) quick test
+============================================================
+    [PID-Lag seed=42 EP 200] deadline=71.5%  λd=5.000
+    [PID-Lag seed=42 EP 400] deadline=78.1%  λd=5.000
+    [PID-Lag seed=42 EP 600] deadline=76.6%  λd=5.000
+    [PID-Lag seed=42 EP 800] deadline=75.7%  λd=5.000
+    [PID-Lag seed=42 EP1000] deadline=70.3%  λd=5.000
+    [PID-Lag seed=42] Restored best: 78.1%
+  PID-Lag seed=42: 78.0%  λd=5.000  [890s]
+    [PID-Lag seed=123 EP 200] deadline=75.5%  λd=5.000
+    [PID-Lag seed=123 EP 400] deadline=78.4%  λd=5.000
+    [PID-Lag seed=123 EP 600] deadline=73.6%  λd=5.000
+    [PID-Lag seed=123 EP 800] deadline=79.9%  λd=5.000
+    [PID-Lag seed=123 EP1000] deadline=79.8%  λd=5.000
+    [PID-Lag seed=123] Restored best: 79.9%
+  PID-Lag seed=123: 78.1%  λd=5.000  [4738s]
+    [PID-Lag seed=456 EP 200] deadline=74.3%  λd=5.000
+    [PID-Lag seed=456 EP 400] deadline=82.8%  λd=5.000
+    [PID-Lag seed=456 EP 600] deadline=68.6%  λd=5.000

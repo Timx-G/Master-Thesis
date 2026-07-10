@@ -1,0 +1,16 @@
+{
+  "single_uav": {
+    "mean": 67.62,
+    "std": 1.82
+  },
+  "ofdma": {
+    "mean": 46.39,
+    "std": 1.88
+  },
+  "ours": {
+    "mean": 72.92,
+    "std": 2.1
+  },
+  "gap_vs_single": 5.3,
+  "gap_vs_ofdma": 26.53
+}

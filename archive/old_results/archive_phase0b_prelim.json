@@ -1,0 +1,24 @@
+{
+  "phase": "0B_preliminary",
+  "date": "2026-04-12",
+  "stationary": {
+    "random": 46.8,
+    "bcd_greedy": 47.5,
+    "handcraft": 45.0
+  },
+  "dynamic": {
+    "random": 47.6,
+    "bcd_greedy": 47.2,
+    "handcraft": 44.9
+  },
+  "degradation": {
+    "bcd_greedy": 0.3,
+    "random": -0.9
+  },
+  "gate_results": {
+    "T2_mobility_impact": true,
+    "T3_bcd_degrades_more": true,
+    "T4_ofdma_code_exists": true
+  },
+  "note": "PPO not yet tested. BCD-static grid search deferred (expensive). These are heuristic baselines only."
+}

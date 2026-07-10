@@ -1,0 +1,211 @@
+# V2X-MEC Offloading Project Skills
+
+## Project Overview
+This project implements PAPO (Predictive And Phase-aligned Online Offloading) for V2X cooperative perception tasks.
+
+**Current Status**: 85% complete (DRL baselines + experiment framework done)
+
+## Quick Commands
+
+### Run Simulation
+```bash
+# Quick test (5 seconds)
+python3 main.py --mode quick --duration 5
+
+# Standard simulation (100 seconds)
+python3 main.py --mode standard
+
+# Full experiment with multiple runs
+python3 main.py --mode full --num-runs 10
+```
+
+### Run All Experiments (One-Click)
+```bash
+# Use shell script (recommended)
+./scripts/run_all_experiments.sh 5 30
+
+# Or Python directly
+python3 -m simulation.experiments.run_all_experiments --seeds 5 --duration 30
+
+# Resume from checkpoint
+python3 -m simulation.experiments.run_all_experiments --seeds 5 --duration 30 --resume
+```
+
+### Run Unified Comparison (PAPO vs DRL)
+```bash
+python3 -m simulation.experiments.compare_all --seeds 3 --duration 30 --drl-episodes 200
+```
+
+### DRL Training (with Checkpoint Support)
+```bash
+# Train DQN and PPO baselines
+python3 -m simulation.baselines.train_drl --episodes 500
+
+# Resume training from checkpoint
+python3 -m simulation.baselines.train_drl --episodes 500 --resume
+
+# Background training (long runs)
+./scripts/run_long_training.sh 1000 both
+
+# Plot training curves
+python3 -m simulation.baselines.train_drl --plot
+```
+
+### Generate Figures and Tables
+```bash
+# Generate paper figures from results
+python3 -m simulation.experiments.visualize_results --latex
+
+# Output: figures/*.pdf, figures/table*.tex
+```
+
+### Module Testing
+```bash
+# Test core modules
+python3 -m simulation.core.task
+python3 -m simulation.core.vehicle
+python3 -m simulation.core.rsu
+
+# Test algorithms
+python3 -m simulation.algorithms.cpa
+python3 -m simulation.algorithms.dpa
+python3 -m simulation.algorithms.lyapunov
+
+# Test DRL baselines
+python3 -m simulation.baselines.dqn_offload
+python3 -m simulation.baselines.ppo_offload
+python3 -m simulation.baselines.gym_env
+```
+
+## Project Structure
+
+```
+simulation/
+├── core/           # Vehicle, RSU, Task, Channel models
+├── algorithms/     # PAPO algorithms (CPA, DPA, Lyapunov, etc.)
+├── baselines/      # Baseline algorithms
+│   ├── local_only.py       # Local computing only
+│   ├── full_offload.py     # Full offloading
+│   ├── greedy.py           # Greedy offloading
+│   ├── random_offload.py   # Random offloading
+│   ├── threshold.py        # Threshold-based
+│   ├── no_phase_align.py   # Without phase alignment
+│   ├── dqn_offload.py      # DQN baseline
+│   ├── ppo_offload.py      # PPO baseline
+│   ├── gym_env.py          # Gym environment wrapper
+│   └── train_drl.py        # DRL training with checkpoint
+├── generators/     # Data generators (trajectory, task, channel)
+├── metrics/        # Performance metrics (AoI, Energy, Deadline, Fairness)
+├── experiments/    # Experiment framework
+│   ├── simulator.py           # Core simulation engine
+│   ├── run_all_experiments.py # Run all experiments
+│   ├── compare_all.py         # Unified PAPO vs DRL comparison
+│   └── visualize_results.py   # Generate figures
+└── config/         # Parameter configuration
+
+scripts/
+├── run_all_experiments.sh  # One-click experiments
+└── run_long_training.sh    # Background DRL training
+```
+
+## Key Files
+
+| File | Purpose |
+|------|---------|
+| `main.py` | Main entry point |
+| `simulation/experiments/simulator.py` | Core simulation engine |
+| `simulation/experiments/run_all_experiments.py` | Run Exp1-5 |
+| `simulation/experiments/compare_all.py` | PAPO vs DRL comparison |
+| `simulation/experiments/visualize_results.py` | Generate figures |
+| `simulation/algorithms/lyapunov.py` | Lyapunov optimization |
+| `simulation/algorithms/cpa.py` | Centralized Phase Allocation |
+| `simulation/baselines/dqn_offload.py` | DQN baseline |
+| `simulation/baselines/ppo_offload.py` | PPO baseline |
+| `simulation/baselines/train_drl.py` | DRL training with checkpoint |
+| `config/parameters.yaml` | Simulation parameters |
+
+## Performance Benchmarks
+
+| Algorithm | Deadline Rate | Training Time | Notes |
+|-----------|--------------|---------------|-------|
+| PAPO (CPA+Lyapunov) | 87.42% | 0 | Main algorithm |
+| NoPhase | 88.50% | 0 | Lyapunov only |
+| Greedy | 88.50% | 0 | No optimization |
+| DQN | 43.85% | ~3 min | 100 episodes |
+| PPO | 43.85% | ~40 sec | 100 episodes |
+
+## Experiment List
+
+| Exp | Description | Variables |
+|-----|-------------|-----------|
+| Exp1 | Baseline comparison | 7 algorithms x 3 vehicle counts |
+| Exp2 | Ablation study | Full, NoPhase, NoPred, NoLyapunov |
+| Exp3 | V parameter sensitivity | V = [100, 200, 500, 1000, 2000, 5000] |
+| Exp4 | Vehicle density | N = [10, 20, 30, 50, 80, 100] |
+| Exp5 | Deadline sensitivity | D = [100, 150, 200, 250, 300, 400]ms |
+
+## Output Files
+
+```
+results/
+├── all_results.csv           # All experiment data
+├── Exp1_Baseline.csv         # Baseline comparison
+├── Exp2_Ablation.csv         # Ablation study
+├── unified_comparison.csv    # PAPO vs DRL
+├── checkpoint.json           # Resume support
+└── summary.txt               # Summary report
+
+figures/
+├── fig1_baseline_comparison.pdf
+├── fig2_ablation.pdf
+├── table1_baseline.tex       # LaTeX table
+└── ...
+
+models/
+├── dqn_single.pth            # Trained DQN
+├── ppo_single.pth            # Trained PPO
+├── *_checkpoint.pth          # Checkpoints
+└── *_history.json            # Training history
+```
+
+## Documentation
+
+All technical documentation is in `docs/` directory (Chinese):
+- `00_研究概述与目录.md` - Project overview
+- `00_研究路线图.md` - Research roadmap
+- `01_系统模型.md` - System model
+- `03_算法设计_相位对齐调度.md` - Phase alignment algorithms
+- `05_算法设计_Lyapunov优化.md` - Lyapunov optimization
+- `08.1_DRL基线算法实现.md` - DRL baseline design
+- `13_参数调优报告.md` - Parameter tuning report
+
+## Common Tasks
+
+### Add a new baseline algorithm
+1. Create new file in `simulation/baselines/`
+2. Implement the decision logic
+3. Update `simulation/baselines/__init__.py`
+4. Add to `run_all_experiments.py`
+
+### Modify simulation parameters
+Edit `config/parameters.yaml` or pass via command line
+
+### Run parameter tuning
+```bash
+python3 tune_parameters_v2.py
+```
+
+### Handle long training interruption
+```bash
+# Training saves checkpoints automatically
+# Resume with:
+python3 -m simulation.baselines.train_drl --episodes 1000 --resume
+```
+
+## Dependencies
+- Python >= 3.8
+- NumPy >= 1.21
+- PyTorch >= 2.0
+- Pandas >= 1.4
+- Matplotlib >= 3.5
+- SciPy, PyYAML

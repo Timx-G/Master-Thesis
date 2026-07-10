@@ -1,0 +1,58 @@
+============================================================
+  QUICK TEST: f_uav=10GHz, lambda_max=100, lr_lambda=1e-3
+  delay_budget=0.4s, 3 seeds, 1000 episodes
+============================================================
+
+--- Seed=42 ---
+  SAC EP 50: R=390.1 λd=0.659
+  SAC EP 100: R=387.2 λd=1.706
+  SAC EP 150: R=385.4 λd=2.839
+  SAC EP 200: R=429.7 λd=4.090
+  SAC EP 250: R=400.0 λd=5.521
+  SAC EP 300: R=419.4 λd=7.236
+  SAC EP 350: R=416.0 λd=9.167
+  SAC EP 400: R=404.2 λd=11.298
+  SAC EP 450: R=370.5 λd=13.618
+  SAC EP 500: R=407.2 λd=16.048
+  SAC EP 550: R=414.6 λd=18.589
+  SAC EP 600: R=414.3 λd=21.170
+  SAC EP 650: R=377.2 λd=23.780
+  SAC EP 700: R=428.6 λd=26.388
+  SAC EP 750: R=378.2 λd=28.985
+  SAC EP 800: R=392.5 λd=31.604
+  SAC EP 850: R=407.6 λd=34.196
+  SAC EP 900: R=356.7 λd=36.783
+  SAC EP 950: R=401.5 λd=39.353
+  SAC EP 1000: R=392.0 λd=41.920
+  SAC-Lag: R=403.6  viol=298.8  deadline=39.8%  λd=41.920  time=898s
+  PPO:     R=414.6  viol=246.4  deadline=50.4%  time=61s
+  Greedy:  R=397.3  viol=337.4  deadline=32.1%
+
+--- Seed=123 ---
+  SAC EP 50: R=407.5 λd=0.673
+  SAC EP 100: R=404.2 λd=1.751
+  SAC EP 150: R=414.2 λd=2.936
+  SAC EP 200: R=420.0 λd=4.315
+  SAC EP 250: R=402.3 λd=5.980
+  SAC EP 300: R=398.1 λd=7.821
+  SAC EP 350: R=434.6 λd=9.843
+  SAC EP 400: R=425.3 λd=12.035
+  SAC EP 450: R=423.8 λd=14.350
+  SAC EP 500: R=424.2 λd=16.742
+  SAC EP 550: R=414.1 λd=19.203
+  SAC EP 600: R=399.8 λd=21.703
+  SAC EP 650: R=429.0 λd=24.253
+  SAC EP 700: R=424.7 λd=26.841
+  SAC EP 750: R=393.3 λd=29.479
+  SAC EP 800: R=447.9 λd=32.142
+  SAC EP 850: R=429.5 λd=34.812
+  SAC EP 900: R=373.0 λd=37.495
+  SAC EP 950: R=378.3 λd=40.193
+  SAC EP 1000: R=415.6 λd=42.875
+  SAC-Lag: R=407.1  viol=305.8  deadline=38.4%  λd=42.875  time=919s
+  PPO:     R=415.9  viol=242.4  deadline=51.2%  time=63s
+  Greedy:  R=397.1  viol=336.7  deadline=32.2%
+
+--- Seed=456 ---
+  SAC EP 50: R=390.2 λd=0.694
+  SAC EP 100: R=370.3 λd=1.802

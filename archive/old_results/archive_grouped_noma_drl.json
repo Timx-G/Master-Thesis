@@ -1,0 +1,37 @@
+{
+  "phase": "grouped_noma_drl",
+  "date": "2026-04-12",
+  "config": {
+    "t_max": 0.7,
+    "n_sub": 5,
+    "users_per_sub": 2,
+    "random_burst": true,
+    "user_mobility": true
+  },
+  "baselines": {
+    "hover_center": 47.5,
+    "bcd_greedy": 49.8,
+    "handcraft": 50.2
+  },
+  "ppo_results": {
+    "42": {
+      "final_mean": 61.3,
+      "final_std": 2.2
+    },
+    "123": {
+      "final_mean": 63.0,
+      "final_std": 2.3
+    },
+    "456": {
+      "final_mean": 61.3,
+      "final_std": 2.6
+    }
+  },
+  "ppo_3seed_mean": 61.9,
+  "ppo_3seed_std": 0.8,
+  "gap_vs_hover": 14.4,
+  "gap_vs_greedy": 12.0,
+  "gap_vs_handcraft": 11.7,
+  "gate_pass": true,
+  "elapsed_seconds": 1135
+}
