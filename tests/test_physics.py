@@ -1,5 +1,4 @@
 import math
-from dataclasses import FrozenInstanceError
 
 import numpy as np
 import pytest
@@ -25,16 +24,40 @@ def test_full_and_subcarrier_noise_share_one_density():
 
 
 def test_legacy_full_band_noise_override_updates_subcarrier_noise():
-    channel = NOMAChannel(ChannelConfig(), 100.0)
+    cfg = ChannelConfig()
+    channel = NOMAChannel(cfg, 100.0)
 
     channel.noise_linear = 6e-12
 
+    expected_psd_dbm_hz = (
+        10.0 * math.log10(6e-12) + 30.0 - cfg.noise_figure_db - 10.0 * math.log10(cfg.bandwidth)
+    )
+    assert cfg.noise_psd_dbm_hz == pytest.approx(expected_psd_dbm_hz, rel=1e-12)
     assert channel.noise_linear == pytest.approx(6e-12, rel=1e-12, abs=0.0)
     assert channel.noise_for_bandwidth(channel.cfg.bandwidth / 3) == pytest.approx(
         2e-12,
         rel=1e-12,
         abs=0.0,
     )
+
+
+def test_channel_noise_tracks_mutable_config():
+    cfg = ChannelConfig()
+    channel = NOMAChannel(cfg, 100.0)
+
+    cfg.noise_figure_db = 9.0
+    assert channel.noise_linear == pytest.approx(noise_power_w(5e6, -174.0, 9.0))
+
+    cfg.noise_psd_dbm_hz = -171.0
+    assert channel.noise_linear == pytest.approx(noise_power_w(5e6, -171.0, 9.0))
+
+    cfg.bandwidth = 2e6
+    assert channel.noise_linear == pytest.approx(noise_power_w(2e6, -171.0, 9.0))
+
+    cfg.noise_figure_db = 4.0
+
+    assert channel.noise_linear == pytest.approx(noise_power_w(2e6, -171.0, 4.0))
+    assert channel.noise_for_bandwidth(5e5) == pytest.approx(noise_power_w(5e5, -171.0, 4.0))
 
 
 @pytest.mark.parametrize("bandwidth_hz", [0.0, -1.0, math.nan, math.inf, -math.inf])
@@ -55,35 +78,42 @@ def test_noise_helpers_reject_non_finite_receiver_parameters(
         noise_power_dbm(5e6, noise_psd_dbm_hz, noise_figure_db)
 
 
-def test_channel_config_is_keyword_only_and_frozen():
-    with pytest.raises(TypeError):
+def test_channel_config_accepts_new_positional_field_order():
+    cfg = ChannelConfig(4e6, "urban", -173.0, 6.0, 9.0, 0.2, 2.4e9, 2.0, 18.0, 0.1)
+
+    assert cfg == ChannelConfig(
+        bandwidth=4e6,
+        environment="urban",
+        noise_psd_dbm_hz=-173.0,
+        noise_figure_db=6.0,
+        a_los=9.0,
+        b_los=0.2,
+        fc=2.4e9,
+        eta_los=2.0,
+        eta_nlos=18.0,
+        p_max=0.1,
+    )
+
+
+def test_channel_config_remains_mutable():
+    cfg = ChannelConfig()
+
+    cfg.bandwidth = 1e6
+
+    assert cfg.bandwidth == 1e6
+
+
+def test_legacy_noise_positional_shape_fails_explicitly():
+    with pytest.raises(ValueError, match="environment must be a non-empty string"):
         ChannelConfig(5e6, -104.8, 7.0)
 
-    cfg = ChannelConfig()
-    with pytest.raises(FrozenInstanceError):
-        cfg.bandwidth = 1e6
 
+def test_channel_allows_finite_receiver_gain():
+    cfg = ChannelConfig(noise_figure_db=-1.0)
 
-@pytest.mark.parametrize(
-    "overrides",
-    [
-        {"bandwidth": 0.0},
-        {"bandwidth": math.nan},
-        {"noise_psd_dbm_hz": math.inf},
-        {"noise_figure_db": -1.0},
-        {"a_los": 0.0},
-        {"b_los": math.nan},
-        {"fc": 0.0},
-        {"eta_los": -1.0},
-        {"eta_nlos": math.inf},
-        {"eta_los": 10.0, "eta_nlos": 5.0},
-        {"p_max": 0.0},
-        {"environment": ""},
-    ],
-)
-def test_channel_config_rejects_invalid_physical_parameters(overrides):
-    with pytest.raises(ValueError):
-        ChannelConfig(**overrides)
+    assert NOMAChannel(cfg, 100.0).noise_linear == pytest.approx(
+        noise_power_w(cfg.bandwidth, cfg.noise_psd_dbm_hz, -1.0)
+    )
 
 
 @pytest.mark.parametrize("uav_height", [0.0, -1.0, math.nan, math.inf])
@@ -98,6 +128,24 @@ def test_path_loss_rejects_invalid_horizontal_distance(distance):
 
     with pytest.raises(ValueError, match="d_horizontal must be finite and non-negative"):
         channel.path_loss(distance)
+
+
+@pytest.mark.parametrize("fc", [0.0, -1.0, math.nan, math.inf])
+def test_channel_rejects_invalid_carrier_frequency(fc):
+    cfg = ChannelConfig()
+    cfg.fc = fc
+
+    with pytest.raises(ValueError, match="fc must be finite and positive"):
+        NOMAChannel(cfg, 100.0)
+
+
+def test_path_loss_revalidates_mutable_carrier_frequency():
+    cfg = ChannelConfig()
+    channel = NOMAChannel(cfg, 100.0)
+    cfg.fc = 0.0
+
+    with pytest.raises(ValueError, match="fc must be finite and positive"):
+        channel.path_loss(400.0)
 
 
 def test_channel_uses_urban_parameters_and_db_averaged_loss():

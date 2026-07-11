@@ -68,7 +68,7 @@ class UAVConfig:
     dt: float = 1.0                 # time-slot duration (s)
 
 
-@dataclass(frozen=True, kw_only=True)
+@dataclass
 class ChannelConfig:
     """Air-to-ground NOMA channel parameters."""
     bandwidth: float = 5e6          # total bandwidth (Hz, 5 MHz LTE single carrier)
@@ -88,34 +88,6 @@ class ChannelConfig:
     def __post_init__(self) -> None:
         if not isinstance(self.environment, str) or not self.environment.strip():
             raise ValueError("environment must be a non-empty string")
-
-        positive_parameters = {
-            "bandwidth": self.bandwidth,
-            "a_los": self.a_los,
-            "b_los": self.b_los,
-            "fc": self.fc,
-            "p_max": self.p_max,
-        }
-        for name, value in positive_parameters.items():
-            if not math.isfinite(value) or value <= 0:
-                raise ValueError(f"{name} must be finite and positive")
-
-        if not math.isfinite(self.noise_psd_dbm_hz):
-            raise ValueError("noise_psd_dbm_hz must be finite")
-
-        non_negative_parameters = {
-            "noise_figure_db": self.noise_figure_db,
-            "eta_los": self.eta_los,
-            "eta_nlos": self.eta_nlos,
-        }
-        for name, value in non_negative_parameters.items():
-            if not math.isfinite(value) or value < 0:
-                raise ValueError(f"{name} must be finite and non-negative")
-
-        if self.eta_nlos < self.eta_los:
-            raise ValueError("eta_nlos must be greater than or equal to eta_los")
-
-        noise_power_w(1.0, self.noise_psd_dbm_hz, self.noise_figure_db)
 
 
 @dataclass
@@ -273,35 +245,41 @@ class NOMAChannel:
             raise ValueError("uav_height must be finite and positive")
         self.cfg = cfg
         self.H = uav_height
-        self._noise_density_w_hz = noise_power_w(
-            1.0,
-            cfg.noise_psd_dbm_hz,
-            cfg.noise_figure_db,
-        )
+        self._validate_carrier_frequency()
         self.c = 3e8  # speed of light
 
     @property
     def noise_linear(self) -> float:
         """Full-band noise retained as a writable legacy interface."""
-        return self.noise_for_bandwidth(self.cfg.bandwidth)
+        return noise_power_w(
+            self.cfg.bandwidth,
+            self.cfg.noise_psd_dbm_hz,
+            self.cfg.noise_figure_db,
+        )
 
     @noise_linear.setter
     def noise_linear(self, value: float) -> None:
         if not math.isfinite(value) or value <= 0:
             raise ValueError("noise_linear must be finite and positive")
-        noise_density = value / self.cfg.bandwidth
-        if not math.isfinite(noise_density) or noise_density <= 0:
-            raise ValueError("noise_linear must define finite positive noise density")
-        self._noise_density_w_hz = noise_density
+        full_band_offset_db = noise_power_dbm(
+            self.cfg.bandwidth,
+            0.0,
+            self.cfg.noise_figure_db,
+        )
+        full_band_dbm = 10.0 * math.log10(value) + 30.0
+        self.cfg.noise_psd_dbm_hz = full_band_dbm - full_band_offset_db
 
     def noise_for_bandwidth(self, bandwidth_hz: float) -> float:
         """Return receiver noise power in watts for a channel bandwidth."""
-        if not math.isfinite(bandwidth_hz) or bandwidth_hz <= 0:
-            raise ValueError("bandwidth_hz must be finite and positive")
-        noise = self._noise_density_w_hz * bandwidth_hz
-        if not math.isfinite(noise) or noise <= 0:
-            raise ValueError("noise power must be finite and positive")
-        return noise
+        return noise_power_w(
+            bandwidth_hz,
+            self.cfg.noise_psd_dbm_hz,
+            self.cfg.noise_figure_db,
+        )
+
+    def _validate_carrier_frequency(self) -> None:
+        if not math.isfinite(self.cfg.fc) or self.cfg.fc <= 0:
+            raise ValueError("fc must be finite and positive")
 
     # -- Path loss ----------------------------------------------------------
 
@@ -318,6 +296,7 @@ class NOMAChannel:
         """Return channel power gain using dB-averaged LoS/NLoS loss."""
         if not math.isfinite(d_horizontal) or d_horizontal < 0:
             raise ValueError("d_horizontal must be finite and non-negative")
+        self._validate_carrier_frequency()
         d_3d = math.hypot(d_horizontal, self.H)
         fspl_db = 20.0 * math.log10(
             4.0 * math.pi * self.cfg.fc * d_3d / self.c
