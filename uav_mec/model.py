@@ -22,8 +22,12 @@ def noise_power_dbm(
     noise_figure_db: float = 7.0,
 ) -> float:
     """Return receiver noise power in dBm for the requested bandwidth."""
-    if bandwidth_hz <= 0:
-        raise ValueError("bandwidth_hz must be positive")
+    if not math.isfinite(bandwidth_hz) or bandwidth_hz <= 0:
+        raise ValueError("bandwidth_hz must be finite and positive")
+    if not math.isfinite(noise_psd_dbm_hz):
+        raise ValueError("noise_psd_dbm_hz must be finite")
+    if not math.isfinite(noise_figure_db):
+        raise ValueError("noise_figure_db must be finite")
     return noise_psd_dbm_hz + noise_figure_db + 10.0 * math.log10(bandwidth_hz)
 
 
@@ -38,7 +42,13 @@ def noise_power_w(
         noise_psd_dbm_hz,
         noise_figure_db,
     )
-    return 10.0 ** ((power_dbm - 30.0) / 10.0)
+    try:
+        power_w = 10.0 ** ((power_dbm - 30.0) / 10.0)
+    except OverflowError as exc:
+        raise ValueError("noise power must be finite and positive") from exc
+    if not math.isfinite(power_w) or power_w <= 0:
+        raise ValueError("noise power must be finite and positive")
+    return power_w
 
 
 # ---------------------------------------------------------------------------
@@ -58,7 +68,7 @@ class UAVConfig:
     dt: float = 1.0                 # time-slot duration (s)
 
 
-@dataclass
+@dataclass(frozen=True, kw_only=True)
 class ChannelConfig:
     """Air-to-ground NOMA channel parameters."""
     bandwidth: float = 5e6          # total bandwidth (Hz, 5 MHz LTE single carrier)
@@ -74,6 +84,38 @@ class ChannelConfig:
     eta_nlos: float = 20.0          # additional NLoS loss (dB)
     # NOMA power
     p_max: float = 0.2              # max device transmit power (W, 23 dBm)
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.environment, str) or not self.environment.strip():
+            raise ValueError("environment must be a non-empty string")
+
+        positive_parameters = {
+            "bandwidth": self.bandwidth,
+            "a_los": self.a_los,
+            "b_los": self.b_los,
+            "fc": self.fc,
+            "p_max": self.p_max,
+        }
+        for name, value in positive_parameters.items():
+            if not math.isfinite(value) or value <= 0:
+                raise ValueError(f"{name} must be finite and positive")
+
+        if not math.isfinite(self.noise_psd_dbm_hz):
+            raise ValueError("noise_psd_dbm_hz must be finite")
+
+        non_negative_parameters = {
+            "noise_figure_db": self.noise_figure_db,
+            "eta_los": self.eta_los,
+            "eta_nlos": self.eta_nlos,
+        }
+        for name, value in non_negative_parameters.items():
+            if not math.isfinite(value) or value < 0:
+                raise ValueError(f"{name} must be finite and non-negative")
+
+        if self.eta_nlos < self.eta_los:
+            raise ValueError("eta_nlos must be greater than or equal to eta_los")
+
+        noise_power_w(1.0, self.noise_psd_dbm_hz, self.noise_figure_db)
 
 
 @dataclass
@@ -122,8 +164,8 @@ class ScenarioConfig:
     f_per_uav: float = 4e9         # MEC compute per UAV (total=K*f=8GHz)
     collision_dist: float = 30.0   # minimum inter-UAV distance (m)
     collision_penalty: float = 5.0 # reward penalty for collision
-    # Grouped NOMA (Phase 0B+): 5 subcarriers × 2-user NOMA pairs
-    n_subcarriers: int = 3         # number of OFDMA subcarriers (3×1MHz narrowband IoT)
+    # Grouped NOMA (Phase 0B+): equal-width subcarriers with 2-user NOMA pairs
+    n_subcarriers: int = 3         # number of OFDMA subcarriers sharing total channel bandwidth
     users_per_sub: int = 2         # NOMA users per subcarrier (pair size)
     uav: UAVConfig = field(default_factory=UAVConfig)
     channel: ChannelConfig = field(default_factory=ChannelConfig)
@@ -227,23 +269,39 @@ class NOMAChannel:
     """Air-to-ground channel with NOMA uplink (SIC decoding)."""
 
     def __init__(self, cfg: ChannelConfig, uav_height: float):
+        if not math.isfinite(uav_height) or uav_height <= 0:
+            raise ValueError("uav_height must be finite and positive")
         self.cfg = cfg
         self.H = uav_height
-        # Retain full-band noise for legacy full-band rate calculations.
-        self.noise_linear = noise_power_w(
-            cfg.bandwidth,
+        self._noise_density_w_hz = noise_power_w(
+            1.0,
             cfg.noise_psd_dbm_hz,
             cfg.noise_figure_db,
         )
         self.c = 3e8  # speed of light
 
+    @property
+    def noise_linear(self) -> float:
+        """Full-band noise retained as a writable legacy interface."""
+        return self.noise_for_bandwidth(self.cfg.bandwidth)
+
+    @noise_linear.setter
+    def noise_linear(self, value: float) -> None:
+        if not math.isfinite(value) or value <= 0:
+            raise ValueError("noise_linear must be finite and positive")
+        noise_density = value / self.cfg.bandwidth
+        if not math.isfinite(noise_density) or noise_density <= 0:
+            raise ValueError("noise_linear must define finite positive noise density")
+        self._noise_density_w_hz = noise_density
+
     def noise_for_bandwidth(self, bandwidth_hz: float) -> float:
         """Return receiver noise power in watts for a channel bandwidth."""
-        return noise_power_w(
-            bandwidth_hz,
-            self.cfg.noise_psd_dbm_hz,
-            self.cfg.noise_figure_db,
-        )
+        if not math.isfinite(bandwidth_hz) or bandwidth_hz <= 0:
+            raise ValueError("bandwidth_hz must be finite and positive")
+        noise = self._noise_density_w_hz * bandwidth_hz
+        if not math.isfinite(noise) or noise <= 0:
+            raise ValueError("noise power must be finite and positive")
+        return noise
 
     # -- Path loss ----------------------------------------------------------
 
@@ -258,8 +316,8 @@ class NOMAChannel:
 
     def path_loss(self, d_horizontal: float) -> float:
         """Return channel power gain using dB-averaged LoS/NLoS loss."""
-        if d_horizontal < 0:
-            raise ValueError("d_horizontal must be non-negative")
+        if not math.isfinite(d_horizontal) or d_horizontal < 0:
+            raise ValueError("d_horizontal must be finite and non-negative")
         d_3d = math.hypot(d_horizontal, self.H)
         fspl_db = 20.0 * math.log10(
             4.0 * math.pi * self.cfg.fc * d_3d / self.c
@@ -323,6 +381,7 @@ class NOMAChannel:
         N = len(powers)
         n_active = max(np.sum(powers > 1e-6), 1)
         bw_per_user = self.cfg.bandwidth / n_active
+        noise_per_user = self.noise_for_bandwidth(bw_per_user)
 
         rates = np.zeros(N)
         for i in range(N):
@@ -330,7 +389,7 @@ class NOMAChannel:
                 continue
             d_h = np.linalg.norm(uav_pos[:2] - user_positions[i])
             h_i = self.path_loss(d_h)
-            snr = powers[i] * h_i / self.noise_linear
+            snr = powers[i] * h_i / noise_per_user
             snr = max(snr, 1e-10)
             rates[i] = bw_per_user * math.log2(1.0 + snr)
 
@@ -357,11 +416,12 @@ class NOMAChannel:
             if not users_k:
                 continue
             bw_per_user = bw_per_uav / len(users_k)
+            noise_per_user = self.noise_for_bandwidth(bw_per_user)
             for i in users_k:
                 d_h = np.linalg.norm(
                     np.array(uav_positions[k][:2]) - user_positions[i])
                 h_i = self.path_loss(d_h)
-                snr = powers[i] * h_i / self.noise_linear
+                snr = powers[i] * h_i / noise_per_user
                 snr = max(snr, 1e-10)
                 rates[i] = bw_per_user * math.log2(1.0 + snr)
 
@@ -390,14 +450,13 @@ class NOMAChannel:
         N = len(active_mask)
         K = len(uav_positions)
         p_max = self.cfg.p_max
-        max_served_per_uav = n_sub * users_per_sub  # 10
+        max_served_per_uav = n_sub * users_per_sub
 
         rates = np.zeros(N)
         served = np.zeros(N, dtype=bool)
-        bw_sub = self.cfg.bandwidth / n_sub  # 1 MHz per subcarrier
+        bw_sub = self.cfg.bandwidth / n_sub
 
-        # Per-subcarrier noise (BUG#1 fix: scale noise by subcarrier BW ratio)
-        noise_sub = self.noise_linear * (bw_sub / self.cfg.bandwidth)
+        noise_sub = self.noise_for_bandwidth(bw_sub)
 
         # Precompute channel gains h[i][k] for all users to all UAVs
         h = np.zeros((N, K))
