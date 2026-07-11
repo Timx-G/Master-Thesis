@@ -1,3 +1,5 @@
+import copy
+import pickle
 import warnings
 
 import numpy as np
@@ -12,6 +14,22 @@ from uav_mec.domain import (
     SlotSnapshot,
     Task,
 )
+
+
+def assert_hardened_channel_gains(gains):
+    expected = np.array(gains, copy=True, subok=False)
+
+    with pytest.raises(ValueError):
+        gains[0, 0] = 9.0
+    with pytest.raises(ValueError):
+        gains.setflags(write=True)
+    with pytest.raises((AttributeError, ValueError)):
+        gains.shape = (2, 1)
+    with pytest.raises(ValueError):
+        gains.resize((2, 1))
+
+    assert gains.shape == (1, 2)
+    assert np.array_equal(gains, expected)
 
 
 def test_task_local_delay_and_deadline_identity():
@@ -136,25 +154,30 @@ def test_slot_snapshot_owns_a_read_only_channel_copy():
         snapshot.channel_gains[0, 0] = 2.0
 
 
-def test_slot_snapshot_channel_copy_has_immutable_backing():
+def test_slot_snapshot_channel_copy_has_expected_array_contract():
     task = Task(1, 0, 0, 1.0, 1.0, 0.8, 1.0)
     gains = SlotSnapshot(0, (task,), np.ones((1, 2)), 2).channel_gains
 
-    backing: object = gains
-    while isinstance(backing, np.ndarray) and backing.base is not None:
-        backing = backing.base
-
-    assert isinstance(backing, bytes)
+    assert isinstance(gains, np.ndarray)
     assert gains.shape == (1, 2)
     assert gains.dtype == np.dtype(float)
+    assert not gains.flags.writeable
 
 
-def test_slot_snapshot_channel_copy_cannot_be_made_writeable():
+@pytest.mark.parametrize(
+    "flags",
+    (
+        pytest.param({"write": True}, id="write"),
+        pytest.param({"align": False}, id="align"),
+        pytest.param({"uic": True}, id="writeback-if-copy"),
+    ),
+)
+def test_slot_snapshot_channel_copy_rejects_flag_changes(flags):
     task = Task(1, 0, 0, 1.0, 1.0, 0.8, 1.0)
     gains = SlotSnapshot(0, (task,), np.ones((1, 1)), 1).channel_gains
 
-    with pytest.raises(ValueError):
-        gains.setflags(write=True)
+    with pytest.raises(ValueError, match="channel_gains"):
+        gains.setflags(**flags)
 
 
 def test_slot_snapshot_channel_copy_shape_cannot_be_reassigned():
@@ -172,6 +195,55 @@ def test_slot_snapshot_channel_copy_cannot_be_resized():
     with pytest.raises(ValueError):
         gains.resize((2, 1))
     assert gains.shape == (1, 2)
+
+
+def test_slot_snapshot_deepcopy_preserves_equality_and_immutability():
+    task = Task(1, 0, 0, 1.0, 1.0, 0.8, 1.0)
+    snapshot = SlotSnapshot(0, (task,), np.array([[1.0, 2.0]]), 2)
+
+    copied = copy.deepcopy(snapshot)
+
+    assert copied == snapshot
+    assert copied is not snapshot
+    assert_hardened_channel_gains(copied.channel_gains)
+
+
+def test_slot_snapshot_pickle_roundtrip_preserves_equality_and_immutability():
+    task = Task(1, 0, 0, 1.0, 1.0, 0.8, 1.0)
+    snapshot = SlotSnapshot(0, (task,), np.array([[1.0, 2.0]]), 2)
+
+    restored = pickle.loads(pickle.dumps(snapshot))
+
+    assert restored == snapshot
+    assert_hardened_channel_gains(restored.channel_gains)
+
+
+def test_slot_snapshot_channel_calculations_return_plain_numpy_values():
+    task = Task(1, 0, 0, 1.0, 1.0, 0.8, 1.0)
+    gains = SlotSnapshot(0, (task,), np.array([[1.0, 4.0]]), 2).channel_gains
+
+    result = np.sqrt(gains)
+    total = np.sum(gains)
+
+    assert type(result) is np.ndarray
+    assert np.array_equal(result, np.array([[1.0, 2.0]]))
+    result[0, 0] = 3.0
+    result.shape = (2, 1)
+    assert result.shape == (2, 1)
+    assert np.isscalar(total)
+    assert total == 5.0
+
+
+def test_slot_snapshot_channel_rejects_ufunc_output_target():
+    task = Task(1, 0, 0, 1.0, 1.0, 0.8, 1.0)
+    gains = SlotSnapshot(0, (task,), np.array([[1.0, 2.0]]), 2).channel_gains
+
+    with pytest.raises(ValueError, match="channel_gains"):
+        np.add(gains, 1.0, out=gains)
+
+    output = np.empty((1, 2))
+    assert np.add(gains, 1.0, out=output) is output
+    assert np.array_equal(output, np.array([[2.0, 3.0]]))
 
 
 def test_slot_outcome_copies_collection_fields_to_tuples():

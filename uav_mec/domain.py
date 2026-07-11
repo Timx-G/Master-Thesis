@@ -9,11 +9,48 @@ import numpy as np
 NomaRole = Literal["strong", "weak", "solo"]
 
 
+def _reconstruct_channel_gains(
+    shape: tuple[int, ...], immutable_bytes: bytes
+) -> _ImmutableChannelGains:
+    values = np.frombuffer(immutable_bytes, dtype=float).reshape(shape)
+    return _ImmutableChannelGains(values)
+
+
 class _ImmutableChannelGains(np.ndarray):
     def __new__(cls, values: np.ndarray) -> _ImmutableChannelGains:
         immutable_bytes = values.tobytes(order="C")
         array = np.frombuffer(immutable_bytes, dtype=float).reshape(values.shape)
         return array.view(cls)
+
+    def __array_finalize__(self, source: object) -> None:
+        if source is not None:
+            np.ndarray.setflags(self, write=False)
+
+    def __array_ufunc__(
+        self,
+        ufunc: np.ufunc,
+        method: str,
+        *inputs: object,
+        **kwargs: object,
+    ) -> object:
+        outputs = kwargs.get("out")
+        if outputs is not None:
+            output_values = outputs if isinstance(outputs, tuple) else (outputs,)
+            if any(isinstance(output, _ImmutableChannelGains) for output in output_values):
+                raise ValueError("channel_gains cannot be used as a ufunc output")
+        plain_inputs = tuple(
+            np.asarray(value) if isinstance(value, _ImmutableChannelGains) else value
+            for value in inputs
+        )
+        return getattr(ufunc, method)(*plain_inputs, **kwargs)
+
+    def __deepcopy__(self, memo: dict[int, object]) -> _ImmutableChannelGains:
+        copied = _ImmutableChannelGains(np.asarray(self))
+        memo[id(self)] = copied
+        return copied
+
+    def __reduce_ex__(self, protocol: int) -> tuple[object, tuple[tuple[int, ...], bytes]]:
+        return (_reconstruct_channel_gains, (self.shape, self.tobytes(order="C")))
 
     def __setattr__(self, name: str, value: object) -> None:
         if name in {"dtype", "shape", "strides"}:
@@ -26,9 +63,8 @@ class _ImmutableChannelGains(np.ndarray):
         align: bool | None = None,
         uic: bool | None = None,
     ) -> None:
-        if write:
-            raise ValueError("channel_gains is immutable")
-        super().setflags(write=write, align=align, uic=uic)
+        if write is not None or align is not None or uic is not None:
+            raise ValueError("channel_gains flags are immutable")
 
     def resize(self, *args: object, **kwargs: object) -> None:
         raise ValueError("channel_gains shape is immutable")
