@@ -1,8 +1,8 @@
 [project]
 name = "uav-mec-noma-offloading"
-version = "0.1.0"
-description = "Joint UAV Trajectory Design and NOMA-Based Task Offloading in MEC via Constrained DRL"
-requires-python = ">=3.9"
+version = "0.2.0"
+description = "Interference-aware pairing and deadline-driven resource allocation for full-reuse multi-UAV NOMA-MEC"
+requires-python = ">=3.11"
 license = {text = "MIT"}
 
 dependencies = [
@@ -16,9 +16,9 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=7.0.0",
-    "black>=23.0.0",
-    "isort>=5.12.0",
+    "pytest>=8.0,<9",
+    "black>=24.0,<25",
+    "isort>=5.13,<6",
 ]
 
 [build-system]
@@ -31,8 +31,12 @@ include = ["uav_mec*"]
 
 [tool.black]
 line-length = 100
-target-version = ['py39', 'py310', 'py311']
+target-version = ['py311']
 
 [tool.isort]
 profile = "black"
 line_length = 100
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
