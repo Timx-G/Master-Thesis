@@ -1,6 +1,17 @@
-import numpy as np
+import warnings
 
-from uav_mec.domain import Schedule, ScheduleEntry, SlotSnapshot, Task
+import numpy as np
+import pytest
+
+from uav_mec.domain import (
+    AllocationDecision,
+    RateRecord,
+    Schedule,
+    ScheduleEntry,
+    SlotOutcome,
+    SlotSnapshot,
+    Task,
+)
 
 
 def test_task_local_delay_and_deadline_identity():
@@ -18,10 +29,40 @@ def test_task_local_delay_and_deadline_identity():
     assert task.requires_offload
 
 
+@pytest.mark.parametrize(
+    "field_name",
+    ("data_bits", "comp_cycles", "deadline_s", "local_cpu_hz"),
+)
+def test_task_rejects_non_positive_and_non_finite_quantities(field_name):
+    quantities = {
+        "data_bits": 1.0,
+        "comp_cycles": 1.0,
+        "deadline_s": 1.0,
+        "local_cpu_hz": 1.0,
+    }
+    for invalid in (0.0, -1.0, float("nan"), float("inf"), float("-inf")):
+        invalid_quantities = quantities | {field_name: invalid}
+        with pytest.raises(ValueError, match="task quantities"):
+            Task(1, 0, 0, **invalid_quantities)
+
+
 def test_schedule_key_is_independent_of_input_order():
     a = ScheduleEntry(7, 7, 1, 0, "weak")
     b = ScheduleEntry(2, 2, 0, 1, "solo")
-    assert Schedule((a, b)).stable_key() == Schedule((b, a)).stable_key()
+    expected = ((0, 1, 2, 2, "solo"), (1, 0, 7, 7, "weak"))
+    assert Schedule((a, b)).stable_key() == expected
+    assert Schedule((b, a)).stable_key() == expected
+
+
+def test_schedule_copies_entries_to_a_tuple():
+    entry = ScheduleEntry(1, 1, 0, 0, "solo")
+    source = [entry]
+    schedule = Schedule(source)
+
+    source.clear()
+
+    assert schedule.entries == (entry,)
+    assert isinstance(schedule.entries, tuple)
 
 
 def test_slot_snapshot_rejects_wrong_channel_shape():
@@ -34,14 +75,133 @@ def test_slot_snapshot_rejects_wrong_channel_shape():
         raise AssertionError("SlotSnapshot accepted a channel matrix with the wrong user count")
 
 
+def test_slot_snapshot_rejects_invalid_real_channel_gains():
+    task = Task(1, 0, 0, 1.0, 1.0, 0.8, 1.0)
+    for invalid in (float("nan"), float("inf"), float("-inf"), -1.0):
+        with pytest.raises(ValueError, match="channel_gains"):
+            SlotSnapshot(0, (task,), np.array([[invalid]]), 1)
+
+
+def test_slot_snapshot_rejects_complex_channel_gains_without_warning():
+    task = Task(1, 0, 0, 1.0, 1.0, 0.8, 1.0)
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        with pytest.raises(ValueError, match="channel_gains"):
+            SlotSnapshot(0, (task,), np.array([[1.0 + 2.0j]]), 1)
+
+
+def test_slot_snapshot_copies_tasks_to_a_tuple():
+    task = Task(1, 0, 0, 1.0, 1.0, 0.8, 1.0)
+    source = [task]
+    snapshot = SlotSnapshot(0, source, np.ones((1, 1)), 1)
+
+    source.clear()
+
+    assert snapshot.tasks == (task,)
+    assert isinstance(snapshot.tasks, tuple)
+
+
+def test_slot_snapshot_equality_compares_values():
+    task = Task(1, 0, 0, 1.0, 1.0, 0.8, 1.0)
+    equal_task = Task(1, 0, 0, 1.0, 1.0, 0.8, 1.0)
+    snapshot = SlotSnapshot(0, (task,), np.array([[1.0, 2.0]]), 2)
+
+    assert snapshot == SlotSnapshot(0, (equal_task,), np.array([[1.0, 2.0]]), 2)
+    assert snapshot != SlotSnapshot(1, (equal_task,), np.array([[1.0, 2.0]]), 2)
+    assert snapshot != SlotSnapshot(0, (equal_task,), np.array([[1.0, 3.0]]), 2)
+    assert snapshot != SlotSnapshot(
+        0,
+        (Task(2, 0, 0, 1.0, 1.0, 0.8, 1.0),),
+        np.array([[1.0, 2.0]]),
+        2,
+    )
+
+
+def test_slot_snapshot_is_explicitly_unhashable():
+    task = Task(1, 0, 0, 1.0, 1.0, 0.8, 1.0)
+    snapshot = SlotSnapshot(0, (task,), np.ones((1, 1)), 1)
+
+    assert SlotSnapshot.__hash__ is None
+    with pytest.raises(TypeError):
+        hash(snapshot)
+
+
 def test_slot_snapshot_owns_a_read_only_channel_copy():
     source = np.ones((1, 1))
     task = Task(1, 0, 0, 1.0, 1.0, 0.8, 1.0)
     snapshot = SlotSnapshot(0, (task,), source, 1)
     source[0, 0] = 9.0
     assert snapshot.channel_gains[0, 0] == 1.0
-    try:
+    with pytest.raises(ValueError):
         snapshot.channel_gains[0, 0] = 2.0
-    except ValueError:
-        return
-    raise AssertionError("SlotSnapshot channel matrix remained mutable")
+
+
+def test_slot_snapshot_channel_copy_has_immutable_backing():
+    task = Task(1, 0, 0, 1.0, 1.0, 0.8, 1.0)
+    gains = SlotSnapshot(0, (task,), np.ones((1, 2)), 2).channel_gains
+
+    backing: object = gains
+    while isinstance(backing, np.ndarray) and backing.base is not None:
+        backing = backing.base
+
+    assert isinstance(backing, bytes)
+    assert gains.shape == (1, 2)
+    assert gains.dtype == np.dtype(float)
+
+
+def test_slot_snapshot_channel_copy_cannot_be_made_writeable():
+    task = Task(1, 0, 0, 1.0, 1.0, 0.8, 1.0)
+    gains = SlotSnapshot(0, (task,), np.ones((1, 1)), 1).channel_gains
+
+    with pytest.raises(ValueError):
+        gains.setflags(write=True)
+
+
+def test_slot_snapshot_channel_copy_shape_cannot_be_reassigned():
+    task = Task(1, 0, 0, 1.0, 1.0, 0.8, 1.0)
+    gains = SlotSnapshot(0, (task,), np.ones((1, 2)), 2).channel_gains
+
+    with pytest.raises((AttributeError, ValueError)):
+        gains.shape = (2, 1)
+
+
+def test_slot_snapshot_channel_copy_cannot_be_resized():
+    task = Task(1, 0, 0, 1.0, 1.0, 0.8, 1.0)
+    gains = SlotSnapshot(0, (task,), np.ones((1, 2)), 2).channel_gains
+
+    with pytest.raises(ValueError):
+        gains.resize((2, 1))
+    assert gains.shape == (1, 2)
+
+
+def test_slot_outcome_copies_collection_fields_to_tuples():
+    decision = AllocationDecision(1, 0.5, 1.0, True, 0.5, 0.3, "completed")
+    rate = RateRecord(1, 1.0, 1.0, True, 0.0, 0, 0)
+    arrived = [1]
+    completed = [1]
+    missed = [2]
+    decisions = [decision]
+    rates = [rate]
+    outcome = SlotOutcome(
+        0,
+        arrived,
+        completed,
+        missed,
+        decisions,
+        rates,
+        0.3,
+        0.0,
+    )
+
+    arrived.append(3)
+    completed.clear()
+    missed.clear()
+    decisions.clear()
+    rates.clear()
+
+    assert outcome.arrived_task_ids == (1,)
+    assert outcome.completed_task_ids == (1,)
+    assert outcome.missed_task_ids == (2,)
+    assert outcome.decisions == (decision,)
+    assert outcome.rates == (rate,)
+    assert outcome.completed_count == 1
