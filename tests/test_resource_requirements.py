@@ -123,11 +123,16 @@ def test_requirement_is_minimal_and_both_branches_meet_deadline():
         (1.0 + result_ratio) * (task.data_bits / rate_bps)
         + task.comp_cycles / (req.cpu_hz * (1.0 - epsilon))
     )
+    predecessor_cpu = math.nextafter(req.cpu_hz, 0.0)
+    predecessor_cpu_edge_delay = req.alpha * (
+        (1.0 + result_ratio) * (task.data_bits / rate_bps) + task.comp_cycles / predecessor_cpu
+    )
 
     assert returned_local_delay <= task.deadline_s + 1e-12
     assert returned_edge_delay <= task.deadline_s + 1e-12
     assert smaller_alpha_local_delay > task.deadline_s
     assert smaller_cpu_edge_delay > task.deadline_s
+    assert predecessor_cpu_edge_delay > task.deadline_s
 
 
 def test_link_denominator_exactly_zero_and_below_are_infeasible():
@@ -190,11 +195,19 @@ def test_subnormal_rounding_correction_is_bounded_and_feasible(monkeypatch):
 
     req = required_resources(task, rate_bps=1.0, result_ratio=0.0)
     local_delay = (1.0 - req.alpha) * task.comp_cycles / task.local_cpu_hz
+    expected_alpha = 0.5
+    predecessor = real_nextafter(expected_alpha, 0.0)
+    second_predecessor = real_nextafter(predecessor, 0.0)
+    predecessor_delay = (1.0 - predecessor) * task.comp_cycles / task.local_cpu_hz
+    second_predecessor_delay = (1.0 - second_predecessor) * task.comp_cycles / task.local_cpu_hz
 
     assert req.feasible
     assert req.reason is RequirementReason.MEC
+    assert req.alpha == expected_alpha
     assert nextafter_calls <= 8
     assert local_delay <= task.deadline_s
+    assert predecessor_delay <= task.deadline_s
+    assert second_predecessor_delay > task.deadline_s
     assert 0.0 < req.cpu_hz < math.inf
 
 

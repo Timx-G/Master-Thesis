@@ -97,9 +97,10 @@ def _minimum_representable_alpha(task: Task) -> tuple[float, bool]:
             candidate = min(alpha + correction, 1.0)
         else:
             candidate = 1.0
-        if candidate <= alpha:
-            candidate = alpha
-        alpha = math.nextafter(candidate, 1.0) if candidate < 1.0 else 1.0
+        if candidate > alpha:
+            alpha = candidate
+        else:
+            alpha = math.nextafter(alpha, 1.0)
 
     return alpha, _local_branch_delay(task, alpha) <= task.deadline_s
 
