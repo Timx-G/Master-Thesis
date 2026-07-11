@@ -16,6 +16,31 @@ from typing import Optional
 import numpy as np
 
 
+def noise_power_dbm(
+    bandwidth_hz: float,
+    noise_psd_dbm_hz: float = -174.0,
+    noise_figure_db: float = 7.0,
+) -> float:
+    """Return receiver noise power in dBm for the requested bandwidth."""
+    if bandwidth_hz <= 0:
+        raise ValueError("bandwidth_hz must be positive")
+    return noise_psd_dbm_hz + noise_figure_db + 10.0 * math.log10(bandwidth_hz)
+
+
+def noise_power_w(
+    bandwidth_hz: float,
+    noise_psd_dbm_hz: float = -174.0,
+    noise_figure_db: float = 7.0,
+) -> float:
+    """Return receiver noise power in watts for the requested bandwidth."""
+    power_dbm = noise_power_dbm(
+        bandwidth_hz,
+        noise_psd_dbm_hz,
+        noise_figure_db,
+    )
+    return 10.0 ** ((power_dbm - 30.0) / 10.0)
+
+
 # ---------------------------------------------------------------------------
 # Configuration dataclasses
 # ---------------------------------------------------------------------------
@@ -37,12 +62,11 @@ class UAVConfig:
 class ChannelConfig:
     """Air-to-ground NOMA channel parameters."""
     bandwidth: float = 5e6          # total bandwidth (Hz, 5 MHz LTE single carrier)
-    noise_power_dbm: float = -104.8 # Effective noise: N0*B + NF = -107 + 7 = -100 dBm total;
-                                     # per-subcarrier (S=3): -104.8 dBm (NF=7 dB UAV receiver)
+    environment: str = "urban"
+    noise_psd_dbm_hz: float = -174.0  # thermal noise power spectral density (dBm/Hz)
     noise_figure_db: float = 7.0    # Receiver noise figure (dB); NF=7 dB is mid-range for UAV receivers
-    # Per-subcarrier noise: noise_linear * (bw_sub/bandwidth) → -104.8 dBm for S=3 with NF=7dB
     # LoS probability: P_LoS = 1 / (1 + a * exp(-b * (theta - a)))
-    a_los: float = 9.61             # environment param a (Suburban, Al-Hourani 2014 Table I)
+    a_los: float = 9.61             # environment param a (Urban, Al-Hourani 2014 Table I)
     b_los: float = 0.16             # environment param b
     # Path-loss
     fc: float = 2e9                 # carrier frequency (Hz)
@@ -205,9 +229,21 @@ class NOMAChannel:
     def __init__(self, cfg: ChannelConfig, uav_height: float):
         self.cfg = cfg
         self.H = uav_height
-        # Precompute noise in linear
-        self.noise_linear = 10 ** ((cfg.noise_power_dbm - 30) / 10.0)  # W
+        # Retain full-band noise for legacy full-band rate calculations.
+        self.noise_linear = noise_power_w(
+            cfg.bandwidth,
+            cfg.noise_psd_dbm_hz,
+            cfg.noise_figure_db,
+        )
         self.c = 3e8  # speed of light
+
+    def noise_for_bandwidth(self, bandwidth_hz: float) -> float:
+        """Return receiver noise power in watts for a channel bandwidth."""
+        return noise_power_w(
+            bandwidth_hz,
+            self.cfg.noise_psd_dbm_hz,
+            self.cfg.noise_figure_db,
+        )
 
     # -- Path loss ----------------------------------------------------------
 
@@ -221,21 +257,20 @@ class NOMAChannel:
         return p_los
 
     def path_loss(self, d_horizontal: float) -> float:
-        """Average path loss (linear, NOT dB) combining LoS and NLoS.
-
-        PL = PL_free + P_LoS * eta_LoS + (1 - P_LoS) * eta_NLoS
-        Returns h = 1 / PL  (channel power gain).
-        """
-        d_3d = math.sqrt(d_horizontal ** 2 + self.H ** 2)
-        # Free-space path loss (linear)
-        fspl_linear = (4 * math.pi * self.cfg.fc * d_3d / self.c) ** 2
+        """Return channel power gain using dB-averaged LoS/NLoS loss."""
+        if d_horizontal < 0:
+            raise ValueError("d_horizontal must be non-negative")
+        d_3d = math.hypot(d_horizontal, self.H)
+        fspl_db = 20.0 * math.log10(
+            4.0 * math.pi * self.cfg.fc * d_3d / self.c
+        )
         p_los = self._los_probability(d_horizontal)
-        # Additional loss in linear
-        eta_los_lin = 10 ** (self.cfg.eta_los / 10.0)
-        eta_nlos_lin = 10 ** (self.cfg.eta_nlos / 10.0)
-        avg_extra = p_los * eta_los_lin + (1 - p_los) * eta_nlos_lin
-        total_pl = fspl_linear * avg_extra
-        return 1.0 / total_pl  # channel gain
+        mean_loss_db = (
+            fspl_db
+            + p_los * self.cfg.eta_los
+            + (1.0 - p_los) * self.cfg.eta_nlos
+        )
+        return 10.0 ** (-mean_loss_db / 10.0)
 
     # -- NOMA rates ---------------------------------------------------------
 
