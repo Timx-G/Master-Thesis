@@ -27,8 +27,12 @@ def assert_hardened_channel_gains(gains):
         gains.shape = (2, 1)
     with pytest.raises(ValueError):
         gains.resize((2, 1))
+    replacement = np.zeros(gains.shape, dtype=gains.dtype)
+    with pytest.raises((AttributeError, ValueError)):
+        gains.data = replacement.data
 
     assert gains.shape == (1, 2)
+    assert not gains.flags.writeable
     assert np.array_equal(gains, expected)
 
 

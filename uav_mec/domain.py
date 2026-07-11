@@ -53,7 +53,7 @@ class _ImmutableChannelGains(np.ndarray):
         return (_reconstruct_channel_gains, (self.shape, self.tobytes(order="C")))
 
     def __setattr__(self, name: str, value: object) -> None:
-        if name in {"dtype", "shape", "strides"}:
+        if name in {"data", "dtype", "shape", "strides"}:
             raise AttributeError("channel_gains metadata is immutable")
         super().__setattr__(name, value)
 
