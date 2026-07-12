@@ -210,3 +210,45 @@ class SlotOutcome:
     @property
     def completed_count(self) -> int:
         return len(self.completed_task_ids)
+
+
+@dataclass(frozen=True, slots=True)
+class ExperimentTrace:
+    seed: int
+    slots: tuple[SlotSnapshot, ...]
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "slots", tuple(self.slots))
+
+
+@dataclass(frozen=True, slots=True)
+class EpisodeResult:
+    seed: int
+    outcomes: tuple[SlotOutcome, ...]
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "outcomes", tuple(self.outcomes))
+
+    @property
+    def task_ids(self) -> tuple[int, ...]:
+        return tuple(
+            task_id
+            for outcome in self.outcomes
+            for task_id in outcome.arrived_task_ids
+        )
+
+    @property
+    def total_arrivals(self) -> int:
+        return len(self.task_ids)
+
+    @property
+    def total_completed(self) -> int:
+        return sum(outcome.completed_count for outcome in self.outcomes)
+
+    @property
+    def total_missed(self) -> int:
+        return self.total_arrivals - self.total_completed
+
+    @property
+    def on_time_rate(self) -> float:
+        return self.total_completed / max(self.total_arrivals, 1)
