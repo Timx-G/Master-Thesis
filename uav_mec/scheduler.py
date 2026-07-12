@@ -68,6 +68,7 @@ def _candidates_for_uav(
     row_by_task = {
         task.task_id: row for row, task in enumerate(snapshot.tasks)
     }
+    planning_gains = snapshot.planning_channel_gains
     offload_tasks = [task for task in snapshot.tasks if task.requires_offload]
     assigned = sorted(
         (
@@ -75,7 +76,7 @@ def _candidates_for_uav(
             for task in offload_tasks
             if int(
                 np.asarray(
-                    snapshot.channel_gains[row_by_task[task.task_id]]
+                    planning_gains[row_by_task[task.task_id]]
                 ).argmax()
             )
             == uav
@@ -256,7 +257,7 @@ def _nearest_uav(snapshot: SlotSnapshot, task_id: int) -> int:
         for row, task in enumerate(snapshot.tasks)
         if task.task_id == task_id
     )
-    return int(np.asarray(snapshot.channel_gains[row]).argmax())
+    return int(np.asarray(snapshot.planning_channel_gains[row]).argmax())
 
 
 def _normalized_neighbor(

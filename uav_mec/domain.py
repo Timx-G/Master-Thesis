@@ -70,6 +70,25 @@ class _ImmutableChannelGains(np.ndarray):
         raise ValueError("channel_gains shape is immutable")
 
 
+def _validated_channel_gains(
+    values: np.ndarray,
+    expected: tuple[int, int],
+    name: str,
+) -> _ImmutableChannelGains:
+    raw_gains = np.asarray(values)
+    if raw_gains.shape != expected:
+        raise ValueError(f"{name} must have shape {expected}")
+    if np.iscomplexobj(raw_gains) or (
+        raw_gains.dtype.kind == "O"
+        and any(np.iscomplexobj(value) for value in raw_gains.flat)
+    ):
+        raise ValueError(f"{name} must be real")
+    gains = np.array(raw_gains, dtype=float, copy=True)
+    if not np.isfinite(gains).all() or (gains < 0).any():
+        raise ValueError(f"{name} must be finite and non-negative")
+    return _ImmutableChannelGains(gains)
+
+
 @dataclass(frozen=True, slots=True)
 class Task:
     task_id: int
@@ -135,25 +154,30 @@ class SlotSnapshot:
     tasks: tuple[Task, ...]
     channel_gains: np.ndarray
     num_uavs: int
+    estimated_channel_gains: np.ndarray | None = None
 
     __hash__ = None
 
     def __post_init__(self) -> None:
         tasks = tuple(self.tasks)
-        raw_gains = np.asarray(self.channel_gains)
         expected = (len(tasks), self.num_uavs)
-        if raw_gains.shape != expected:
-            raise ValueError(f"channel_gains must have shape {expected}")
-        if np.iscomplexobj(raw_gains) or (
-            raw_gains.dtype.kind == "O"
-            and any(np.iscomplexobj(value) for value in raw_gains.flat)
-        ):
-            raise ValueError("channel_gains must be real")
-        gains = np.array(raw_gains, dtype=float, copy=True)
-        if not np.isfinite(gains).all() or (gains < 0).any():
-            raise ValueError("channel_gains must be finite and non-negative")
+        gains = _validated_channel_gains(
+            self.channel_gains,
+            expected,
+            "channel_gains",
+        )
+        estimated = (
+            None
+            if self.estimated_channel_gains is None
+            else _validated_channel_gains(
+                self.estimated_channel_gains,
+                expected,
+                "estimated_channel_gains",
+            )
+        )
         object.__setattr__(self, "tasks", tasks)
-        object.__setattr__(self, "channel_gains", _ImmutableChannelGains(gains))
+        object.__setattr__(self, "channel_gains", gains)
+        object.__setattr__(self, "estimated_channel_gains", estimated)
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, SlotSnapshot):
@@ -163,6 +187,30 @@ class SlotSnapshot:
             and self.tasks == other.tasks
             and self.num_uavs == other.num_uavs
             and np.array_equal(self.channel_gains, other.channel_gains)
+            and (
+                self.estimated_channel_gains is None
+                and other.estimated_channel_gains is None
+                or self.estimated_channel_gains is not None
+                and other.estimated_channel_gains is not None
+                and np.array_equal(
+                    self.estimated_channel_gains,
+                    other.estimated_channel_gains,
+                )
+            )
+        )
+
+    @property
+    def planning_channel_gains(self) -> np.ndarray:
+        if self.estimated_channel_gains is None:
+            return self.channel_gains
+        return self.estimated_channel_gains
+
+    def as_planning_snapshot(self) -> SlotSnapshot:
+        return SlotSnapshot(
+            self.slot_index,
+            self.tasks,
+            self.planning_channel_gains,
+            self.num_uavs,
         )
 
 

@@ -28,8 +28,14 @@ def _centers(cfg: ScenarioConfig) -> np.ndarray:
     return known[cfg.num_clusters].copy()
 
 
-def generate_trace(cfg: ScenarioConfig, seed: int) -> ExperimentTrace:
+def generate_trace(
+    cfg: ScenarioConfig,
+    seed: int,
+    csi_error_std: float = 0.0,
+) -> ExperimentTrace:
     """Generate all task arrivals and channels from one seed-owned RNG."""
+    if not math.isfinite(csi_error_std) or csi_error_std < 0.0:
+        raise ValueError("csi_error_std must be finite and non-negative")
     if cfg.num_users <= 0 or cfg.num_slots <= 0 or cfg.n_subcarriers <= 0:
         raise ValueError("trusted trace requires positive users, slots, and subcarriers")
     if cfg.num_uavs not in UAV_HOVER_POSITIONS:
@@ -38,6 +44,7 @@ def generate_trace(cfg: ScenarioConfig, seed: int) -> ExperimentTrace:
         raise ValueError("trusted trace requires fixed_cluster_centers=True")
 
     rng = np.random.default_rng(seed)
+    csi_rng = np.random.default_rng(seed + 7_919)
     centers = _centers(cfg)
     cluster_ids = np.arange(cfg.num_users) % cfg.num_clusters
     rng.shuffle(cluster_ids)
@@ -106,6 +113,25 @@ def generate_trace(cfg: ScenarioConfig, seed: int) -> ExperimentTrace:
                     np.linalg.norm(positions[task.user_id] - uav_positions[uav])
                 )
                 gains[row, uav] = channel.path_loss(horizontal_m)
-        slots.append(SlotSnapshot(slot, tuple(tasks), gains, cfg.num_uavs))
+        estimated = None
+        if csi_error_std > 0.0:
+            relative_error = csi_rng.normal(
+                0.0,
+                csi_error_std,
+                gains.shape,
+            )
+            estimated = np.maximum(
+                gains * (1.0 + relative_error),
+                0.0,
+            )
+        slots.append(
+            SlotSnapshot(
+                slot,
+                tuple(tasks),
+                gains,
+                cfg.num_uavs,
+                estimated_channel_gains=estimated,
+            )
+        )
 
     return ExperimentTrace(seed, tuple(slots))

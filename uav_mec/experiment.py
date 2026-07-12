@@ -22,7 +22,10 @@ from .baselines_v2 import (
     local_only_schedule,
 )
 from .domain import Schedule, SlotOutcome, SlotSnapshot
-from .evaluation import EvaluationConfig, evaluate_schedule
+from .evaluation import (
+    EvaluationConfig,
+    evaluate_realized_schedule,
+)
 from .model import NOMAChannel, ScenarioConfig
 from .resource_allocation import AllocationPolicy
 from .scheduler import (
@@ -61,6 +64,7 @@ class ExperimentDefinition:
     scenario: ScenarioConfig
     evaluation: EvaluationConfig
     max_iterations: int
+    csi_error_std: float = 0.0
 
 
 def load_definition(path: Path) -> ExperimentDefinition:
@@ -129,6 +133,12 @@ def load_definition(path: Path) -> ExperimentDefinition:
         raise ValueError("max_iterations must be an integer")
     if max_iterations <= 0:
         raise ValueError("max_iterations must be positive")
+    trace_raw = raw.get("trace", {})
+    if not isinstance(trace_raw, dict):
+        raise ValueError("trace section must be a table")
+    csi_error_std = float(trace_raw.get("csi_error_std", 0.0))
+    if not np.isfinite(csi_error_std) or csi_error_std < 0.0:
+        raise ValueError("csi_error_std must be finite and non-negative")
     return ExperimentDefinition(
         run_id=run_id,
         seeds=seeds,
@@ -136,6 +146,7 @@ def load_definition(path: Path) -> ExperimentDefinition:
         scenario=scenario,
         evaluation=evaluation,
         max_iterations=max_iterations,
+        csi_error_std=csi_error_std,
     )
 
 
@@ -165,7 +176,7 @@ def _slot_method(
         snapshot: SlotSnapshot,
         schedule: Schedule,
     ) -> SlotOutcome:
-        return evaluate_schedule(
+        return evaluate_realized_schedule(
             snapshot,
             schedule,
             channel,
@@ -173,8 +184,9 @@ def _slot_method(
         )
 
     def method(snapshot: SlotSnapshot) -> SlotOutcome:
+        planning = snapshot.as_planning_snapshot()
         if name == "local_only":
-            return evaluate_noma(snapshot, local_only_schedule(snapshot))
+            return evaluate_noma(snapshot, local_only_schedule(planning))
         if name == "fair_ofdma":
             return evaluate_fair_ofdma(
                 snapshot,
@@ -183,22 +195,22 @@ def _slot_method(
             )
         if name == "greedy":
             schedule = repair_sic(
-                greedy_schedule(snapshot, scenario.n_subcarriers),
-                snapshot,
+                greedy_schedule(planning, scenario.n_subcarriers),
+                planning,
                 channel,
                 search_evaluation,
             )
             return evaluate_noma(snapshot, schedule)
         if name == "ia_greedy":
             schedule = ia_greedy_schedule(
-                snapshot,
+                planning,
                 channel,
                 search_evaluation,
             )
             return evaluate_noma(snapshot, schedule)
 
         initialization = build_initial_schedule(
-            snapshot,
+            planning,
             channel,
             search_evaluation,
         )
@@ -255,7 +267,7 @@ def _slot_method(
         }
         result = optimize_schedule(
             initialization.schedule,
-            snapshot,
+            planning,
             channel,
             search_evaluation,
             search_map[name],
@@ -302,7 +314,11 @@ def run_experiment(config_path: Path, output_dir: Path) -> None:
     method_summary = {name: [] for name in definition.methods}
 
     for seed in definition.seeds:
-        trace = generate_trace(definition.scenario, seed)
+        trace = generate_trace(
+            definition.scenario,
+            seed,
+            definition.csi_error_std,
+        )
         task_by_id = {
             task.task_id: task
             for snapshot in trace.slots
@@ -503,6 +519,7 @@ def run_experiment(config_path: Path, output_dir: Path) -> None:
                 config_path.read_bytes()
             ).hexdigest(),
             "seeds": list(definition.seeds),
+            "csi_error_std": definition.csi_error_std,
             "python": sys.version,
             "platform": platform.platform(),
             "numpy": np.__version__,

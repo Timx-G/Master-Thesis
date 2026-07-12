@@ -20,6 +20,7 @@ from .model import NOMAChannel
 from .resource_allocation import AllocationPolicy, allocate_with_policy
 from .schedule import (
     ScheduleValidationError,
+    normalize_roles,
     serving_uav_by_task,
     validate_schedule,
 )
@@ -329,4 +330,88 @@ def evaluate_schedule(
         serving_uav_by_task(schedule),
         rates,
         cfg,
+    )
+
+
+def evaluate_realized_schedule(
+    snapshot: SlotSnapshot,
+    planned_schedule: Schedule,
+    channel: NOMAChannel,
+    cfg: EvaluationConfig,
+) -> SlotOutcome:
+    """Evaluate a planned schedule on truth, recording actual SIC outages.
+
+    The receiver may reorder a planned pair using its realized channel, but no
+    user association or resource-block decision is changed. A pair that still
+    violates the hard threshold is excluded from MEC allocation and counted as
+    a miss while its transmission remains in every other link's interference.
+    """
+    try:
+        realized_schedule = normalize_roles(planned_schedule, snapshot)
+        rates = compute_rate_records(
+            snapshot,
+            realized_schedule,
+            channel,
+            cfg,
+        )
+    except ScheduleValidationError as exc:
+        raise InfeasibleScheduleError(str(exc)) from exc
+
+    outage_ids = {
+        record.task_id for record in rates if not record.sic_feasible
+    }
+    if not outage_ids:
+        return build_outcome_from_rates(
+            snapshot,
+            serving_uav_by_task(realized_schedule),
+            rates,
+            cfg,
+        )
+
+    realized_uav = serving_uav_by_task(realized_schedule)
+    feasible_rates = tuple(
+        record for record in rates if record.task_id not in outage_ids
+    )
+    feasible_uav = {
+        task_id: uav
+        for task_id, uav in realized_uav.items()
+        if task_id not in outage_ids
+    }
+    base = build_outcome_from_rates(
+        snapshot,
+        feasible_uav,
+        feasible_rates,
+        cfg,
+    )
+    decisions = tuple(
+        AllocationDecision(
+            decision.task_id,
+            0.0,
+            0.0,
+            False,
+            None,
+            0.0,
+            "sic_outage",
+        )
+        if decision.task_id in outage_ids
+        else decision
+        for decision in base.decisions
+    )
+    return SlotOutcome(
+        slot_index=snapshot.slot_index,
+        arrived_task_ids=base.arrived_task_ids,
+        completed_task_ids=tuple(
+            decision.task_id for decision in decisions if decision.completed
+        ),
+        missed_task_ids=tuple(
+            decision.task_id for decision in decisions if not decision.completed
+        ),
+        decisions=decisions,
+        rates=rates,
+        total_slack_s=math.fsum(
+            decision.slack_s for decision in decisions if decision.completed
+        ),
+        total_cross_interference_w=math.fsum(
+            record.cross_interference_w for record in rates
+        ),
     )

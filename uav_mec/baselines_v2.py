@@ -45,6 +45,7 @@ def greedy_schedule(
     row_by_task = {
         task.task_id: row for row, task in enumerate(snapshot.tasks)
     }
+    planning_gains = snapshot.planning_channel_gains
     entries: list[ScheduleEntry] = []
     for uav in range(snapshot.num_uavs):
         candidates = [
@@ -53,14 +54,14 @@ def greedy_schedule(
             if task.requires_offload
             and int(
                 np.asarray(
-                    snapshot.channel_gains[row_by_task[task.task_id]]
+                    planning_gains[row_by_task[task.task_id]]
                 ).argmax()
             )
             == uav
         ]
         candidates.sort(
             key=lambda task: (
-                -snapshot.channel_gains[
+                -planning_gains[
                     row_by_task[task.task_id],
                     uav,
                 ],
@@ -97,6 +98,7 @@ def evaluate_fair_ofdma(
     row_by_task = {
         task.task_id: row for row, task in enumerate(snapshot.tasks)
     }
+    planning_gains = snapshot.planning_channel_gains
     selected: dict[int, list[Task]] = defaultdict(list)
     for uav in range(snapshot.num_uavs):
         candidates = [
@@ -105,14 +107,14 @@ def evaluate_fair_ofdma(
             if task.requires_offload
             and int(
                 np.asarray(
-                    snapshot.channel_gains[row_by_task[task.task_id]]
+                    planning_gains[row_by_task[task.task_id]]
                 ).argmax()
             )
             == uav
         ]
         candidates.sort(
             key=lambda task: (
-                -snapshot.channel_gains[
+                -planning_gains[
                     row_by_task[task.task_id],
                     uav,
                 ],
@@ -215,6 +217,7 @@ def ia_greedy_schedule(
     row_by_task = {
         task.task_id: row for row, task in enumerate(snapshot.tasks)
     }
+    planning_gains = snapshot.planning_channel_gains
     task_by_id = {task.task_id: task for task in snapshot.tasks}
     current = Schedule()
     current_outcome = evaluate_schedule(snapshot, current, channel, cfg)
@@ -230,7 +233,7 @@ def ia_greedy_schedule(
                     and task.task_id not in used
                     and int(
                         np.asarray(
-                            snapshot.channel_gains[
+                            planning_gains[
                                 row_by_task[task.task_id]
                             ]
                         ).argmax()
