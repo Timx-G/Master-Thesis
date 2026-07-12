@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import math
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from enum import Enum
 
-from .domain import Task
+from .domain import AllocationDecision, Task
 
 _MAX_ULP_CORRECTIONS = 4
 
@@ -27,6 +28,13 @@ class ResourceRequirement:
     alpha: float
     cpu_hz: float
     reason: RequirementReason
+
+
+@dataclass(frozen=True, slots=True)
+class AllocationResult:
+    decisions: tuple[AllocationDecision, ...]
+    completed_task_ids: tuple[int, ...]
+    total_cpu_hz: float
 
 
 def _positive_product_ratio(
@@ -58,6 +66,14 @@ def _positive_product_ratio(
         return math.inf
 
 
+def _cpu_sum(cpu_costs: Sequence[float]) -> float:
+    """Return a deterministic CPU sum, treating unrepresentable totals as infinite."""
+    try:
+        return math.fsum(cpu_costs)
+    except OverflowError:
+        return math.inf
+
+
 def _link_infeasible(task: Task, alpha: float) -> ResourceRequirement:
     return ResourceRequirement(
         task.task_id,
@@ -71,6 +87,56 @@ def _link_infeasible(task: Task, alpha: float) -> ResourceRequirement:
 
 def _local_branch_delay(task: Task, alpha: float) -> float:
     return (1.0 - alpha) * task.comp_cycles / task.local_cpu_hz
+
+
+def completion_delay_s(
+    task: Task,
+    rate_bps: float,
+    result_ratio: float,
+    alpha: float,
+    cpu_hz: float,
+) -> float:
+    """Return the normalized parallel local/MEC completion delay.
+
+    ``alpha == 0`` is the explicit local-only path and does not consume or
+    validate radio and MEC resources. For positive ``alpha``, normalized product
+    ratios avoid intermediate overflow. The returned edge delay conservatively
+    covers both the normalized split and finite grouped IEEE evaluations so Task 4
+    corrections only move CPU toward deadline feasibility.
+    """
+    if not math.isfinite(result_ratio) or result_ratio < 0.0:
+        raise ValueError("result_ratio must be finite and non-negative")
+    if not math.isfinite(alpha) or not 0.0 <= alpha <= 1.0:
+        raise ValueError("alpha must be finite and between zero and one")
+
+    if alpha == 0.0:
+        return task.local_delay_s
+    if not math.isfinite(rate_bps) or rate_bps <= 0.0:
+        raise ValueError("rate_bps must be finite and positive when alpha is positive")
+    if not math.isfinite(cpu_hz) or cpu_hz <= 0.0:
+        raise ValueError("cpu_hz must be finite and positive when alpha is positive")
+
+    local_delay_s = _positive_product_ratio(
+        (1.0 - alpha, task.comp_cycles),
+        (task.local_cpu_hz,),
+    )
+    transmission_s = _positive_product_ratio(
+        (alpha, 1.0 + result_ratio, task.data_bits),
+        (rate_bps,),
+    )
+    computation_s = _positive_product_ratio(
+        (alpha, task.comp_cycles),
+        (cpu_hz,),
+    )
+    try:
+        edge_delay_s = math.fsum((transmission_s, computation_s))
+    except OverflowError:
+        edge_delay_s = math.inf
+
+    grouped_terms = (1.0 + result_ratio) * (task.data_bits / rate_bps) + (task.comp_cycles / cpu_hz)
+    if math.isfinite(grouped_terms):
+        edge_delay_s = max(edge_delay_s, alpha * grouped_terms)
+    return max(local_delay_s, edge_delay_s)
 
 
 def _deadline_feasible_alpha(task: Task) -> tuple[float, bool]:
@@ -104,28 +170,6 @@ def _deadline_feasible_alpha(task: Task) -> tuple[float, bool]:
             alpha = math.nextafter(alpha, 1.0)
 
     return alpha, _local_branch_delay(task, alpha) <= task.deadline_s
-
-
-def _edge_branch_meets_deadline(
-    task: Task,
-    alpha: float,
-    cpu_hz: float,
-    rate_bps: float,
-    result_ratio: float,
-    transmission_s: float,
-) -> bool:
-    """Check normalized and finite grouped IEEE edge-delay evaluations."""
-    computation_s = _positive_product_ratio(
-        (alpha, task.comp_cycles),
-        (cpu_hz,),
-    )
-    if transmission_s + computation_s > task.deadline_s:
-        return False
-
-    grouped_terms = (1.0 + result_ratio) * (task.data_bits / rate_bps) + (task.comp_cycles / cpu_hz)
-    if math.isfinite(grouped_terms):
-        return alpha * grouped_terms <= task.deadline_s
-    return True
 
 
 def _deadline_feasible_cpu_hz(
@@ -224,14 +268,14 @@ def required_resources(
         return _link_infeasible(task, alpha)
 
     for _ in range(_MAX_ULP_CORRECTIONS + 1):
-        if _edge_branch_meets_deadline(
+        delay_s = completion_delay_s(
             task,
-            alpha,
-            cpu_hz,
             rate_bps,
             result_ratio,
-            transmission_s,
-        ):
+            alpha,
+            cpu_hz,
+        )
+        if math.isfinite(delay_s) and delay_s <= task.deadline_s:
             break
         cpu_hz = math.nextafter(cpu_hz, math.inf)
         if not math.isfinite(cpu_hz):
@@ -247,3 +291,156 @@ def required_resources(
         cpu_hz,
         RequirementReason.MEC,
     )
+
+
+def allocate_deadline_tasks(
+    tasks: Sequence[Task],
+    rates_bps: Mapping[int, float],
+    cpu_budget_hz: float,
+    result_ratio: float,
+) -> AllocationResult:
+    """Return the canonical maximum-cardinality deadline allocation.
+
+    Local-feasible tasks complete at zero MEC cost. Feasible offloaded tasks are
+    ordered by ``(required CPU, task_id)`` and the largest hard-budget prefix is
+    selected. This maximizes completion cardinality, then minimizes total MEC CPU
+    among maximum-cardinality subsets, with ``task_id`` resolving equal-cost
+    choices. The prefix is the deterministic representative of that objective
+    hierarchy; other maximum-cardinality feasible subsets can still exist.
+
+    ``total_cpu_hz`` includes only completed MEC decisions. A missing rate for a
+    task that requires offloading is an input data-flow error and raises ``KeyError``.
+    """
+    if not math.isfinite(cpu_budget_hz) or cpu_budget_hz < 0.0:
+        raise ValueError("cpu_budget_hz must be finite and non-negative")
+    if not math.isfinite(result_ratio) or result_ratio < 0.0:
+        raise ValueError("result_ratio must be finite and non-negative")
+
+    task_list = tuple(tasks)
+    seen_task_ids: set[int] = set()
+    for task in task_list:
+        if task.task_id in seen_task_ids:
+            raise ValueError(f"duplicate task_id {task.task_id}")
+        seen_task_ids.add(task.task_id)
+
+    missing_rate_task_ids = sorted(
+        task.task_id
+        for task in task_list
+        if task.requires_offload and task.task_id not in rates_bps
+    )
+    if missing_rate_task_ids:
+        raise KeyError(f"missing rate_bps for task {missing_rate_task_ids[0]}")
+
+    local_decisions: list[AllocationDecision] = []
+    mec_requirements: list[ResourceRequirement] = []
+    rejected: dict[int, ResourceRequirement] = {}
+    task_by_id = {task.task_id: task for task in task_list}
+
+    for task in task_list:
+        if task.requires_offload:
+            rate_bps = rates_bps[task.task_id]
+        else:
+            rate_bps = math.nan
+        requirement = required_resources(
+            task,
+            rate_bps,
+            result_ratio,
+        )
+        if requirement.local_only:
+            delay_s = completion_delay_s(
+                task,
+                math.nan,
+                result_ratio,
+                0.0,
+                0.0,
+            )
+            if not math.isfinite(delay_s) or delay_s > task.deadline_s:
+                raise RuntimeError(f"local task {task.task_id} violates its deadline requirement")
+            local_decisions.append(
+                AllocationDecision(
+                    task.task_id,
+                    0.0,
+                    0.0,
+                    True,
+                    delay_s,
+                    task.deadline_s - delay_s,
+                    requirement.reason.value,
+                )
+            )
+        elif requirement.feasible:
+            mec_requirements.append(requirement)
+        else:
+            rejected[task.task_id] = requirement
+
+    mec_requirements.sort(key=lambda requirement: (requirement.cpu_hz, requirement.task_id))
+    chosen: set[int] = set()
+    chosen_cpu_costs: list[float] = []
+    for requirement in mec_requirements:
+        candidate_cpu_hz = _cpu_sum((*chosen_cpu_costs, requirement.cpu_hz))
+        if candidate_cpu_hz > cpu_budget_hz:
+            break
+        chosen.add(requirement.task_id)
+        chosen_cpu_costs.append(requirement.cpu_hz)
+
+    decisions = list(local_decisions)
+    requirement_by_id = {requirement.task_id: requirement for requirement in mec_requirements}
+    for task_id, requirement in requirement_by_id.items():
+        task = task_by_id[task_id]
+        if task_id in chosen:
+            rate_bps = rates_bps[task_id]
+            delay_s = completion_delay_s(
+                task,
+                rate_bps,
+                result_ratio,
+                requirement.alpha,
+                requirement.cpu_hz,
+            )
+            if not math.isfinite(delay_s) or delay_s > task.deadline_s:
+                raise RuntimeError(f"selected task {task_id} violates its deadline requirement")
+            decisions.append(
+                AllocationDecision(
+                    task_id,
+                    requirement.alpha,
+                    requirement.cpu_hz,
+                    True,
+                    delay_s,
+                    task.deadline_s - delay_s,
+                    requirement.reason.value,
+                )
+            )
+        else:
+            decisions.append(
+                AllocationDecision(
+                    task_id,
+                    requirement.alpha,
+                    0.0,
+                    False,
+                    None,
+                    0.0,
+                    RequirementReason.CPU_BUDGET.value,
+                )
+            )
+
+    for task_id, requirement in rejected.items():
+        decisions.append(
+            AllocationDecision(
+                task_id,
+                requirement.alpha,
+                0.0,
+                False,
+                None,
+                0.0,
+                requirement.reason.value,
+            )
+        )
+
+    ordered = tuple(sorted(decisions, key=lambda decision: decision.task_id))
+    completed = tuple(decision.task_id for decision in ordered if decision.completed)
+    total_cpu_hz = _cpu_sum(
+        tuple(
+            decision.cpu_hz for decision in ordered if decision.completed and decision.cpu_hz > 0.0
+        )
+    )
+    if total_cpu_hz > cpu_budget_hz:
+        raise RuntimeError("completed MEC decisions exceed cpu_budget_hz")
+    return AllocationResult(ordered, completed, total_cpu_hz)
