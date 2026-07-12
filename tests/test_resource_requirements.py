@@ -106,7 +106,7 @@ def test_analytical_requirement_matches_independent_full_alpha_grid():
     assert req.cpu_hz == pytest.approx(float(feasible_cpu[minimum_index]), rel=1e-12)
 
 
-def test_requirement_is_minimal_and_both_branches_meet_deadline():
+def test_ordinary_scale_requirement_is_minimal_and_meets_both_branches():
     task = make_task(1_600_000_000.0)
     rate_bps = 4_000_000.0
     result_ratio = 0.1
@@ -178,7 +178,7 @@ def test_cpu_is_adjusted_when_independent_delay_is_one_ulp_late():
     assert independently_recomputed_delay <= task.deadline_s
 
 
-def test_subnormal_rounding_correction_is_bounded_and_feasible(monkeypatch):
+def test_subnormal_rounding_is_conservative_bounded_and_feasible(monkeypatch):
     smallest_positive = math.nextafter(0.0, math.inf)
     real_nextafter = math.nextafter
     nextafter_calls = 0
@@ -206,6 +206,7 @@ def test_subnormal_rounding_correction_is_bounded_and_feasible(monkeypatch):
     assert req.alpha == expected_alpha
     assert nextafter_calls <= 8
     assert local_delay <= task.deadline_s
+    # Cancellation leaves a short feasibility plateau below the conservative alpha.
     assert predecessor_delay <= task.deadline_s
     assert second_predecessor_delay > task.deadline_s
     assert 0.0 < req.cpu_hz < math.inf

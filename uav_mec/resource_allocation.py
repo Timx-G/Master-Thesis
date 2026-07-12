@@ -73,7 +73,8 @@ def _local_branch_delay(task: Task, alpha: float) -> float:
     return (1.0 - alpha) * task.comp_cycles / task.local_cpu_hz
 
 
-def _minimum_representable_alpha(task: Task) -> tuple[float, bool]:
+def _deadline_feasible_alpha(task: Task) -> tuple[float, bool]:
+    """Return a conservative deadline-feasible alpha under IEEE arithmetic."""
     local_fraction = _positive_product_ratio(
         (task.deadline_s, task.local_cpu_hz),
         (task.comp_cycles,),
@@ -113,6 +114,7 @@ def _edge_branch_meets_deadline(
     result_ratio: float,
     transmission_s: float,
 ) -> bool:
+    """Check normalized and finite grouped IEEE edge-delay evaluations."""
     computation_s = _positive_product_ratio(
         (alpha, task.comp_cycles),
         (cpu_hz,),
@@ -126,13 +128,14 @@ def _edge_branch_meets_deadline(
     return True
 
 
-def _minimum_cpu_hz(
+def _deadline_feasible_cpu_hz(
     task: Task,
     alpha: float,
     rate_bps: float,
     result_ratio: float,
     transmission_s: float,
 ) -> float:
+    """Return a conservative deadline-feasible CPU requirement."""
     denominator = task.deadline_s - transmission_s
     denominator_candidate = _positive_product_ratio(
         (alpha, task.comp_cycles),
@@ -166,11 +169,18 @@ def required_resources(
     rate_bps: float,
     result_ratio: float,
 ) -> ResourceRequirement:
-    """Return the task's pre-budget minimum radio and MEC requirements.
+    """Return the task's pre-budget deadline-feasible resource requirements.
 
     A task that meets its deadline locally needs neither resource, so ``rate_bps``
-    is intentionally unused and may be invalid on that path. MEC CPU-budget
-    admission is handled by the allocator after this mathematical/link check.
+    is intentionally unused and may be invalid on that path. At ordinary
+    representable scales, ``alpha`` and ``cpu_hz`` are the closed-form analytical
+    minima. Near IEEE overflow, underflow, or cancellation, bounded corrections
+    move only toward feasibility and may conservatively exceed an adjacent feasible
+    float; the function never searches downward through quantization plateaus because
+    doing so could understate the real-valued requirement.
+
+    ``feasible`` means the module's normalized floating-point delay checks meet the
+    deadline. MEC CPU-budget admission is handled separately by the allocator.
     """
     if not math.isfinite(result_ratio) or result_ratio < 0:
         raise ValueError("result_ratio must be finite and non-negative")
@@ -192,7 +202,7 @@ def required_resources(
             math.inf,
             RequirementReason.INVALID_RATE,
         )
-    alpha, local_branch_feasible = _minimum_representable_alpha(task)
+    alpha, local_branch_feasible = _deadline_feasible_alpha(task)
     if not local_branch_feasible:
         return _link_infeasible(task, alpha)
     transmission_s = _positive_product_ratio(
@@ -203,7 +213,7 @@ def required_resources(
     if not math.isfinite(denominator) or denominator <= 0.0:
         return _link_infeasible(task, alpha)
 
-    cpu_hz = _minimum_cpu_hz(
+    cpu_hz = _deadline_feasible_cpu_hz(
         task,
         alpha,
         rate_bps,
