@@ -63,7 +63,7 @@ ASSET_SPECS = _freeze(
         "04_dd_mcaa_flow": {
             "stem": "04_dd_mcaa_flow",
             "kind": "figure",
-            "title": "DD-MCAA：deadline 解析最小需求与最大基数准入",
+            "title": "DD-MCAA：截止时间解析最小需求与最大基数准入",
         },
         "05_progress": {
             "stem": "05_progress",
