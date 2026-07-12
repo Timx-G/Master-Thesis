@@ -1,0 +1,246 @@
+{
+  "schema_version": 1,
+  "evidence_policy": "Only new canonical experiment bundles may replace these values.",
+  "placeholders": [
+    {
+      "key": "MAIN_ONTIME_OURS_PCT",
+      "label_zh": "本文方法按时完成率",
+      "unit": "%",
+      "source": "canonical/main/summary.json",
+      "status": "awaiting_new_canonical_experiment",
+      "used_in": [
+        "开题报告/实验与统计设计",
+        "开题答辩/数据占位页",
+        "中期报告/待填实验结果",
+        "中期答辩/实验占位页一"
+      ],
+      "description": "主实验中本文联合方法在全部配对种子上的平均按时完成任务比例。",
+      "format_hint": "百分数，保留一位小数；必须与主实验置信区间使用同一统计口径"
+    },
+    {
+      "key": "MAIN_ONTIME_GREEDY_PCT",
+      "label_zh": "贪心基线按时完成率",
+      "unit": "%",
+      "source": "canonical/main/summary.json",
+      "status": "awaiting_new_canonical_experiment",
+      "used_in": [
+        "开题报告/实验与统计设计",
+        "开题答辩/数据占位页",
+        "中期报告/待填实验结果",
+        "中期答辩/实验占位页一"
+      ],
+      "description": "主实验中受控贪心基线在与本文方法相同实例和种子上的平均按时完成任务比例。",
+      "format_hint": "百分数，保留一位小数；与本文方法采用配对样本"
+    },
+    {
+      "key": "MAIN_ONTIME_OFDMA_PCT",
+      "label_zh": "OFDMA 基线按时完成率",
+      "unit": "%",
+      "source": "canonical/main/summary.json",
+      "status": "awaiting_new_canonical_experiment",
+      "used_in": [
+        "开题报告/实验与统计设计",
+        "开题答辩/数据占位页",
+        "中期报告/待填实验结果",
+        "中期答辩/实验占位页一"
+      ],
+      "description": "主实验中通过共享结果构建器评估的公平 OFDMA 基线平均按时完成任务比例。",
+      "format_hint": "百分数，保留一位小数；带宽、功率和 CPU 预算须与主方法一致"
+    },
+    {
+      "key": "MAIN_CI95_PP",
+      "label_zh": "本文方法按时完成率的 95% 置信区间半宽",
+      "unit": "百分点",
+      "source": "canonical/main/statistics.json",
+      "status": "awaiting_new_canonical_experiment",
+      "used_in": [
+        "开题报告/实验与统计设计",
+        "开题答辩/数据占位页",
+        "中期报告/待填实验结果",
+        "中期答辩/实验占位页一"
+      ],
+      "description": "按预注册统计方法计算的本文方法主指标 95% 置信区间半宽。",
+      "format_hint": "百分点数值，保留两位小数；不得写成相对百分比"
+    },
+    {
+      "key": "MAIN_RUNTIME_S",
+      "label_zh": "本文方法单实例运行时间",
+      "unit": "s",
+      "source": "canonical/main/runtime_summary.json",
+      "status": "awaiting_new_canonical_experiment",
+      "used_in": [
+        "开题报告/实验与统计设计",
+        "开题答辩/数据占位页",
+        "中期报告/待填实验结果",
+        "中期答辩/实验占位页一"
+      ],
+      "description": "在 canonical manifest 指定硬件和软件环境下，本文方法处理单个实例的汇总运行时间。",
+      "format_hint": "秒，保留两位小数；注明汇总统计量和硬件环境"
+    },
+    {
+      "key": "ABLATION_GLOBAL_ON_PCT",
+      "label_zh": "严格 2x2 消融中全局联合搜索开启时的按时完成率",
+      "unit": "%",
+      "source": "canonical/ablation_2x2/summary.json",
+      "status": "awaiting_new_canonical_experiment",
+      "used_in": [
+        "开题报告/两项创新与消融设计",
+        "开题答辩/实验设计",
+        "中期报告/两个创新模块的独立贡献",
+        "中期答辩/实验占位页二"
+      ],
+      "description": "严格 2x2 消融矩阵中启用创新点一全局联合调度机制时的预定义汇总指标，用于隔离调度模块贡献。",
+      "format_hint": "百分数，保留一位小数；必须同时展示 2x2 四个单元及交互项"
+    },
+    {
+      "key": "ABLATION_CROSSUAV_ON_PCT",
+      "label_zh": "严格 2x2 消融中跨 UAV 邻域开启时的按时完成率",
+      "unit": "%",
+      "source": "canonical/ablation_2x2/summary.json",
+      "status": "awaiting_new_canonical_experiment",
+      "used_in": [
+        "开题报告/两项创新与消融设计",
+        "开题答辩/实验设计",
+        "中期报告/两个创新模块的独立贡献",
+        "中期答辩/实验占位页二"
+      ],
+      "description": "严格 2x2 消融矩阵中启用 CrossUAV 邻域时的预定义汇总指标，用于验证跨 UAV 干扰外部性处理的独立贡献。",
+      "format_hint": "百分数，保留一位小数；必须与关闭 CrossUAV 的配对实例比较"
+    },
+    {
+      "key": "SIC_SENSITIVITY_SERIES",
+      "label_zh": "SIC 门限敏感性序列",
+      "unit": "横轴 dB，纵轴 %",
+      "source": "canonical/sensitivity_sic/series.json",
+      "status": "awaiting_new_canonical_experiment",
+      "used_in": [
+        "开题报告/实验与统计设计",
+        "开题答辩/实验设计",
+        "中期报告/待填实验结果",
+        "中期答辩/实验占位页二"
+      ],
+      "description": "不同 SIC 解码门限下按时完成率及不确定性信息的有序序列。",
+      "format_hint": "JSON 对象数组；每项包含 threshold_db、mean_pct 和 ci95_pp"
+    },
+    {
+      "key": "UAV_SCALING_SERIES",
+      "label_zh": "UAV 数量扩展性序列",
+      "unit": "横轴架，纵轴 %/s",
+      "source": "canonical/scaling_uav/series.json",
+      "status": "awaiting_new_canonical_experiment",
+      "used_in": [
+        "开题报告/实验与统计设计",
+        "开题答辩/实验设计",
+        "中期报告/待填实验结果",
+        "中期答辩/实验占位页二"
+      ],
+      "description": "随 UAV 数量变化的按时完成率、运行时间及置信区间序列。",
+      "format_hint": "JSON 对象数组；每项包含 n_uavs、ontime_pct、runtime_s 和 ci95_pp"
+    },
+    {
+      "key": "USER_SCALING_SERIES",
+      "label_zh": "用户数量扩展性序列",
+      "unit": "横轴人，纵轴 %/s",
+      "source": "canonical/scaling_user/series.json",
+      "status": "awaiting_new_canonical_experiment",
+      "used_in": [
+        "开题报告/实验与统计设计",
+        "开题答辩/实验设计",
+        "中期报告/待填实验结果",
+        "中期答辩/实验占位页二"
+      ],
+      "description": "随用户数量变化的按时完成率、运行时间及置信区间序列。",
+      "format_hint": "JSON 对象数组；每项包含 n_users、ontime_pct、runtime_s 和 ci95_pp"
+    },
+    {
+      "key": "CSI_ROBUSTNESS_SERIES",
+      "label_zh": "CSI 误差鲁棒性序列",
+      "unit": "横轴标准差，纵轴 %",
+      "source": "canonical/robustness_csi/series.json",
+      "status": "awaiting_new_canonical_experiment",
+      "used_in": [
+        "开题报告/实验与统计设计",
+        "开题答辩/实验设计",
+        "中期报告/待填实验结果",
+        "中期答辩/实验占位页二"
+      ],
+      "description": "在估计 CSI 与真实评估信道分离的条件下，不同 CSI 误差水平对应的按时完成率序列。",
+      "format_hint": "JSON 对象数组；每项包含 csi_error_std、mean_pct 和 ci95_pp"
+    },
+    {
+      "key": "EXACT_GAP_MEAN_PCT",
+      "label_zh": "小规模完整枚举平均最优差距",
+      "unit": "%",
+      "source": "canonical/exact_small/summary.json",
+      "status": "awaiting_new_canonical_experiment",
+      "used_in": [
+        "开题报告/实验与统计设计",
+        "开题答辩/数据占位页",
+        "中期报告/待填实验结果",
+        "中期答辩/实验占位页二"
+      ],
+      "description": "小规模实例上本文方法相对完整枚举最优解的平均相对差距。",
+      "format_hint": "百分数，保留两位小数；同时报告实例数量和零最优值处理规则"
+    },
+    {
+      "key": "EXACT_GAP_MAX_PCT",
+      "label_zh": "小规模完整枚举最大最优差距",
+      "unit": "%",
+      "source": "canonical/exact_small/summary.json",
+      "status": "awaiting_new_canonical_experiment",
+      "used_in": [
+        "开题报告/实验与统计设计",
+        "开题答辩/数据占位页",
+        "中期报告/待填实验结果",
+        "中期答辩/实验占位页二"
+      ],
+      "description": "小规模实例上本文方法相对完整枚举最优解的最大相对差距。",
+      "format_hint": "百分数，保留两位小数；与平均差距采用同一实例集合"
+    },
+    {
+      "key": "CANONICAL_COMMIT",
+      "label_zh": "canonical 实验代码提交",
+      "unit": "Git commit",
+      "source": "canonical/manifest.json",
+      "status": "awaiting_new_canonical_experiment",
+      "used_in": [
+        "开题报告/实验与统计设计",
+        "开题答辩/数据占位页",
+        "中期报告/测试与复现",
+        "中期答辩/测试与复现"
+      ],
+      "description": "生成 canonical 实验包所使用的完整 Git 提交哈希。",
+      "format_hint": "40 位小写十六进制 Git commit；不得使用工作区描述代替"
+    },
+    {
+      "key": "CANONICAL_RUN_DATE",
+      "label_zh": "canonical 实验日期",
+      "unit": "日期",
+      "source": "canonical/manifest.json",
+      "status": "awaiting_new_canonical_experiment",
+      "used_in": [
+        "开题报告/实验与统计设计",
+        "开题答辩/数据占位页",
+        "中期报告/测试与复现",
+        "中期答辩/测试与复现"
+      ],
+      "description": "canonical 实验运行开始时间或 manifest 规定的统一运行日期。",
+      "format_hint": "ISO 8601 日期或带时区时间戳；全套材料保持一致"
+    },
+    {
+      "key": "CANONICAL_MANIFEST_SHA256",
+      "label_zh": "canonical manifest 校验值",
+      "unit": "SHA-256",
+      "source": "canonical/manifest.sha256",
+      "status": "awaiting_new_canonical_experiment",
+      "used_in": [
+        "开题报告/实验与统计设计",
+        "开题答辩/数据占位页",
+        "中期报告/测试与复现",
+        "中期答辩/测试与复现"
+      ],
+      "description": "用于核验 canonical manifest 未被修改的 SHA-256 摘要。",
+      "format_hint": "64 位小写十六进制 SHA-256"
+    }
+  ]
+}
