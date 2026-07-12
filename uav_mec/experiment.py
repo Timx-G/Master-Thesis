@@ -53,6 +53,7 @@ KNOWN_METHODS = frozenset(
         "full",
         "full_fixed_half",
         "full_crossing",
+        "exact",
     }
 )
 
@@ -188,6 +189,8 @@ def _slot_method(
 ):
     if name not in KNOWN_METHODS:
         raise ValueError(f"unknown method {name}")
+    if name == "exact":
+        raise ValueError("exact requires the dedicated exact benchmark runner")
     channel = NOMAChannel(scenario.channel, scenario.uav.height)
     search_evaluation = replace(
         target_evaluation,
