@@ -109,6 +109,7 @@ cython_debug/
 Thumbs.db
 
 # Project specific
+.superpowers/
 results/
 artifacts/runs/
 artifacts/exploratory/
