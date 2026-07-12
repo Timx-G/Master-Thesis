@@ -249,7 +249,7 @@ def numbered_step(
     text_size=14,
     wrap_width=18,
 ):
-    panel(ax, x, y, width, height, fill=fill, edge=accent, radius=0.1, lw=1.5)
+    frame = panel(ax, x, y, width, height, fill=fill, edge=accent, radius=0.1, lw=1.5)
     ax.add_patch(Circle((x + 0.37, y + height - 0.38), 0.21, color=accent, linewidth=0))
     ax.text(
         x + 0.37,
@@ -260,7 +260,7 @@ def numbered_step(
         ha="center",
         va="center",
     )
-    ax.text(
+    text_artist = ax.text(
         x + 0.28,
         y + height / 2 - 0.08,
         format_formulas(wrap_text(value, wrap_width)),
@@ -270,6 +270,10 @@ def numbered_step(
         va="center",
         linespacing=1.35,
     )
+    if not hasattr(ax, "_numbered_steps"):
+        ax._numbered_steps = []
+    ax._numbered_steps.append((frame, text_artist))
+    return frame, text_artist
 
 
 def footer_note(ax, value: str, *, color=GRAY, fill="#F6F8F8"):
@@ -563,14 +567,14 @@ def render_iea_cap_flow():
         ax,
         0.48,
         2.42,
-        3.28,
+        3.60,
         2.08,
         7,
         steps[6],
         fill="#F6F8F8",
         accent=GRAY,
         text_size=13.7,
-        wrap_width=16,
+        wrap_width=11,
     )
     arrow(ax, (8.95, 2.75), (3.80, 2.75), color=GRAY, lw=1.8, connection="arc3,rad=0.12")
     footer_note(ax, IEA_CAP_FLOW["boundary"], color=BRICK, fill=BRICK_LIGHT)
@@ -598,7 +602,7 @@ def render_dd_mcaa_flow():
             fill=fill,
             accent=accent,
             text_size=13.5,
-            wrap_width=18,
+            wrap_width=16 if number == 4 else 18,
         )
         if number < 4:
             arrow(ax, (x + 3.47, 6.38), (top_xs[number] - 0.03, 6.38))
@@ -630,6 +634,17 @@ def render_dd_mcaa_flow():
         0.91,
         1.81,
         DD_MCAA_FLOW["theorem_boundary"],
+        fontproperties=font(13.2, True),
+        color=INK,
+        ha="left",
+        va="center",
+    )
+    panel(ax, 8.18, 1.46, 7.20, 0.70, fill=GREEN_LIGHT, edge=GRAY_LIGHT, radius=0.08, lw=1)
+    ax.add_patch(Rectangle((8.18, 1.46), 0.08, 0.70, color=GREEN, linewidth=0))
+    ax.text(
+        8.47,
+        1.81,
+        DD_MCAA_FLOW["ownership"],
         fontproperties=font(13.2, True),
         color=INK,
         ha="left",

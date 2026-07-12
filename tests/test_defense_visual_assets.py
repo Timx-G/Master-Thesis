@@ -1,6 +1,7 @@
 import hashlib
 import importlib.util
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -80,6 +81,41 @@ def test_dd_mcaa_uses_a_chinese_title_and_typeset_formulae():
     assert r"$\alpha_i^{\min}$" in formatted_steps[1]
     assert r"$f_i^{\min}$" in formatted_steps[2]
     assert r"$(f_i^{\min},\ \mathrm{task\_id})$" in formatted_steps[4]
+
+
+def test_numbered_step_text_stays_inside_its_panel():
+    renderer = load_visual_renderer()
+    renderers = (
+        renderer.render_ead_jsra_framework,
+        renderer.render_iea_cap_flow,
+        renderer.render_dd_mcaa_flow,
+    )
+
+    for render in renderers:
+        figure = render()
+        figure.canvas.draw()
+        canvas_renderer = figure.canvas.get_renderer()
+        axes = figure.axes[0]
+        assert axes._numbered_steps
+        for frame, text_artist in axes._numbered_steps:
+            frame_bbox = frame.get_window_extent(canvas_renderer)
+            text_bbox = text_artist.get_window_extent(canvas_renderer)
+            context = f"{render.__name__}: {text_artist.get_text()}"
+            assert frame_bbox.contains(text_bbox.x0, text_bbox.y0), context
+            assert frame_bbox.contains(text_bbox.x1, text_bbox.y1), context
+            assert not re.search(r"[A-Za-z]\n[A-Za-z]", text_artist.get_text())
+        renderer.plt.close(figure)
+
+
+def test_dd_mcaa_declares_its_candidate_evaluation_ownership():
+    content = load_visual_content()
+    renderer = load_visual_renderer()
+    expected = "本流程嵌入每个 IEA-CAP 候选的完整评价内部"
+
+    assert content.DD_MCAA_FLOW["ownership"] == expected
+    figure = renderer.render_dd_mcaa_flow()
+    assert expected in {artist.get_text() for artist in figure.axes[0].texts}
+    renderer.plt.close(figure)
 
 
 def test_generate_all_prunes_stale_assets(tmp_path, monkeypatch):
