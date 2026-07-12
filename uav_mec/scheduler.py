@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import Enum
 from itertools import combinations
 from typing import Literal
 
 import numpy as np
 from scipy.optimize import Bounds, LinearConstraint, milp
 
-from .domain import Schedule, ScheduleEntry, SlotSnapshot
+from .domain import Schedule, ScheduleEntry, SlotOutcome, SlotSnapshot
 from .evaluation import (
     EvaluationConfig,
     InfeasibleScheduleError,
@@ -376,3 +377,220 @@ def generate_neighbors(
     for neighbor in ordered:
         unique.setdefault(neighbor.schedule.stable_key(), neighbor)
     return tuple(unique.values())
+
+
+class Acceptance(str, Enum):
+    GLOBAL = "global"
+    BILATERAL = "bilateral"
+
+
+@dataclass(frozen=True, slots=True)
+class SearchConfig:
+    allow_cross_uav: bool
+    acceptance: Acceptance
+    max_iterations: int = 50
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.allow_cross_uav, bool):
+            raise ValueError("allow_cross_uav must be bool")
+        if not isinstance(self.acceptance, Acceptance):
+            raise ValueError("acceptance must be an Acceptance value")
+        if not isinstance(self.max_iterations, int) or isinstance(
+            self.max_iterations, bool
+        ):
+            raise ValueError("max_iterations must be an integer")
+        if self.max_iterations <= 0:
+            raise ValueError("max_iterations must be positive")
+
+
+@dataclass(frozen=True, slots=True)
+class SearchEvent:
+    move_type: MoveType
+    accepted: bool
+    reason: str
+    before_objective: tuple[int, float, float]
+    after_objective: tuple[int, float, float]
+    schedule_key: tuple
+
+
+@dataclass(frozen=True, slots=True)
+class SearchResult:
+    schedule: Schedule
+    outcome: SlotOutcome
+    events: tuple[SearchEvent, ...]
+    iterations: int
+    converged: bool
+    termination_reason: str
+
+
+def network_objective(outcome: SlotOutcome) -> tuple[int, float, float]:
+    """Return the canonical network-level lexicographic objective."""
+    return (
+        outcome.completed_count,
+        round(outcome.total_slack_s, 12),
+        round(-outcome.total_cross_interference_w, 18),
+    )
+
+
+def _block_utility(
+    schedule: Schedule,
+    outcome: SlotOutcome,
+    block: tuple[int, int],
+) -> tuple[int, float]:
+    task_ids = {
+        entry.task_id
+        for entry in schedule.entries
+        if (entry.serving_uav, entry.subcarrier) == block
+    }
+    decisions = [
+        decision
+        for decision in outcome.decisions
+        if decision.task_id in task_ids
+    ]
+    return (
+        sum(decision.completed for decision in decisions),
+        round(
+            sum(
+                decision.slack_s
+                for decision in decisions
+                if decision.completed
+            ),
+            12,
+        ),
+    )
+
+
+def _bilateral_accepts(
+    before_schedule: Schedule,
+    before: SlotOutcome,
+    neighbor: Neighbor,
+    after: SlotOutcome,
+) -> bool:
+    comparisons = [
+        (
+            _block_utility(before_schedule, before, block),
+            _block_utility(neighbor.schedule, after, block),
+        )
+        for block in neighbor.affected_blocks
+    ]
+    return (
+        bool(comparisons)
+        and all(new >= old for old, new in comparisons)
+        and any(new > old for old, new in comparisons)
+    )
+
+
+def optimize_schedule(
+    initial: Schedule,
+    snapshot: SlotSnapshot,
+    channel: NOMAChannel,
+    evaluation: EvaluationConfig,
+    search: SearchConfig,
+) -> SearchResult:
+    """Run deterministic first-improvement search over feasible schedules."""
+    current = normalize_roles(initial, snapshot)
+    current_outcome = evaluate_schedule(
+        snapshot,
+        current,
+        channel,
+        evaluation,
+    )
+    events: list[SearchEvent] = []
+    visited = {current.stable_key()}
+    iterations = 0
+    improved = False
+
+    while iterations < search.max_iterations:
+        iterations += 1
+        improved = False
+        for neighbor in generate_neighbors(
+            current,
+            snapshot,
+            evaluation.n_subcarriers,
+            search.allow_cross_uav,
+        ):
+            before_objective = network_objective(current_outcome)
+            schedule_key = neighbor.schedule.stable_key()
+            if schedule_key in visited:
+                events.append(
+                    SearchEvent(
+                        neighbor.move_type,
+                        False,
+                        "visited schedule",
+                        before_objective,
+                        before_objective,
+                        schedule_key,
+                    )
+                )
+                continue
+
+            try:
+                candidate_outcome = evaluate_schedule(
+                    snapshot,
+                    neighbor.schedule,
+                    channel,
+                    evaluation,
+                )
+            except InfeasibleScheduleError as exc:
+                events.append(
+                    SearchEvent(
+                        neighbor.move_type,
+                        False,
+                        str(exc),
+                        before_objective,
+                        before_objective,
+                        schedule_key,
+                    )
+                )
+                continue
+
+            after_objective = network_objective(candidate_outcome)
+            if search.acceptance is Acceptance.GLOBAL:
+                accepted = after_objective > before_objective
+                accepted_reason = "global strict improvement"
+            else:
+                accepted = _bilateral_accepts(
+                    current,
+                    current_outcome,
+                    neighbor,
+                    candidate_outcome,
+                )
+                accepted_reason = "bilateral Pareto improvement"
+            events.append(
+                SearchEvent(
+                    neighbor.move_type,
+                    accepted,
+                    (
+                        accepted_reason
+                        if accepted
+                        else "acceptance criterion not met"
+                    ),
+                    before_objective,
+                    after_objective,
+                    schedule_key,
+                )
+            )
+            if accepted:
+                current = neighbor.schedule
+                current_outcome = candidate_outcome
+                visited.add(schedule_key)
+                improved = True
+                break
+        if not improved:
+            break
+
+    converged = not improved
+    if not converged:
+        termination_reason = "max_iterations"
+    elif search.acceptance is Acceptance.GLOBAL:
+        termination_reason = "local_optimum"
+    else:
+        termination_reason = "cycle_free_fixed_point"
+    return SearchResult(
+        current,
+        current_outcome,
+        tuple(events),
+        iterations,
+        converged,
+        termination_reason,
+    )
