@@ -1,0 +1,5 @@
+node_modules/
+python_deps/
+font_deps/
+previews/*.jpg
+previews/*.png
