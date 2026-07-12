@@ -1,0 +1,26 @@
+run_id = "confirmatory-main"
+seed_start = 1000
+seed_count = 50
+methods = ["local_only", "greedy", "ia_greedy", "ilp", "exchange_stable", "intra_global", "full", "fair_ofdma"]
+
+[scenario]
+num_users = 20
+num_slots = 100
+num_uavs = 2
+num_clusters = 3
+n_subcarriers = 3
+fixed_cluster_centers = true
+random_burst = true
+user_mobility = true
+
+[evaluation]
+gamma_sic_min = 1.0
+sic_residual = 0.02
+allocation_policy = "deadline"
+cross_interference_scale = 1.0
+
+[trace]
+csi_error_std = 0.0
+
+[search]
+max_iterations = 50

@@ -8,7 +8,8 @@ import platform
 import subprocess
 import sys
 import tomllib
-from dataclasses import dataclass, replace
+from dataclasses import asdict, dataclass, replace
+from enum import Enum
 from pathlib import Path
 
 import numpy as np
@@ -74,15 +75,36 @@ def load_definition(path: Path) -> ExperimentDefinition:
     if not isinstance(run_id, str) or not run_id.strip():
         raise ValueError("run_id must be a non-empty string")
 
-    raw_seeds = raw.get("seeds")
-    if not isinstance(raw_seeds, list) or any(
-        not isinstance(seed, int) or isinstance(seed, bool)
-        for seed in raw_seeds
-    ):
-        raise ValueError("seeds must be an integer list")
-    seeds = tuple(raw_seeds)
+    has_explicit_seeds = "seeds" in raw
+    has_seed_range = "seed_start" in raw or "seed_count" in raw
+    if has_explicit_seeds == has_seed_range:
+        raise ValueError(
+            "define seeds or seed_start/seed_count, but not both"
+        )
+    if has_explicit_seeds:
+        raw_seeds = raw["seeds"]
+        if not isinstance(raw_seeds, list) or any(
+            not isinstance(seed, int) or isinstance(seed, bool)
+            for seed in raw_seeds
+        ):
+            raise ValueError("seeds must be an integer list")
+        seeds = tuple(raw_seeds)
+    else:
+        seed_start = raw.get("seed_start")
+        seed_count = raw.get("seed_count")
+        if (
+            not isinstance(seed_start, int)
+            or isinstance(seed_start, bool)
+            or not isinstance(seed_count, int)
+            or isinstance(seed_count, bool)
+            or seed_count <= 0
+        ):
+            raise ValueError("seed_start and seed_count must be valid integers")
+        seeds = tuple(range(seed_start, seed_start + seed_count))
     if not seeds or len(set(seeds)) != len(seeds):
         raise ValueError("seeds must be non-empty and unique")
+    if any(seed < 0 for seed in seeds):
+        raise ValueError("seeds must be non-negative")
 
     raw_methods = raw.get("methods")
     if not isinstance(raw_methods, list) or any(
@@ -305,8 +327,32 @@ def _slot_method(
     return method
 
 
-def run_experiment(config_path: Path, output_dir: Path) -> None:
-    definition = load_definition(config_path)
+def _jsonable(value: object) -> object:
+    if isinstance(value, Enum):
+        return value.value
+    if isinstance(value, dict):
+        return {
+            str(key): _jsonable(item) for key, item in value.items()
+        }
+    if isinstance(value, (tuple, list)):
+        return [_jsonable(item) for item in value]
+    return value
+
+
+def definition_to_dict(
+    definition: ExperimentDefinition,
+) -> dict[str, object]:
+    value = _jsonable(asdict(definition))
+    if not isinstance(value, dict):
+        raise TypeError("serialized experiment definition must be a mapping")
+    return value
+
+
+def run_definition(
+    definition: ExperimentDefinition,
+    config_path: Path,
+    output_dir: Path,
+) -> None:
     writer = RunArtifactWriter(output_dir)
     task_rows: list[dict[str, object]] = []
     slot_rows: list[dict[str, object]] = []
@@ -520,6 +566,7 @@ def run_experiment(config_path: Path, output_dir: Path) -> None:
             ).hexdigest(),
             "seeds": list(definition.seeds),
             "csi_error_std": definition.csi_error_std,
+            "resolved_definition": definition_to_dict(definition),
             "python": sys.version,
             "platform": platform.platform(),
             "numpy": np.__version__,
@@ -529,6 +576,14 @@ def run_experiment(config_path: Path, output_dir: Path) -> None:
                 "package_version": scipy.__version__,
             },
         }
+    )
+
+
+def run_experiment(config_path: Path, output_dir: Path) -> None:
+    run_definition(
+        load_definition(config_path),
+        config_path,
+        output_dir,
     )
 
 
