@@ -3,3 +3,5 @@ python_deps/
 font_deps/
 previews/*.jpg
 previews/*.png
+previews/**/*.jpg
+previews/**/*.png

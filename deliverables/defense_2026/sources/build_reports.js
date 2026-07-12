@@ -481,7 +481,7 @@ function blocksToDocx(blocks, layout) {
       children.push(
         new Paragraph({
           heading: headingLevel(block.level),
-          pageBreakBefore: /^参考文献\s*$/.test(block.text),
+          pageBreakBefore: layout.pageBreakReferences && /^参考文献\s*$/.test(block.text),
           keepNext: true,
           children: parseInline(block.text),
         }),
@@ -574,11 +574,11 @@ function blocksToDocx(blocks, layout) {
             : undefined,
           spacing: {
             before: 0,
-            after: layout.paragraphAfter,
-            line: layout.bodyLine,
+            after: isReference ? 30 : layout.paragraphAfter,
+            line: isReference ? 240 : layout.bodyLine,
             lineRule: LineRuleType.AUTO,
           },
-          children: parseInline(block.text),
+          children: parseInline(block.text, isReference ? { size: 18 } : {}),
         }),
       );
     }
@@ -824,8 +824,8 @@ function buildDocument(markdown, report) {
   const cover = extractCover(markdown, report);
   const bodyBlocks = parseMarkdown(cover.bodyMarkdown);
   const layout = report.kind === "midterm"
-    ? { bodySize: 20, bodyLine: 280, paragraphAfter: 50, blockSpace: 60, compact: true }
-    : { bodySize: 21, bodyLine: 300, paragraphAfter: 80, blockSpace: 90, compact: false };
+    ? { bodySize: 20, bodyLine: 280, paragraphAfter: 50, blockSpace: 60, compact: true, pageBreakReferences: false }
+    : { bodySize: 21, bodyLine: 300, paragraphAfter: 80, blockSpace: 90, compact: false, pageBreakReferences: true };
   const bodyChildren = [
     new Paragraph({
       style: "TOCTitle",

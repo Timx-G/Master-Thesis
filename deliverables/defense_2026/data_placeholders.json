@@ -63,6 +63,21 @@
       "format_hint": "百分点数值，保留两位小数；不得写成相对百分比"
     },
     {
+      "key": "MAIN_PAIRED_DIFF_CI95_PP",
+      "label_zh": "本文方法与主比较基线配对差值的 95% 置信区间",
+      "unit": "百分点区间",
+      "source": "canonical/main/statistics.json",
+      "status": "awaiting_new_canonical_experiment",
+      "used_in": [
+        "开题报告/实验与统计设计",
+        "开题答辩/数据占位页",
+        "中期报告/待填实验结果",
+        "中期答辩/实验占位页一"
+      ],
+      "description": "按相同实例和种子配对后，本文方法按时完成率减去预注册主比较基线按时完成率所得差值的 95% 置信区间；不同于 MAIN_CI95_PP 所表示的本文方法自身置信区间半宽。",
+      "format_hint": "闭区间 [下限, 上限]，两端单位均为百分点并保留两位小数；必须注明主比较基线"
+    },
+    {
       "key": "MAIN_RUNTIME_S",
       "label_zh": "本文方法单实例运行时间",
       "unit": "s",
@@ -106,6 +121,186 @@
       ],
       "description": "严格 2x2 消融矩阵中启用 CrossUAV 邻域时的预定义汇总指标，用于验证跨 UAV 干扰外部性处理的独立贡献。",
       "format_hint": "百分数，保留一位小数；必须与关闭 CrossUAV 的配对实例比较"
+    },
+    {
+      "key": "ABLATION_NONE_PCT",
+      "label_zh": "严格 2x2 消融中两种邻域均关闭时的按时完成率",
+      "unit": "%",
+      "source": "canonical/ablation_2x2/summary.json",
+      "status": "awaiting_new_canonical_experiment",
+      "used_in": [
+        "开题报告/两项创新与消融设计",
+        "开题答辩/实验设计",
+        "中期报告/两个创新模块的独立贡献",
+        "中期答辩/实验占位页二"
+      ],
+      "description": "严格 2x2 邻域消融矩阵的基准格：全局联合搜索与 CrossUAV 邻域均关闭时的平均按时完成率。",
+      "format_hint": "百分数，保留一位小数；与其余三格使用完全相同的实例、种子和资源策略"
+    },
+    {
+      "key": "ABLATION_GLOBAL_ONLY_PCT",
+      "label_zh": "严格 2x2 消融中仅开启全局联合搜索时的按时完成率",
+      "unit": "%",
+      "source": "canonical/ablation_2x2/summary.json",
+      "status": "awaiting_new_canonical_experiment",
+      "used_in": [
+        "开题报告/两项创新与消融设计",
+        "开题答辩/实验设计",
+        "中期报告/两个创新模块的独立贡献",
+        "中期答辩/实验占位页二"
+      ],
+      "description": "严格 2x2 邻域消融矩阵中开启全局联合搜索、关闭 CrossUAV 邻域时的平均按时完成率。",
+      "format_hint": "百分数，保留一位小数；不得用 ABLATION_GLOBAL_ON_PCT 汇总值代替"
+    },
+    {
+      "key": "ABLATION_CROSSUAV_ONLY_PCT",
+      "label_zh": "严格 2x2 消融中仅开启跨 UAV 邻域时的按时完成率",
+      "unit": "%",
+      "source": "canonical/ablation_2x2/summary.json",
+      "status": "awaiting_new_canonical_experiment",
+      "used_in": [
+        "开题报告/两项创新与消融设计",
+        "开题答辩/实验设计",
+        "中期报告/两个创新模块的独立贡献",
+        "中期答辩/实验占位页二"
+      ],
+      "description": "严格 2x2 邻域消融矩阵中关闭全局联合搜索、仅开启 CrossUAV 邻域时的平均按时完成率。",
+      "format_hint": "百分数，保留一位小数；不得用 ABLATION_CROSSUAV_ON_PCT 汇总值代替"
+    },
+    {
+      "key": "ABLATION_BOTH_PCT",
+      "label_zh": "严格 2x2 消融中两种邻域均开启时的按时完成率",
+      "unit": "%",
+      "source": "canonical/ablation_2x2/summary.json",
+      "status": "awaiting_new_canonical_experiment",
+      "used_in": [
+        "开题报告/两项创新与消融设计",
+        "开题答辩/实验设计",
+        "中期报告/两个创新模块的独立贡献",
+        "中期答辩/实验占位页二"
+      ],
+      "description": "严格 2x2 邻域消融矩阵中全局联合搜索与 CrossUAV 邻域同时开启时的平均按时完成率。",
+      "format_hint": "百分数，保留一位小数；与其余三格配对展示"
+    },
+    {
+      "key": "ABLATION_INTERACTION_PP",
+      "label_zh": "严格 2x2 消融的邻域交互效应",
+      "unit": "百分点",
+      "source": "canonical/ablation_2x2/summary.json",
+      "status": "awaiting_new_canonical_experiment",
+      "used_in": [
+        "开题报告/两项创新与消融设计",
+        "开题答辩/实验设计",
+        "中期报告/两个创新模块的独立贡献",
+        "中期答辩/实验占位页二"
+      ],
+      "description": "由四格配对结果计算的交互效应：(两者均开启 - 仅全局) - (仅 CrossUAV - 两者均关闭)。",
+      "format_hint": "有符号百分点数值，保留两位小数；同时展示计算定义和不确定性"
+    },
+    {
+      "key": "RESOURCE_DEADLINE_AWARE_PCT",
+      "label_zh": "截止时间感知资源分配的按时完成率",
+      "unit": "%",
+      "source": "canonical/ablation_resource/summary.json",
+      "status": "awaiting_new_canonical_experiment",
+      "used_in": [
+        "开题报告/创新点二与实验设计",
+        "开题答辩/创新点二",
+        "中期报告/创新点二进展与独立贡献",
+        "中期答辩/实验占位页二"
+      ],
+      "description": "固定相同调度和无线速率后，采用截止时间感知最小资源需求与最大基数选择策略得到的平均按时完成率。",
+      "format_hint": "百分数，保留一位小数；与两个资源基线使用相同调度快照和 CPU 预算"
+    },
+    {
+      "key": "RESOURCE_EQUAL_CPU_PCT",
+      "label_zh": "等分 CPU 资源基线的按时完成率",
+      "unit": "%",
+      "source": "canonical/ablation_resource/summary.json",
+      "status": "awaiting_new_canonical_experiment",
+      "used_in": [
+        "开题报告/创新点二与实验设计",
+        "开题答辩/创新点二",
+        "中期报告/创新点二进展与独立贡献",
+        "中期答辩/实验占位页二"
+      ],
+      "description": "固定相同调度和无线速率后，将 MEC CPU 在候选卸载任务间等分的受控基线平均按时完成率。",
+      "format_hint": "百分数，保留一位小数；与截止时间感知策略采用配对实例"
+    },
+    {
+      "key": "RESOURCE_RATE_FIRST_PCT",
+      "label_zh": "速率优先资源基线的按时完成率",
+      "unit": "%",
+      "source": "canonical/ablation_resource/summary.json",
+      "status": "awaiting_new_canonical_experiment",
+      "used_in": [
+        "开题报告/创新点二与实验设计",
+        "开题答辩/创新点二",
+        "中期报告/创新点二进展与独立贡献",
+        "中期答辩/实验占位页二"
+      ],
+      "description": "固定相同调度和无线速率后，按无线速率优先顺序分配 MEC CPU 的受控基线平均按时完成率。",
+      "format_hint": "百分数，保留一位小数；必须记录排序方向、平局规则和配对种子"
+    },
+    {
+      "key": "MODULE_BASELINE_PCT",
+      "label_zh": "两创新模块均关闭时的按时完成率",
+      "unit": "%",
+      "source": "canonical/ablation_modules/summary.json",
+      "status": "awaiting_new_canonical_experiment",
+      "used_in": [
+        "开题报告/两项创新与联合工作流",
+        "开题答辩/联合工作流",
+        "中期报告/两个创新模块的独立贡献",
+        "中期答辩/实验占位页二"
+      ],
+      "description": "关联/配对创新模块与截止时间资源分配创新模块均关闭时的受控基线平均按时完成率。",
+      "format_hint": "百分数，保留一位小数；作为模块增量分解的共同基准"
+    },
+    {
+      "key": "MODULE_ASSOC_ONLY_PCT",
+      "label_zh": "仅开启关联与配对创新模块时的按时完成率",
+      "unit": "%",
+      "source": "canonical/ablation_modules/summary.json",
+      "status": "awaiting_new_canonical_experiment",
+      "used_in": [
+        "开题报告/两项创新与联合工作流",
+        "开题答辩/联合工作流",
+        "中期报告/两个创新模块的独立贡献",
+        "中期答辩/实验占位页二"
+      ],
+      "description": "仅启用创新点一的干扰外部性感知关联与配对模块、资源分配保持受控基线时的平均按时完成率。",
+      "format_hint": "百分数，保留一位小数；资源策略必须与 MODULE_BASELINE_PCT 一致"
+    },
+    {
+      "key": "MODULE_RESOURCE_ONLY_PCT",
+      "label_zh": "仅开启截止时间资源分配创新模块时的按时完成率",
+      "unit": "%",
+      "source": "canonical/ablation_modules/summary.json",
+      "status": "awaiting_new_canonical_experiment",
+      "used_in": [
+        "开题报告/两项创新与联合工作流",
+        "开题答辩/联合工作流",
+        "中期报告/两个创新模块的独立贡献",
+        "中期答辩/实验占位页二"
+      ],
+      "description": "仅启用创新点二的截止时间感知卸载与 MEC CPU 分配模块、关联与配对保持受控基线时的平均按时完成率。",
+      "format_hint": "百分数，保留一位小数；调度策略必须与 MODULE_BASELINE_PCT 一致"
+    },
+    {
+      "key": "MODULE_JOINT_PCT",
+      "label_zh": "两创新模块联合开启时的按时完成率",
+      "unit": "%",
+      "source": "canonical/ablation_modules/summary.json",
+      "status": "awaiting_new_canonical_experiment",
+      "used_in": [
+        "开题报告/两项创新与联合工作流",
+        "开题答辩/联合工作流",
+        "中期报告/两个创新模块的独立贡献",
+        "中期答辩/实验占位页二"
+      ],
+      "description": "创新点一关联/配对模块与创新点二截止时间资源分配模块同时启用时的平均按时完成率，用于完成独立及联合增量分解。",
+      "format_hint": "百分数，保留一位小数；与其余三个模块配置使用配对实例和相同预算"
     },
     {
       "key": "SIC_SENSITIVITY_SERIES",
