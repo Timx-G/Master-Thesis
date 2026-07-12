@@ -20,6 +20,12 @@ class RequirementReason(str, Enum):
     CPU_BUDGET = "cpu_budget"
 
 
+class AllocationPolicy(str, Enum):
+    DEADLINE = "deadline"
+    CROSSING_EQUAL = "crossing_equal"
+    FIXED_HALF_EQUAL = "fixed_half_equal"
+
+
 @dataclass(frozen=True, slots=True)
 class ResourceRequirement:
     task_id: int
@@ -444,3 +450,161 @@ def allocate_deadline_tasks(
     if total_cpu_hz > cpu_budget_hz:
         raise RuntimeError("completed MEC decisions exceed cpu_budget_hz")
     return AllocationResult(ordered, completed, total_cpu_hz)
+
+
+def _equal_cpu_allocation(
+    tasks: Sequence[Task],
+    rates_bps: Mapping[int, float],
+    cpu_budget_hz: float,
+    result_ratio: float,
+    fixed_alpha: float | None,
+) -> AllocationResult:
+    if not math.isfinite(cpu_budget_hz) or cpu_budget_hz < 0.0:
+        raise ValueError("cpu_budget_hz must be finite and non-negative")
+    if not math.isfinite(result_ratio) or result_ratio < 0.0:
+        raise ValueError("result_ratio must be finite and non-negative")
+    if fixed_alpha is not None and (
+        not math.isfinite(fixed_alpha) or not 0.0 <= fixed_alpha <= 1.0
+    ):
+        raise ValueError("fixed_alpha must be finite and in [0, 1]")
+
+    ordered_tasks = tuple(sorted(tasks, key=lambda task: task.task_id))
+    if len({task.task_id for task in ordered_tasks}) != len(ordered_tasks):
+        raise ValueError("duplicate task_id in allocation input")
+    if not ordered_tasks:
+        return AllocationResult((), (), 0.0)
+
+    if cpu_budget_hz == 0.0:
+        decisions = tuple(
+            AllocationDecision(
+                task.task_id,
+                fixed_alpha if fixed_alpha is not None else 0.0,
+                0.0,
+                False,
+                None,
+                0.0,
+                RequirementReason.CPU_BUDGET.value,
+            )
+            for task in ordered_tasks
+        )
+        return AllocationResult(decisions, (), 0.0)
+
+    cpu_hz = cpu_budget_hz / len(ordered_tasks)
+    decisions: list[AllocationDecision] = []
+    for task in ordered_tasks:
+        rate_bps = rates_bps.get(task.task_id, 0.0)
+        if not math.isfinite(rate_bps) or rate_bps <= 0.0:
+            decisions.append(
+                AllocationDecision(
+                    task.task_id,
+                    0.0,
+                    0.0,
+                    False,
+                    None,
+                    0.0,
+                    RequirementReason.INVALID_RATE.value,
+                )
+            )
+            continue
+
+        if fixed_alpha is None:
+            local_full_s = task.comp_cycles / task.local_cpu_hz
+            try:
+                edge_unit_s = math.fsum(
+                    (
+                        (1.0 + result_ratio) * task.data_bits / rate_bps,
+                        task.comp_cycles / cpu_hz,
+                    )
+                )
+            except OverflowError:
+                edge_unit_s = math.inf
+            denominator = local_full_s + edge_unit_s
+            alpha = local_full_s / denominator if math.isfinite(denominator) else math.nan
+        else:
+            alpha = fixed_alpha
+
+        if not math.isfinite(alpha) or not 0.0 <= alpha <= 1.0:
+            decisions.append(
+                AllocationDecision(
+                    task.task_id,
+                    0.0,
+                    0.0,
+                    False,
+                    None,
+                    0.0,
+                    RequirementReason.LINK_INFEASIBLE.value,
+                )
+            )
+            continue
+
+        delay_s = completion_delay_s(
+            task,
+            rate_bps,
+            result_ratio,
+            alpha,
+            cpu_hz,
+        )
+        completed = math.isfinite(delay_s) and delay_s <= task.deadline_s
+        reason = (
+            AllocationPolicy.CROSSING_EQUAL.value
+            if fixed_alpha is None
+            else AllocationPolicy.FIXED_HALF_EQUAL.value
+        )
+        decisions.append(
+            AllocationDecision(
+                task.task_id,
+                alpha,
+                cpu_hz,
+                completed,
+                delay_s if math.isfinite(delay_s) else None,
+                max(task.deadline_s - delay_s, 0.0) if completed else 0.0,
+                reason,
+            )
+        )
+
+    ordered = tuple(decisions)
+    completed_ids = tuple(
+        decision.task_id for decision in ordered if decision.completed
+    )
+    total_cpu_hz = _cpu_sum(
+        tuple(decision.cpu_hz for decision in ordered if decision.cpu_hz > 0.0)
+    )
+    if total_cpu_hz > cpu_budget_hz:
+        raise RuntimeError("equal allocation exceeds cpu_budget_hz")
+    return AllocationResult(ordered, completed_ids, total_cpu_hz)
+
+
+def allocate_with_policy(
+    policy: AllocationPolicy,
+    tasks: Sequence[Task],
+    rates_bps: Mapping[int, float],
+    cpu_budget_hz: float,
+    result_ratio: float,
+) -> AllocationResult:
+    """Route a fixed task/rate set through one controlled allocation policy."""
+    if not isinstance(policy, AllocationPolicy):
+        raise ValueError("policy must be an AllocationPolicy value")
+    if policy is AllocationPolicy.DEADLINE:
+        return allocate_deadline_tasks(
+            tasks,
+            rates_bps,
+            cpu_budget_hz,
+            result_ratio,
+        )
+    if policy is AllocationPolicy.CROSSING_EQUAL:
+        return _equal_cpu_allocation(
+            tasks,
+            rates_bps,
+            cpu_budget_hz,
+            result_ratio,
+            None,
+        )
+    if policy is AllocationPolicy.FIXED_HALF_EQUAL:
+        return _equal_cpu_allocation(
+            tasks,
+            rates_bps,
+            cpu_budget_hz,
+            result_ratio,
+            0.5,
+        )
+    raise ValueError(f"unsupported allocation policy {policy}")

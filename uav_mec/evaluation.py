@@ -15,7 +15,7 @@ from .domain import (
     SlotSnapshot,
 )
 from .model import NOMAChannel
-from .resource_allocation import allocate_deadline_tasks
+from .resource_allocation import AllocationPolicy, allocate_with_policy
 from .schedule import ScheduleValidationError, validate_schedule
 
 
@@ -32,6 +32,7 @@ class EvaluationConfig:
     gamma_sic_min: float
     cpu_per_uav_hz: float
     result_ratio: float
+    allocation_policy: AllocationPolicy = AllocationPolicy.DEADLINE
 
     def __post_init__(self) -> None:
         if not isinstance(self.n_subcarriers, int) or isinstance(self.n_subcarriers, bool):
@@ -46,6 +47,8 @@ class EvaluationConfig:
             raise ValueError("sic_residual must be finite and in [0, 1]")
         if not math.isfinite(self.result_ratio) or self.result_ratio < 0.0:
             raise ValueError("result_ratio must be finite and non-negative")
+        if not isinstance(self.allocation_policy, AllocationPolicy):
+            raise ValueError("allocation_policy must be an AllocationPolicy value")
 
     @staticmethod
     def _require_positive(name: str, value: float) -> None:
@@ -208,7 +211,8 @@ def evaluate_schedule(
         scheduled_tasks = tuple(
             task_by_id[task_id] for task_id in entries_by_uav.get(uav, ())
         )
-        allocation = allocate_deadline_tasks(
+        allocation = allocate_with_policy(
+            cfg.allocation_policy,
             scheduled_tasks,
             rate_by_id,
             cfg.cpu_per_uav_hz,
