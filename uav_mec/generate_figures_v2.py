@@ -6,12 +6,23 @@ Fig.5: Scalability (N=10-30)
 Fig.6: t_max sensitivity
 Fig.7: Per-slot time series (Ours vs Greedy vs Random)
 """
+import argparse
 import json
+import os
+import tempfile
+from pathlib import Path
+
 import numpy as np
+
+os.environ.setdefault(
+    "MPLCONFIGDIR",
+    str(Path(tempfile.gettempdir()) / "master-thesis-matplotlib"),
+)
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-from pathlib import Path
+
+from .statistics import paired_bootstrap_ci
 
 OUT = Path(__file__).parent.parent / "figures"
 OUT.mkdir(exist_ok=True)
@@ -493,11 +504,377 @@ def fig_drl_convergence():
     plt.close()
 
 
+def _canonical_json(path: Path) -> dict:
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def method_mean_ci(summary: dict, method: str) -> tuple[float, float, float]:
+    """Return mean and deterministic bootstrap CI in percentage points."""
+    values = (
+        np.asarray(
+            summary["methods"][method]["on_time_rate_by_seed"],
+            dtype=float,
+        )
+        * 100.0
+    )
+    low, high = paired_bootstrap_ci(values, 10_000, 20260711)
+    return float(values.mean()), low, high
+
+
+def _save_figure(figure, output: Path) -> None:
+    output.parent.mkdir(parents=True, exist_ok=True)
+    figure.savefig(
+        output.with_suffix(".pdf"),
+        dpi=220,
+        bbox_inches="tight",
+        metadata={"CreationDate": None, "ModDate": None},
+    )
+    figure.savefig(
+        output.with_suffix(".png"),
+        dpi=220,
+        bbox_inches="tight",
+    )
+    plt.close(figure)
+
+
+def _bar_figure(
+    summary: dict,
+    methods: tuple[str, ...],
+    labels: tuple[str, ...],
+    output: Path,
+) -> None:
+    values = [method_mean_ci(summary, method) for method in methods]
+    means = np.asarray([value[0] for value in values])
+    errors = np.asarray(
+        [
+            [value[0] - value[1] for value in values],
+            [value[2] - value[0] for value in values],
+        ]
+    )
+    positions = np.arange(len(methods))
+    figure, axis = plt.subplots(figsize=(7.2, 4.2))
+    colors = (
+        "#3B6FB6",
+        "#E07A3F",
+        "#3F8F68",
+        "#8A5A9E",
+        "#6B7280",
+        "#C44E52",
+        "#8172B3",
+        "#4C9F9A",
+    )
+    axis.bar(
+        positions,
+        means,
+        yerr=errors,
+        capsize=4,
+        color=colors[: len(methods)],
+    )
+    axis.set_xticks(positions, labels, rotation=18, ha="right")
+    axis.set_ylabel("On-time completion rate (%)")
+    axis.set_ylim(0.0, min(100.0, float(max(means + errors[1])) + 8.0))
+    axis.grid(axis="y", alpha=0.25)
+    figure.tight_layout()
+    _save_figure(figure, output)
+
+
+def _suite_figure(
+    root: Path,
+    cases: dict[str, str],
+    case_names: tuple[str, ...],
+    labels: tuple[str, ...],
+    output: Path,
+) -> None:
+    summaries = [
+        _canonical_json(root / cases[name] / "summary.json")
+        for name in case_names
+    ]
+    methods = tuple(
+        name
+        for name in ("greedy", "exchange_stable", "full")
+        if name in summaries[0]["methods"]
+    )
+    styles = {
+        "greedy": ("#3B6FB6", "o"),
+        "exchange_stable": ("#E07A3F", "s"),
+        "full": ("#3F8F68", "^"),
+    }
+    figure, axis = plt.subplots(figsize=(7.2, 4.2))
+    for method in methods:
+        values = [method_mean_ci(summary, method) for summary in summaries]
+        means = np.asarray([value[0] for value in values])
+        errors = np.asarray(
+            [
+                [value[0] - value[1] for value in values],
+                [value[2] - value[0] for value in values],
+            ]
+        )
+        color, marker = styles[method]
+        axis.errorbar(
+            labels,
+            means,
+            yerr=errors,
+            label=method.replace("_", " ").title(),
+            color=color,
+            marker=marker,
+            capsize=3,
+        )
+    axis.set_ylabel("On-time completion rate (%)")
+    axis.grid(axis="y", alpha=0.25)
+    axis.legend(frameon=False)
+    figure.tight_layout()
+    _save_figure(figure, output)
+
+
+def _suite_table(root: Path, index: dict) -> str:
+    robustness = index.get("suites", {}).get("robustness", {})
+    lines = [
+        "\\begin{tabular}{lrr}",
+        "\\toprule",
+        "Case & Exchange-Stable (\\%) & Proposed (\\%) \\\\",
+        "\\midrule",
+    ]
+    for case, relative in sorted(robustness.items()):
+        summary = _canonical_json(root / relative / "summary.json")
+        exchange = method_mean_ci(summary, "exchange_stable")[0]
+        full = method_mean_ci(summary, "full")[0]
+        escaped_case = case.replace("_", "\\_")
+        lines.append(f"{escaped_case} & {exchange:.2f} & {full:.2f} \\\\")
+    lines.extend(("\\bottomrule", "\\end{tabular}"))
+    return "\n".join(lines) + "\n"
+
+
+def _statistics_table(statistics: dict, metrics: dict) -> str:
+    lines = [
+        "\\begin{tabular}{lrrrr}",
+        "\\toprule",
+        (
+            "Comparison & $\\Delta$ (pp) & 95\\% CI & "
+            "$p_{\\mathrm{Holm}}$ & $r_{rb}$ \\\\"
+        ),
+        "\\midrule",
+    ]
+    for name, value in statistics.items():
+        escaped_name = name.replace("_", "\\_")
+        p_value = float(value["p_holm"])
+        p_text = "$<0.0001$" if p_value < 0.0001 else f"{p_value:.4f}"
+        lines.append(
+            f"{escaped_name} & {value['mean_difference_pp']:.2f} & "
+            f"[{value['ci_low_pp']:.2f}, {value['ci_high_pp']:.2f}] & "
+            f"{p_text} & {value['rank_biserial']:.3f} \\\\"
+        )
+    lines.extend(
+        (
+            "\\bottomrule",
+            "\\end{tabular}",
+            "",
+            "\\bigskip",
+            "",
+            "\\begin{tabular}{lrrrrrr}",
+            "\\toprule",
+            (
+                "Method & On-time (\\%) & Drop (\\%) & Delay (s) & "
+                "Jain & CPU (\\%) & P95 (ms) \\\\"
+            ),
+            "\\midrule",
+        )
+    )
+    for method, value in metrics["main"].items():
+        escaped_method = method.replace("_", "\\_")
+        lines.append(
+            f"{escaped_method} & {100.0 * value['on_time_rate']:.2f} & "
+            f"{100.0 * value['drop_rate']:.2f} & "
+            f"{value['mean_completed_delay_s']:.4f} & "
+            f"{value['jain_user_on_time']:.4f} & "
+            f"{100.0 * value['cpu_utilization']:.2f} & "
+            f"{1000.0 * value['runtime_p95_s']:.2f} \\\\"
+        )
+    lines.extend(("\\bottomrule", "\\end{tabular}"))
+    return "\n".join(lines) + "\n"
+
+
+def generate_assets(
+    canonical_root: Path,
+    figures_dir: Path,
+    macros_path: Path,
+    statistics_path: Path,
+    robustness_path: Path,
+) -> None:
+    """Generate all thesis assets exclusively from canonical JSON evidence."""
+    canonical_root = Path(canonical_root)
+    index = _canonical_json(canonical_root / "index.json")
+    summaries = {
+        name: _canonical_json(canonical_root / relative / "summary.json")
+        for name, relative in index["runs"].items()
+    }
+    analysis = canonical_root / index["analysis"]
+    statistics = _canonical_json(analysis / "statistics.json")
+    metrics = _canonical_json(analysis / "metrics.json")
+    acceptance = _canonical_json(analysis / "acceptance.json")
+    if not acceptance.get("all_gates_pass"):
+        raise RuntimeError(
+            "refusing to generate thesis assets from failed evidence gates"
+        )
+
+    figures_dir = Path(figures_dir)
+    _bar_figure(
+        summaries["main"],
+        tuple(summaries["main"]["methods"]),
+        tuple(
+            name.replace("_", " ").title()
+            for name in summaries["main"]["methods"]
+        ),
+        figures_dir / "main_on_time",
+    )
+    _bar_figure(
+        summaries["pairing"],
+        ("intra_bilateral", "cross_bilateral", "intra_global", "full"),
+        ("Intra/Bilateral", "Cross/Bilateral", "Intra/Global", "Cross/Global"),
+        figures_dir / "pairing_ablation",
+    )
+    _bar_figure(
+        summaries["resource"],
+        ("full_fixed_half", "full_crossing", "full"),
+        ("Fixed 0.5 / Equal", "Crossing / Equal", "Deadline / Min-CPU"),
+        figures_dir / "resource_ablation",
+    )
+
+    suite_index = index.get("suites", {})
+    mechanism = suite_index.get("mechanism", {})
+    if mechanism:
+        _suite_figure(
+            canonical_root,
+            mechanism,
+            ("coupling0", "coupling05", "coupling1"),
+            ("0", "0.5", "1"),
+            figures_dir / "mechanism_interference",
+        )
+    scalability = suite_index.get("scalability", {})
+    if scalability:
+        _suite_figure(
+            canonical_root,
+            scalability,
+            ("n10", "n15", "n20", "n25", "n30", "n40", "n50"),
+            ("10", "15", "20", "25", "30", "40", "50"),
+            figures_dir / "scalability_users",
+        )
+        _suite_figure(
+            canonical_root,
+            scalability,
+            ("k1", "k2", "k3", "k4", "k5"),
+            ("1", "2", "3", "4", "5"),
+            figures_dir / "scalability_uavs",
+        )
+
+    full_mean, full_low, full_high = method_mean_ci(summaries["main"], "full")
+    sic_count = sum(
+        int(value["sic_violations"])
+        for value in acceptance["validation"].values()
+    )
+    exact = summaries["exact"]
+    macros = {
+        "FullOnTimePercent": f"{full_mean:.2f}\\%",
+        "FullOnTimeCILowPercent": f"{full_low:.2f}\\%",
+        "FullOnTimeCIHighPercent": f"{full_high:.2f}\\%",
+        "InnovationOneCrossGainPP": (
+            f"{statistics['innovation1_cross']['mean_difference_pp']:.2f}"
+        ),
+        "InnovationOneCrossCILowPP": (
+            f"{statistics['innovation1_cross']['ci_low_pp']:.2f}"
+        ),
+        "InnovationOneCrossCIHighPP": (
+            f"{statistics['innovation1_cross']['ci_high_pp']:.2f}"
+        ),
+        "InnovationOneAcceptanceGainPP": (
+            f"{statistics['innovation1_acceptance']['mean_difference_pp']:.2f}"
+        ),
+        "InnovationOneAcceptanceCILowPP": (
+            f"{statistics['innovation1_acceptance']['ci_low_pp']:.2f}"
+        ),
+        "InnovationOneAcceptanceCIHighPP": (
+            f"{statistics['innovation1_acceptance']['ci_high_pp']:.2f}"
+        ),
+        "InnovationTwoGainPP": (
+            f"{statistics['innovation2_deadline']['mean_difference_pp']:.2f}"
+        ),
+        "InnovationTwoCILowPP": (
+            f"{statistics['innovation2_deadline']['ci_low_pp']:.2f}"
+        ),
+        "InnovationTwoCIHighPP": (
+            f"{statistics['innovation2_deadline']['ci_high_pp']:.2f}"
+        ),
+        "StrongBaselineGainPP": (
+            f"{statistics['baseline_exchange']['mean_difference_pp']:.2f}"
+        ),
+        "StrongBaselineCILowPP": (
+            f"{statistics['baseline_exchange']['ci_low_pp']:.2f}"
+        ),
+        "StrongBaselineCIHighPP": (
+            f"{statistics['baseline_exchange']['ci_high_pp']:.2f}"
+        ),
+        "FullRuntimeP95Ms": (
+            f"{1000.0 * metrics['main']['full']['runtime_p95_s']:.2f}"
+        ),
+        "ExactOptimalPercent": (
+            f"{100.0 * exact['optimal_slot_fraction']:.2f}\\%"
+        ),
+        "ExactMeanCompletionGap": f"{exact['mean_completion_gap']:.3f}",
+        "SICViolationCount": str(sic_count),
+        "ConfirmatorySeedCount": str(len(summaries["main"]["seeds"])),
+    }
+    macros_path = Path(macros_path)
+    macros_path.parent.mkdir(parents=True, exist_ok=True)
+    macros_path.write_text(
+        "".join(
+            f"\\newcommand{{\\{name}}}{{{value}}}\n"
+            for name, value in macros.items()
+        ),
+        encoding="utf-8",
+    )
+    statistics_path = Path(statistics_path)
+    statistics_path.parent.mkdir(parents=True, exist_ok=True)
+    statistics_path.write_text(
+        _statistics_table(statistics, metrics),
+        encoding="utf-8",
+    )
+    robustness_path = Path(robustness_path)
+    robustness_path.parent.mkdir(parents=True, exist_ok=True)
+    robustness_path.write_text(
+        _suite_table(canonical_root, index),
+        encoding="utf-8",
+    )
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Generate thesis assets from canonical evidence",
+    )
+    parser.add_argument("--canonical", type=Path, required=True)
+    parser.add_argument("--figures", type=Path, default=Path("figures/thesis"))
+    parser.add_argument(
+        "--macros",
+        type=Path,
+        default=Path("paper/generated_results.tex"),
+    )
+    parser.add_argument(
+        "--statistics-table",
+        type=Path,
+        default=Path("paper/generated_statistics.tex"),
+    )
+    parser.add_argument(
+        "--robustness-table",
+        type=Path,
+        default=Path("paper/generated_robustness.tex"),
+    )
+    args = parser.parse_args()
+    generate_assets(
+        args.canonical,
+        args.figures,
+        args.macros,
+        args.statistics_table,
+        args.robustness_table,
+    )
+
+
 if __name__ == "__main__":
-    print("=== Generating Figures ===")
-    fig3_main_comparison()
-    fig4_ablation()
-    fig5_scalability()
-    fig6_tmax()
-    fig7_timeseries()
-    print("\nAll figures saved to figures/")
+    main()
