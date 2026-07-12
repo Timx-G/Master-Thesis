@@ -47,8 +47,11 @@ def test_professional_thesis_has_two_and_only_two_named_innovations():
         encoding="utf-8"
     )
     assert comparison.count("## 创新点") == 2
-    assert "干扰外部性感知的跨 UAV 联合关联与配对" in comparison
-    assert "面向截止时间的卸载与 MEC 算力分配" in comparison
+    assert "干扰外部性感知的跨无人机关联配对算法" in comparison
+    assert "截止时间驱动的最小成本准入分配算法" in comparison
+    for acronym in ("EAD-JSRA", "IEA-CAP", "DD-MCAA"):
+        assert acronym in comparison
+    assert not re.search(r"\bFull method\b", comparison, flags=re.IGNORECASE)
 
 
 def test_thesis_has_eight_chapters_and_uses_generated_evidence():

@@ -1,6 +1,8 @@
 # Two-Contribution Defense Comparison
 
-## 创新点一：干扰外部性感知的跨 UAV 联合关联与配对
+本文总体采用外部性感知与截止时间驱动的联合调度资源分配算法（EAD-JSRA），由以下两个可独立隔离验证的算法创新组成。
+
+## 创新点一：干扰外部性感知的跨无人机关联配对算法（IEA-CAP）
 
 **工程痛点**：全频复用时，一个用户改变服务 UAV 或子载波会同时改变自身服务信道、其他 UAV 的同频干扰、SIC 角色和 MEC 负载。
 
@@ -16,7 +18,7 @@
 
 **限制**：绝对增益较小；干扰耦合变化下增益不单调；K=1 时不占优，K=5 时与 exchange-stable 持平。
 
-## 创新点二：面向截止时间的卸载与 MEC 算力分配
+## 创新点二：截止时间驱动的最小成本准入分配算法（DD-MCAA）
 
 **工程痛点**：均分 CPU 或固定卸载比例可能把算力分给无法按时完成的任务，降低单位时隙完成任务数。
 
@@ -32,12 +34,12 @@
 
 **限制**：不覆盖任务权重、长期队列、跨 UAV CPU 迁移或能耗约束。
 
-| Dimension | Innovation 1 | Innovation 2 |
+| Dimension | IEA-CAP | DD-MCAA |
 |---|---|---|
 | Changed object | Serving UAV, subcarrier, NOMA partner/role | Offload ratio, MEC CPU admission |
 | Acceptance basis | Network schedule objective | Per-UAV CPU-prefix feasibility |
 | Controlled ablation | Topology × acceptance | Same schedule, three resource policies |
 | Primary evidence | Pairing 2×2 and mechanism curves | Resource ablation and CPU/deadline robustness |
-| Independence | Uses the same deadline allocator in all four cells | Uses the same full scheduler in all three policies |
+| Independence | Uses the same DD-MCAA allocator in all four cells | Uses the same EAD-JSRA scheduler in all three policies |
 
 Neither contribution is obtained by silently changing the other component.
