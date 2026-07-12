@@ -109,6 +109,10 @@ Thumbs.db
 
 # Project specific
 results/
+artifacts/runs/
+artifacts/exploratory/
+!artifacts/canonical/
+!artifacts/canonical/**
 outputs/
 logs/
 *.log
