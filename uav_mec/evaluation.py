@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import math
 from collections import defaultdict
+from collections.abc import Mapping
 from dataclasses import dataclass
+from numbers import Integral
 
 from .domain import (
     AllocationDecision,
@@ -16,7 +18,11 @@ from .domain import (
 )
 from .model import NOMAChannel
 from .resource_allocation import AllocationPolicy, allocate_with_policy
-from .schedule import ScheduleValidationError, validate_schedule
+from .schedule import (
+    ScheduleValidationError,
+    serving_uav_by_task,
+    validate_schedule,
+)
 
 
 class InfeasibleScheduleError(ValueError):
@@ -172,27 +178,59 @@ def compute_rate_records(
     return tuple(sorted(records, key=lambda record: record.task_id))
 
 
-def evaluate_schedule(
+def build_outcome_from_rates(
     snapshot: SlotSnapshot,
-    schedule: Schedule,
-    channel: NOMAChannel,
+    uav_by_task: Mapping[int, int],
+    rates: tuple[RateRecord, ...],
     cfg: EvaluationConfig,
 ) -> SlotOutcome:
-    """Return one decision per arrived task for a candidate schedule."""
-    try:
-        rates = compute_rate_records(snapshot, schedule, channel, cfg)
-    except ScheduleValidationError as exc:
-        raise InfeasibleScheduleError(str(exc)) from exc
-
-    sic_violations = [record.task_id for record in rates if not record.sic_feasible]
-    if sic_violations:
-        raise InfeasibleScheduleError(f"SIC threshold violated by tasks {sic_violations}")
-
+    """Apply shared task accounting and per-serving-UAV CPU allocation."""
     task_by_id = {task.task_id: task for task in snapshot.tasks}
-    rate_by_id = {record.task_id: record.rate_bps for record in rates}
+    ordered_rates = tuple(sorted(rates, key=lambda record: record.task_id))
+    rate_by_id = {
+        record.task_id: record.rate_bps for record in ordered_rates
+    }
+    if len(rate_by_id) != len(ordered_rates):
+        raise ValueError("duplicate rate record")
+    if set(rate_by_id) != set(uav_by_task):
+        raise ValueError(
+            "rate records and serving-UAV mapping must have identical task IDs"
+        )
+    if any(task_id not in task_by_id for task_id in uav_by_task):
+        raise ValueError("serving-UAV mapping contains an unknown task")
+    if any(
+        not isinstance(serving_uav, Integral)
+        or isinstance(serving_uav, bool)
+        or not 0 <= serving_uav < snapshot.num_uavs
+        for serving_uav in uav_by_task.values()
+    ):
+        raise ValueError("serving-UAV mapping contains an invalid UAV")
+    for record in ordered_rates:
+        if record.serving_uav != uav_by_task[record.task_id]:
+            raise ValueError("rate record and CPU mapping disagree on serving UAV")
+        if (
+            not isinstance(record.subcarrier, Integral)
+            or isinstance(record.subcarrier, bool)
+            or not 0 <= record.subcarrier < cfg.n_subcarriers
+        ):
+            raise ValueError("rate record contains an invalid subcarrier")
+        if not record.sic_feasible:
+            raise ValueError("rate record violates the hard SIC constraint")
+        if (
+            not math.isfinite(record.rate_bps)
+            or record.rate_bps < 0.0
+            or not math.isfinite(record.sinr)
+            or record.sinr < 0.0
+            or not math.isfinite(record.cross_interference_w)
+            or record.cross_interference_w < 0.0
+        ):
+            raise ValueError("rate record contains a nonphysical value")
+        if not task_by_id[record.task_id].requires_offload:
+            raise ValueError("local-feasible task must not have a radio rate record")
+
     entries_by_uav: dict[int, list[int]] = defaultdict(list)
-    for entry in schedule.entries:
-        entries_by_uav[entry.serving_uav].append(entry.task_id)
+    for task_id, serving_uav in uav_by_task.items():
+        entries_by_uav[serving_uav].append(task_id)
 
     decisions: dict[int, AllocationDecision] = {}
     for task in snapshot.tasks:
@@ -244,7 +282,7 @@ def evaluate_schedule(
     # This is a task-link aggregate: both users in a NOMA pair experience the
     # receiver's external interference through their respective rate equations.
     total_cross_interference_w = math.fsum(
-        record.cross_interference_w for record in rates
+        record.cross_interference_w for record in ordered_rates
     )
     return SlotOutcome(
         slot_index=snapshot.slot_index,
@@ -252,9 +290,36 @@ def evaluate_schedule(
         completed_task_ids=completed,
         missed_task_ids=missed,
         decisions=ordered,
-        rates=rates,
+        rates=ordered_rates,
         total_slack_s=math.fsum(
             decision.slack_s for decision in ordered if decision.completed
         ),
         total_cross_interference_w=total_cross_interference_w,
+    )
+
+
+def evaluate_schedule(
+    snapshot: SlotSnapshot,
+    schedule: Schedule,
+    channel: NOMAChannel,
+    cfg: EvaluationConfig,
+) -> SlotOutcome:
+    """Return one decision per arrived task for a candidate schedule."""
+    try:
+        rates = compute_rate_records(snapshot, schedule, channel, cfg)
+    except ScheduleValidationError as exc:
+        raise InfeasibleScheduleError(str(exc)) from exc
+
+    sic_violations = [
+        record.task_id for record in rates if not record.sic_feasible
+    ]
+    if sic_violations:
+        raise InfeasibleScheduleError(
+            f"SIC threshold violated by tasks {sic_violations}"
+        )
+    return build_outcome_from_rates(
+        snapshot,
+        serving_uav_by_task(schedule),
+        rates,
+        cfg,
     )
