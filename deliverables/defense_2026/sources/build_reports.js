@@ -841,7 +841,7 @@ function buildDocument(markdown, report) {
     subject: "专业硕士学位论文答辩材料",
     creator: "关铭锡",
     lastModifiedBy: "Codex",
-    description: "由同目录 Markdown 草稿可复现生成，实验性能字段保留 canonical 数据占位符。",
+    description: "由同目录 Markdown 草稿可复现生成，正式性能证据读取自 canonical v1。",
     keywords: "多无人机,NOMA,MEC,截止时间,资源分配,专业硕士",
     features: { updateFields: true },
     styles: documentStyles(layout),

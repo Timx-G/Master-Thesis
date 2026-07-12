@@ -1,0 +1,11 @@
+\chapter{总结与展望}
+\section{工作总结}
+本文针对全频复用多 UAV 分组 NOMA-MEC 时隙调度完成两项工作。第一项通过显式实际服务 UAV、Replace/Position/CrossUAV 邻域和全局严格改进，内部化跨无人机干扰外部性。第二项由截止时间推导最小卸载比例和最小 MEC CPU，并以排序前缀实现最大任务数准入。
+
+正式 \ConfirmatorySeedCount{} 种子实验中，完整方法达到 \FullOnTimePercent{}；创新点一的 CrossUAV 独立贡献为 \InnovationOneCrossGainPP{} 个百分点，全局接受贡献为 \InnovationOneAcceptanceGainPP{} 个百分点；创新点二贡献为 \InnovationTwoGainPP{} 个百分点。完整小实例枚举匹配比例为 \ExactOptimalPercent{}，最终 SIC 违规为 \SICViolationCount{}，$N=20$ 调度 P95 为 \FullRuntimePNinetyFiveMs{} ms。
+
+\section{结论边界}
+创新点一是在高完成率强基线上的稳定小增量，创新点二具有更明显的工程效果。论文不把轨迹、功率、深度强化学习或一般复杂性结论作为额外创新，也不声称在所有 UAV 数量和负载下严格占优。
+
+\section{后续工作}
+后续可研究分布式候选筛选、真实步行轨迹驱动验证、信道老化下的稳健调度、带权任务准入及轨迹/功率联合控制。任何扩展均应保持唯一任务语义、同轨迹公平比较和可校验产物链。

@@ -1,0 +1,29 @@
+\chapter{干扰外部性感知的跨 UAV 联合关联与配对}
+\section{可行初始化与 SIC 修复}
+对每架 UAV 枚举最近关联集合中的单用户和双用户候选。候选在临时子载波上进行真实速率、SIC 和截止时间评价；只有具有正完成收益的候选进入二元线性规划。约束保证每项任务最多选择一次、每架 UAV 最多占用 $S$ 个块。求解器失败会显式终止实验，而不是静默退化为启发式。
+
+初始化后执行确定性 SIC 修复。若某个两用户块违反门限，则删除弱用户并保留强用户为 solo；重新规范角色并复验，直到全部块可行。修复不伪造速率或放宽门限。
+
+\section{三类邻域}
+\begin{itemize}
+ \item Replace：用同一最近 UAV 的未调度任务替换已有调度项，解决初始化遗漏；
+ \item Position：交换同一 UAV 不同子载波上的任务，调整组内组合与干扰位置；
+ \item CrossUAV：交换不同 UAV 块中的任务，同时改变实际服务 UAV，处理跨小区关联局部最优。
+\end{itemize}
+每个邻居先规范强弱角色并验证唯一性、块容量和索引范围，再计算真实网络结果。CrossUAV 不是仅交换标签：服务接收机、信道增益、跨干扰和 CPU 归属均随之改变。
+
+\section{全局接受与双边对照}
+全局准则接受 $\Phi(\pi')>\Phi(\pi)$ 的第一个候选，并立即按稳定键重新扫描。双边对照仅要求受影响块不变差且至少一个变好。外部性场景下，后者忽略第三方链路；严格 $2\times2$ 消融分别控制邻域是否跨 UAV、接受准则是否全局。
+
+\begin{proposition}
+在有限任务、UAV 和子载波集合上，严格全局改进搜索有限终止。
+\end{proposition}
+\begin{proof}
+结构约束定义有限调度集合。每次接受严格提高词典序目标，且访问集合禁止回到已有调度。因此接受序列不含环并在有限步内终止。终止点仅保证给定邻域下的局部最优。
+\end{proof}
+
+\section{复杂度与协调开销}
+若到达任务数为 $M$，候选组枚举为 $O(M^2)$；一次邻域扫描的候选数也是多项式量级，但每个候选需重新评价网络链路和分配。实现设置 50 次接受迭代上限并记录非收敛。集中式控制器需要任务元数据、估计 CSI 和 UAV 间调度交换；这些信令开销是部署限制，不被计入算法创新。
+
+\section{机制证据}
+正式 50 种子消融中，CrossUAV 邻域贡献为 \InnovationOneCrossGainPP{} 个百分点，95\% 区间为 [\InnovationOneCrossCILowPP{}, \InnovationOneCrossCIHighPP{}]；全局接受准则贡献为 \InnovationOneAcceptanceGainPP{} 个百分点，区间为 [\InnovationOneAcceptanceCILowPP{}, \InnovationOneAcceptanceCIHighPP{}]。效应在高完成率条件下绝对值较小，但区间下界均为正。干扰耦合三档均保持相对 exchange-stable 的优势，但幅度不单调。

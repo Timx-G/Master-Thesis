@@ -1,0 +1,36 @@
+\chapter{面向截止时间的卸载与 MEC 算力分配}
+\section{最小卸载比例}
+固定任务、速率和本地 CPU。要使本地分支不超过截止时间，必须有
+\begin{equation}
+\frac{(1-\alpha_i)C_i}{f_i^{\mathrm{loc}}}\le T_i.
+\end{equation}
+因此满足本地分支的最小卸载比例为
+\begin{equation}
+\alpha_i^{\min}=\max\!\left(0,1-\frac{T_i f_i^{\mathrm{loc}}}{C_i}\right).
+\end{equation}
+若 $\alpha_i^{\min}=0$，任务可完全本地按时完成，不消耗无线和 MEC CPU。
+
+\section{最小 MEC CPU 与不可行条件}
+对需要卸载的任务，将 $\alpha_i^{\min}$ 代入边缘分支约束可得
+\begin{equation}
+f_i^{\min}=\frac{\alpha_i^{\min}C_i}
+{T_i-\alpha_i^{\min}(1+\rho)D_i/R_i}.
+\end{equation}
+若分母非正，则仅传输时间已经达到或超过截止时间，该任务在当前链路下不可行。工程实现还对非有限速率、浮点消去、溢出和舍入边界进行保守校正，最终以同一时延函数复核 $L_i\le T_i$。
+
+\section{最大基数准入}
+设可卸载任务 CPU 需求排序为
+$f_{(1)}^{\min}\le\cdots\le f_{(m)}^{\min}$。选择满足
+$\sum_{j=1}^{q}f_{(j)}^{\min}\le F_k$ 的最大前缀。
+
+\begin{theorem}
+在单 UAV 硬 CPU 预算、每项按时任务价值均为 1 的条件下，上述前缀最大化完成任务数。
+\end{theorem}
+\begin{proof}
+假设存在 $q+1$ 个任务的可行集合。将其中较大的需求依次替换为未选的更小需求不会增加总 CPU，最终得到最小的 $q+1$ 个需求也应可行，这与最大前缀定义矛盾。因此不存在更大基数的可行集合。
+\end{proof}
+
+\section{对照策略与适用边界}
+crossing/equal 先按传统本地与边缘时延交点选取卸载比例，再平均分 CPU；fixed-half/equal 固定 $\alpha=0.5$ 并平均分 CPU。二者不以完成任务最大基数为准入目标。正式消融中，deadline/min-CPU 相对 crossing/equal 提升 \InnovationTwoGainPP{} 个百分点，95\% 区间为 [\InnovationTwoCILowPP{}, \InnovationTwoCIHighPP{}]。
+
+本定理不适用于任务权重不同、CPU 可跨 UAV 迁移、长期队列或能耗预算场景；这些条件下需要背包、流或跨时隙优化。

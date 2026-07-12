@@ -27,6 +27,8 @@ const C = {
 
 const BASE = path.resolve(__dirname, "..");
 const OUTPUT = path.join(BASE, "outputs");
+const ROOT = path.resolve(BASE, "../..");
+const FIGURES = path.join(ROOT, "figures", "thesis");
 fs.mkdirSync(OUTPUT, { recursive: true });
 
 function addText(slide, text, x, y, w, h, options = {}) {
@@ -99,21 +101,6 @@ function addArrow(slide, x1, y1, x2, y2, color = C.teal, width = 1.5) {
   slide.addShape(SHAPE.line, {
     x: x1, y: y1, w: x2 - x1, h: y2 - y1,
     line: { color, width, beginArrowType: "none", endArrowType: "triangle" },
-  });
-}
-
-function addPlaceholder(slide, title, keys, x, y, w, h) {
-  slide.addShape(SHAPE.rect, {
-    x, y, w, h,
-    fill: { color: C.white, transparency: 100 },
-    line: { color: C.line, width: 1, dash: "dash" },
-  });
-  addText(slide, title, x + 0.16, y + 0.12, w - 0.32, 0.28, { fontSize: 12, bold: true, color: C.tealDark });
-  addText(slide, "待新版本 canonical 实验填充", x + 0.16, y + 0.48, w - 0.32, 0.34, {
-    fontSize: 12, bold: true, color: C.brick, align: "center",
-  });
-  addText(slide, keys.map((key) => `{{${key}}}`).join("\n"), x + 0.16, y + 0.92, w - 0.32, h - 1.05, {
-    fontSize: 8.5, color: C.muted, valign: "top", breakLine: true,
   });
 }
 
@@ -258,7 +245,7 @@ function drawResource(slide) {
   addText(slide, "按 (fᵐⁱⁿ, task_id) 排序\n选择预算可容纳的最长前缀", 7.76, 4.82, 4.1, 0.76, { fontSize: 15, bold: true, color: C.green, align: "center" });
 }
 
-function drawMatrix(slide, rowLabels, colLabels, x, y, w, h) {
+function drawMatrix(slide, rowLabels, colLabels, x, y, w, h, values = null) {
   const cellW = w / 2;
   const cellH = h / 2;
   addText(slide, colLabels[0], x, y - 0.42, cellW, 0.28, { fontSize: 11, bold: true, color: C.teal, align: "center" });
@@ -266,8 +253,9 @@ function drawMatrix(slide, rowLabels, colLabels, x, y, w, h) {
   rowLabels.forEach((label, r) => addText(slide, label, x - 0.85, y + r * cellH + cellH / 2 - 0.15, 0.72, 0.3, { fontSize: 10.5, bold: true, color: C.muted, align: "right" }));
   for (let r = 0; r < 2; r += 1) {
     for (let c = 0; c < 2; c += 1) {
-      slide.addShape(SHAPE.rect, { x: x + c * cellW, y: y + r * cellH, w: cellW - 0.04, h: cellH - 0.04, fill: { color: C.white, transparency: 100 }, line: { color: C.line, width: 1, dash: "dash" } });
-      addText(slide, "待新版本 canonical\n实验填充", x + c * cellW + 0.08, y + r * cellH + 0.28, cellW - 0.2, cellH - 0.5, { fontSize: 10.5, color: C.brick, align: "center" });
+      const value = values ? values[r][c] : null;
+      slide.addShape(SHAPE.rect, { x: x + c * cellW, y: y + r * cellH, w: cellW - 0.04, h: cellH - 0.04, fill: { color: value && value.highlight ? C.greenPale : C.white }, line: { color: value && value.highlight ? C.green : C.line, width: 1 } });
+      addText(slide, value ? value.text : "未提供", x + c * cellW + 0.08, y + r * cellH + 0.28, cellW - 0.2, cellH - 0.5, { fontSize: value ? 17 : 10.5, bold: Boolean(value), color: value && value.highlight ? C.green : C.tealDark, align: "center" });
     }
   }
 }
@@ -286,7 +274,7 @@ function drawAudit(slide, items) {
 }
 
 function drawProgress(slide) {
-  const tasks = ["Task 1\n环境基线", "Task 2\n领域记录", "Task 3\n物理层", "Task 4\n解析需求", "Task 5\n最大基数"];
+  const tasks = ["Tasks 1-5\n可信基础", "Tasks 6-11\n调度闭环", "Tasks 12-16\n基线与统计", "Tasks 17-23\n证据工程", "Task 24\n正式实验"];
   tasks.forEach((task, i) => {
     const x = 0.78 + i * 1.76;
     const y = 5.45 - i * 0.72;
@@ -294,9 +282,9 @@ function drawProgress(slide) {
     addText(slide, task, x + 0.08, y + 0.12, 1.34, 0.45, { fontSize: 11.5, bold: true, color: C.green, align: "center" });
   });
   addCard(slide, 9.55, 1.52, 2.85, 3.96, { fill: C.white, line: C.teal });
-  addText(slide, "121 passed", 9.82, 2.1, 2.3, 0.72, { fontSize: 27, bold: true, color: C.teal, align: "center" });
-  addText(slide, "截止 fd0cb7c", 9.9, 3.08, 2.14, 0.32, { fontSize: 12, bold: true, color: C.muted, align: "center" });
-  addText(slide, "软件测试证据\n≠\n算法性能", 10.05, 3.76, 1.84, 1.05, { fontSize: 15, bold: true, color: C.brick, align: "center" });
+  addText(slide, "257 passed", 9.82, 2.1, 2.3, 0.72, { fontSize: 27, bold: true, color: C.teal, align: "center" });
+  addText(slide, "Tasks 1-24 完成", 9.75, 3.08, 2.45, 0.32, { fontSize: 12, bold: true, color: C.muted, align: "center" });
+  addText(slide, "7 / 7\n正式实验门禁", 10.05, 3.76, 1.84, 1.05, { fontSize: 17, bold: true, color: C.green, align: "center" });
 }
 
 function drawPhysics(slide) {
@@ -340,7 +328,7 @@ function drawProof(slide) {
 
 function drawTests(slide) {
   const categories = [
-    ["元数据", 1, C.line], ["领域记录", 25, C.teal], ["物理层", 33, C.brick], ["资源需求", 26, C.green], ["分配器", 36, C.tealDark],
+    ["领域/物理", 51, C.teal], ["调度/评价", 62, C.brick], ["实验/统计", 58, C.green], ["产物/文档", 86, C.tealDark],
   ];
   let x = 0.88;
   categories.forEach(([label, n, color]) => {
@@ -349,20 +337,52 @@ function drawTests(slide) {
     addText(slide, `${label}\n${n}`, x + 0.05, 2.34, w - 0.1, 0.65, { fontSize: 12, bold: true, color: C.white, align: "center" });
     x += w + 0.08;
   });
-  drawPipeline(slide, ["源码", "121 tests", "canonical", "统计图表"], 4.45);
-  addStatus(slide, "当前停在软件验证节点，性能待实验", 4.35, 6.16, 4.65, C.brick);
+  drawPipeline(slide, ["源码", "257 tests", "canonical v1", "论文与答辩"], 4.45);
+  addStatus(slide, "干净 Python 3.11 环境：257 passed", 4.15, 6.16, 5.05, C.green);
 }
 
-function drawDataBoard(slide, groups) {
-  const cols = groups.length === 4 ? 2 : groups.length;
-  groups.forEach((group, i) => {
-    const c = i % cols;
-    const r = Math.floor(i / cols);
-    const w = cols === 2 ? 5.72 : 3.83;
-    const h = cols === 2 ? 2.32 : 4.86;
-    const x = 0.7 + c * (w + 0.38);
-    const y = 1.25 + r * (h + 0.32);
-    addPlaceholder(slide, group.title, group.keys, x, y, w, h);
+function addContainedImage(slide, imagePath, x, y, w, h) {
+  const data = fs.readFileSync(imagePath);
+  const width = data.readUInt32BE(16);
+  const height = data.readUInt32BE(20);
+  const scale = Math.min(w / width, h / height);
+  const fittedW = width * scale;
+  const fittedH = height * scale;
+  slide.addImage({ path: imagePath, x: x + (w - fittedW) / 2, y: y + (h - fittedH) / 2, w: fittedW, h: fittedH });
+}
+
+function drawEvidenceCards(slide, metrics) {
+  metrics.forEach((metric, i) => {
+    const c = i % 2;
+    const r = Math.floor(i / 2);
+    const x = 0.78 + c * 6.15;
+    const y = 1.32 + r * 2.55;
+    addCard(slide, x, y, 5.7, 2.08, { fill: metric.fill || C.white, line: metric.color || C.teal, shadow: false });
+    addText(slide, metric.label, x + 0.25, y + 0.22, 5.2, 0.32, { fontSize: 13, bold: true, color: metric.color || C.teal });
+    addText(slide, metric.value, x + 0.25, y + 0.67, 5.2, 0.62, { fontSize: 27, bold: true, color: C.ink, align: "center" });
+    addText(slide, metric.detail, x + 0.25, y + 1.43, 5.2, 0.36, { fontSize: 11.5, color: C.muted, align: "center" });
+  });
+}
+
+function drawFigureEvidence(slide, spec) {
+  addCard(slide, 0.72, 1.22, 4.15, 5.55, { fill: C.white, line: spec.color || C.teal, shadow: false });
+  addText(slide, spec.kicker, 1.02, 1.55, 3.55, 0.35, { fontSize: 13, bold: true, color: spec.color || C.teal, align: "center" });
+  addText(slide, spec.value, 1.02, 2.08, 3.55, 0.72, { fontSize: 27, bold: true, color: C.ink, align: "center" });
+  addText(slide, spec.interval, 1.02, 2.9, 3.55, 0.42, { fontSize: 12, bold: true, color: C.muted, align: "center" });
+  addBullets(slide, spec.bullets, 1.05, 3.62, 3.5, 2.35, { fontSize: 12.5 });
+  addStatus(slide, spec.status, 1.35, 6.15, 2.9, spec.color || C.green);
+  addContainedImage(slide, path.join(FIGURES, spec.figure), 5.15, 1.23, 7.45, 5.55);
+}
+
+function drawGates(slide, gates) {
+  gates.forEach((gate, i) => {
+    const c = i % 2;
+    const r = Math.floor(i / 2);
+    const x = 0.78 + c * 6.15;
+    const y = 1.25 + r * 1.3;
+    addCard(slide, x, y, 5.7, 0.92, { fill: C.greenPale, line: C.green, shadow: false });
+    addText(slide, "PASS", x + 0.18, y + 0.24, 0.8, 0.3, { fontSize: 12, bold: true, color: C.green, align: "center" });
+    addText(slide, gate, x + 1.15, y + 0.16, 4.25, 0.48, { fontSize: 12.5, bold: true, color: C.tealDark });
   });
 }
 
@@ -489,9 +509,6 @@ function makeDeck(meta, specs) {
     } else if (spec.kind === "audit") {
       addTitle(slide, spec.title, idx + 1, specs.length, meta.section);
       drawAudit(slide, spec.items);
-    } else if (spec.kind === "data") {
-      addTitle(slide, spec.title, idx + 1, specs.length, meta.section);
-      drawDataBoard(slide, spec.groups);
     } else if (spec.kind === "risk") {
       addTitle(slide, spec.title, idx + 1, specs.length, meta.section);
       drawRiskPlan(slide, spec.phases);
@@ -500,7 +517,16 @@ function makeDeck(meta, specs) {
     } else if (spec.kind === "matrix") {
       addTitle(slide, spec.title, idx + 1, specs.length, meta.section);
       addBullets(slide, spec.bullets, 0.82, 1.32, 4.2, 4.95, { fontSize: 13.5 });
-      drawMatrix(slide, spec.rows, spec.cols, 6.1, 2.0, 5.75, 3.75);
+      drawMatrix(slide, spec.rows, spec.cols, 6.1, 2.0, 5.75, 3.75, spec.values);
+    } else if (spec.kind === "evidence") {
+      addTitle(slide, spec.title, idx + 1, specs.length, meta.section);
+      drawEvidenceCards(slide, spec.metrics);
+    } else if (spec.kind === "figure") {
+      addTitle(slide, spec.title, idx + 1, specs.length, meta.section);
+      drawFigureEvidence(slide, spec);
+    } else if (spec.kind === "gates") {
+      addTitle(slide, spec.title, idx + 1, specs.length, meta.section);
+      drawGates(slide, spec.gates);
     } else {
       addTitle(slide, spec.title, idx + 1, specs.length, meta.section);
       drawGenericColumns(slide, spec);
@@ -536,60 +562,29 @@ async function repairNotesMasterOrder(filePath) {
   }
 }
 
-const proposal = [
-  { kind: "title", title: "面向全频复用多无人机 NOMA-MEC 网络的干扰感知用户配对与截止时间资源分配研究", subtitle: "专业学位硕士研究生开题答辩", badge: "新版本性能数据待 canonical 实验", notes: ["本课题研究固定悬停多无人机 NOMA-MEC 网络中的联合调度与资源分配。", "开题阶段重点说明问题价值、两个创新点和可验证的研究路线。", "所有性能区域均保留新版本实验占位，不使用旧结果。"] },
-  { kind: "generic", title: "应用场景：空中边缘计算的时限任务", visual: "network", bullets: ["应急巡检任务具有唯一身份和绝对截止时刻", "多 UAV 提供覆盖与 MEC 算力", "全频复用提高利用率，也产生跨 UAV 同频干扰", "最终目标是按时完成任务，而不是仅提高瞬时速率"], notes: ["应用对象是具有硬截止时间的独立计算任务。", "无线调度和边缘算力必须共同决定任务是否按时完成。", "该工程目标符合专业硕士的问题导向。"] },
-  { kind: "generic", title: "核心矛盾：全频复用带来的四层耦合", visual: "layers", layers: ["服务归属改变目标信道", "同频复用改变跨 UAV 干扰", "NOMA 角色改变 SIC 可行性", "MEC CPU 与 deadline 决定实际完成"], bullets: ["一个跨 UAV 动作同时影响多个接收端", "局部速率增益不保证网络完成数改善", "需要统一 Schedule 和统一评价器"], notes: ["四层耦合说明先关联后配对的局部流程可能失真。", "调度动作必须触发全局物理量和 CPU 结果重算。", "因此论文以任务完成数作为统一评价出口。"] },
-  { kind: "timeline", title: "研究现状与缺口：已有组件尚未形成闭环", items: [{ title: "UAV-MEC", detail: "覆盖与算力\n常优化轨迹", color: C.line }, { title: "NOMA", detail: "用户聚类\n功率与SIC", color: C.teal }, { title: "联合优化", detail: "多变量耦合\n常固定关联", color: C.brick }, { title: "本课题", detail: "外部性调度\n+ deadline资源", color: C.green }], caption: "缺口：真实服务归属、跨 UAV 外部性、SIC 与绝对 deadline 尚未形成一条可审计闭环", notes: ["已有研究分别覆盖 UAV-MEC、NOMA 和联合资源优化。", "主要缺口不是组件缺失，而是调度语义和完成指标没有统一。", "本课题据此形成两个相互独立又能串联的创新模块。"] },
-  { kind: "generic", title: "研究问题与边界：做什么、不做什么", visual: "triangle", bullets: ["输入：任务、位置、全局 CSI、系统预算", "决策：服务 UAV、子载波、角色、卸载比例、CPU", "主目标：最大化绝对 deadline 前完成的唯一任务数", "边界：固定悬停、等功率、集中式 CSI；不研究轨迹和功率控制"], notes: ["主动收缩边界有利于聚焦主导矛盾。", "失败任务只记录一次，不允许跨时隙重复统计。", "所有范围外假设将在论文局限性中明确。"] },
-  { kind: "generic", title: "系统模型：同频干扰、SIC 与绝对 deadline", visual: "physics", bullets: ["Icross 按目标接收 UAV 信道重算", "Rᵢ = Bₛ log₂(1+γᵢ)，强用户满足 SIC 门限", "Tᵢ = dᵃᵇˢᵢ - aᵢ > 0", "aᵢ + τᵢ ≤ dᵃᵇˢᵢ ⇔ τᵢ ≤ Tᵢ"], notes: ["噪声由功率谱密度、噪声系数和实际带宽一次计算。", "NOMA 强弱角色由实际接收功率确定。", "相对预算和绝对截止被明确连接，避免公式口径混用。"] },
-  { kind: "pipeline", title: "总体技术路线：一条可信数据流", steps: ["固定轨迹", "候选池", "Schedule", "邻域动作", "物理重算", "资源选择", "统一评估", "canonical"], bullets: ["创新点一覆盖 Schedule、邻域和全局物理重算", "创新点二把速率转化为最小 CPU 成本与最大完成集合", "所有表格和图只读取带提交、配置和校验和的 canonical 产物"], notes: ["同一外生轨迹确保算法间配对比较公平。", "两个创新通过显式接口连接而不是混成黑箱。", "canonical 产物负责把代码、统计和论文数字闭环。"] },
-  { kind: "schedule", title: "创新点一：干扰外部性感知的跨 UAV 联合关联与配对", caption: "有限可行集 + 字典序严格改善：完成数 ↑ → slack ↑ → 跨 UAV 干扰 ↓ → 稳定编码", notes: ["CrossUAV 动作会同步改变真实服务归属。", "每个候选都重算服务信道、同频干扰、SIC 和完成集合。", "严格二乘二消融将独立验证邻域和接受准则，目前不宣称增益。"] },
-  { kind: "resource", title: "创新点二：deadline 驱动的卸载与 MEC 算力分配", notes: ["解析公式直接从截止时间约束得到最低资源需求。", "单位收益条件下，最小 CPU 成本前缀实现最大完成任务数。", "该模块可固定 Schedule 独立消融，也可作为创新点一的下游评价器。"] },
-  { kind: "pipeline", title: "联合算法：两个创新点协同但可区分", steps: ["ILP 初始化", "邻域枚举", "速率/SIC", "最小资源", "完成集合", "字典序接受"], bullets: ["创新一输出调度与速率；创新二输出完成集合与 CPU 分配", "模块增量分解键：{{MODULE_BASELINE_PCT}} · {{MODULE_ASSOC_ONLY_PCT}} · {{MODULE_RESOURCE_ONLY_PCT}} · {{MODULE_JOINT_PCT}}", "每次候选记录前后状态与拒绝原因"], notes: ["联合算法通过明确输入输出保持可解释性。", "模块分解实验能区分两个创新的独立贡献。", "结构化事件日志用于机制分析和工程审计。"] },
-  { kind: "matrix", title: "实验设计：独立消融、机制验证与配对统计", bullets: ["2×2 四格与交互项完整注册", "创新二三策略共享相同 Schedule", "确认性 seeds 1000-1049", "配对 bootstrap、Wilcoxon、Holm 与效应量", "K=1 与零干扰作为负控制"], rows: ["Intra", "CrossUAV"], cols: ["Bilateral", "Global"], notes: ["两个创新点采用不同的受控消融。", "所有方法共享外生轨迹、评价器和统计流程。", "小规模最优性只有覆盖完整可行域时才称为 exact optimum。"] },
-  { kind: "data", title: "数据占位仪表板：只注册，不预填", groups: [
-    { title: "主实验与统计", keys: ["MAIN_ONTIME_OURS_PCT", "MAIN_ONTIME_GREEDY_PCT", "MAIN_ONTIME_OFDMA_PCT", "MAIN_CI95_PP", "MAIN_PAIRED_DIFF_CI95_PP", "MAIN_RUNTIME_S"] },
-    { title: "严格 2×2", keys: ["ABLATION_NONE_PCT", "ABLATION_GLOBAL_ONLY_PCT", "ABLATION_CROSSUAV_ONLY_PCT", "ABLATION_BOTH_PCT", "ABLATION_INTERACTION_PP", "ABLATION_GLOBAL_ON_PCT", "ABLATION_CROSSUAV_ON_PCT"] },
-    { title: "资源与模块分解", keys: ["RESOURCE_DEADLINE_AWARE_PCT", "RESOURCE_EQUAL_CPU_PCT", "RESOURCE_RATE_FIRST_PCT", "MODULE_BASELINE_PCT", "MODULE_ASSOC_ONLY_PCT", "MODULE_RESOURCE_ONLY_PCT", "MODULE_JOINT_PCT"] },
-    { title: "机制、最优性与来源", keys: ["SIC_SENSITIVITY_SERIES", "UAV_SCALING_SERIES", "USER_SCALING_SERIES", "CSI_ROBUSTNESS_SERIES", "EXACT_GAP_MEAN_PCT", "EXACT_GAP_MAX_PCT", "CANONICAL_COMMIT", "CANONICAL_RUN_DATE", "CANONICAL_MANIFEST_SHA256"] },
-  ], notes: ["本页不绘制柱高、折线点或置信区间。", "二十九个键分别对应预注册 canonical 来源。", "若确认性结果不支持预期贡献，将调整算法或收缩声明。"] },
-  { kind: "risk", title: "实施计划与风险闭环", phases: [{ title: "可信基础", detail: "对象/物理/公式", color: C.green }, { title: "统一仿真", detail: "Schedule与评估", color: C.teal }, { title: "创新一", detail: "邻域与接受", color: C.teal }, { title: "证据工程", detail: "统计与产物", color: C.line }, { title: "确认实验", detail: "未见seeds", color: C.brick }, { title: "毕业交付", detail: "论文与答辩", color: C.brick }], notes: ["计划按可检查产物和质量门禁推进。", "核心风险均配置触发条件和处置路径。", "最终门禁是干净环境重建与论文数字可追溯。"] },
-  { kind: "summary", left: "显式 Schedule + CrossUAV 邻域\n全局重算干扰、SIC 与完成集合", right: "相对预算 Tᵢ + 最小资源需求\n最大基数 MEC CPU 分配", footer: "旧结果不作为新方案证据 · 性能结论等待 canonical 实验", notes: ["论文围绕两个鲜明且可独立验证的创新展开。", "两项创新共享统一模型和证据链。", "开题阶段不对尚未产生的性能结果作任何强声明。"] },
-];
-
 const midterm = [
-  { kind: "title", title: "面向全频复用多无人机 NOMA-MEC 网络的干扰感知用户配对与截止时间资源分配研究", subtitle: "专业学位硕士研究生中期答辩", badge: "证据截止 fd0cb7c · 性能待 canonical 实验", notes: ["中期汇报重点说明路线调整和当前可信成果。", "创新点一设计完成待实现，创新点二核心已完成并验证。", "历史路线只解释研究演化，不支持新方法性能结论。"] },
-  { kind: "generic", title: "工程目标：最大化独立任务的按时完成数", visual: "triangle", bullets: ["决策：服务 UAV、子载波、NOMA 角色、卸载比例、CPU", "约束：唯一服务、容量、接收功率次序、SIC、CPU 预算", "Tᵢ = dᵃᵇˢᵢ - aᵢ；aᵢ + τᵢ ≤ dᵃᵇˢᵢ", "主指标：按时完成的唯一任务数 / 到达的唯一任务总数"], notes: ["论文不再把吞吐率作为最终目标。", "服务无人机变化会同时影响信道、干扰和服务器负载。", "绝对 deadline 判定直接对应专业应用中的时限要求。"] },
-  { kind: "timeline", title: "研究路线演化：保留场景，重构问题", items: [{ title: "单 UAV", detail: "轨迹/DRL\n探索", color: C.line }, { title: "多 UAV", detail: "Grouped NOMA\n扩展", color: C.line }, { title: "可信审计", detail: "发现数据流\n系统问题", color: C.brick }, { title: "双创新", detail: "调度外部性\n+ deadline资源", color: C.green }], caption: "前期资产继续复用；旧性能数字不进入新论文证据", notes: ["路线调整保留了场景模型和工程资产。", "可信性审计揭示了旧证据链的关键问题。", "当前主线聚焦更直接影响任务完成的两个矛盾。"] },
-  { kind: "generic", title: "科学纠偏：复杂算法必须解决主导矛盾", visual: "layers", layers: ["高 LoS 覆盖", "水平距离敏感性受限", "传输项可能小于计算项", "轨迹优化边际作用可能受限"], bullets: ["旧现象只支持重新建模，不证明新算法", "退出：轨迹、DRL、联合功率控制", "保留：多 UAV、Grouped NOMA、MEC、全频复用"], notes: ["前期现象提示轨迹可能不是当前参数下的主导变量。", "因此先修复任务语义、物理层和评价链路。", "新方法把复杂度用于跨 UAV 外部性和硬截止资源竞争。"] },
-  { kind: "audit", title: "可信性审计：先修证据链，再谈性能", items: [
-    { text: "CrossUAV 后服务归属未贯穿", status: "待实现" }, { text: "最终调度缺少统一 SIC 门禁", status: "待实现" },
-    { text: "失败任务可能跨时隙重复计数", status: "待实现" }, { text: "噪声可能被重复按带宽缩放", status: "已修复" },
-    { text: "2×2 消融初始化不一致", status: "待实现" }, { text: "NP 规约未落到物理问题", status: "收缩声明" },
-    { text: "受限搜索冒充 true optimum", status: "收缩声明" }, { text: "多个 runner 状态推进漂移", status: "待实现" },
-    { text: "旧结果缺少 manifest", status: "待实现" }, { text: "核心不变量缺少测试", status: "已修复" },
-  ], notes: ["这些问题会改变速率、可行性或统计分母。", "中期只把已经修复的项目标为完成。", "其余问题已拆入后续任务并配置失败即停止门禁。"] },
-  { kind: "pipeline", title: "可信架构：唯一数据流", steps: ["Task", "Schedule", "信道/干扰", "SIC", "资源需求", "Allocation", "SlotResult", "canonical"], bullets: ["Schedule 是服务归属唯一权威来源", "同一评估器服务主方法和所有基线", "任务身份、拒绝原因和证据哈希全程保留"], notes: ["可信架构的核心是消除多份相互矛盾的状态。", "物理层和 MEC 负载都从最终 Schedule 派生。", "统一结果对象为统计和论文数字提供稳定接口。"] },
-  { kind: "generic", title: "当前完成度：Tasks 1-5 已完成并验证", visual: "progress", bullets: ["Task 1：Python/pytest 元数据", "Task 2：不可变领域记录", "Task 3：噪声与 Urban 路损", "Task 4：最小卸载与 CPU 需求", "Task 5：最大基数分配器"], notes: ["当前五项工作覆盖数据模型、物理层和资源分配核心。", "一百二十一项测试是软件验证，不是算法性能。", "创新点一仍需统一评估器、初始化和邻域搜索。"] },
-  { kind: "generic", title: "物理层修复：带宽、噪声和场景语义一致", visual: "physics", bullets: ["Pn(dBm) = -174 + NF + 10 log₁₀(B')", "5 MHz/3、NF=7 dB：-104.7815 dBm", "Urban：a=9.61，b=0.16，ηLoS=1 dB，ηNLoS=20 dB", "公式数值是单测基准，不是性能结果"], notes: ["旧实现混合了噪声值和带宽缩放语义。", "新实现从功率谱密度出发一次计算噪声。", "Urban 场景参数和非法输入检查均已写入测试。"] },
-  { kind: "resource", title: "创新点二：把无线速率转化为最小资源成本", notes: ["相对预算由绝对截止和到达时刻唯一确定。", "解析需求把连续卸载变量转化为可加 CPU 成本。", "该核心已完成并验证，但性能贡献仍待统一实验。"] },
-  { kind: "generic", title: "硬 CPU 预算下的最大按时完成任务数", visual: "proof", bullets: ["按 (CPU 成本, task_id) 稳定排序", "选择满足总预算的最长前缀", "最小 m+1 成本和超预算 ⇒ 任意 m+1 集合不可行", "小规模完成基数与完整子集枚举一致"], notes: ["每个完成任务对主目标贡献相同。", "最小成本前缀通过交换论证实现最大基数。", "稳定平局规则保证同一输入得到相同代表解。"] },
-  { kind: "schedule", title: "创新点一：设计完成，进入实现阶段", caption: "当前状态：设计完成待实现 · 依赖 Schedule 校验、统一评价器、ILP 初始化和三类邻域", notes: ["创新点一的算法规格和邻域语义已经冻结。", "跨 UAV 动作会触发网络级物理和资源重算。", "生产实现尚未完成，因此本页不展示任何性能数字。"] },
-  { kind: "generic", title: "中期工程证据：测试通过，但性能尚未生成", visual: "tests", bullets: ["fd0cb7c：121 passed", "覆盖有限性、不可变性、噪声带宽、解析最小性、ULP 边界和稳定前缀", "软件测试证据 ≠ 按时完成率、显著性或运行时间"], notes: ["现有测试说明 Tasks 1-5 满足当前自动化规格。", "资源分配结果已与小规模暴力枚举交叉验证。", "后续仍需配对实验和统计形成性能证据。"] },
-  { kind: "data", title: "性能证据位置一：主比较与双创新消融", groups: [
-    { title: "主实验与统计", keys: ["MAIN_ONTIME_OURS_PCT", "MAIN_ONTIME_GREEDY_PCT", "MAIN_ONTIME_OFDMA_PCT", "MAIN_CI95_PP", "MAIN_PAIRED_DIFF_CI95_PP", "MAIN_RUNTIME_S"] },
-    { title: "严格 2×2", keys: ["ABLATION_NONE_PCT", "ABLATION_GLOBAL_ONLY_PCT", "ABLATION_CROSSUAV_ONLY_PCT", "ABLATION_BOTH_PCT", "ABLATION_INTERACTION_PP", "ABLATION_GLOBAL_ON_PCT", "ABLATION_CROSSUAV_ON_PCT"] },
-    { title: "创新点二三策略", keys: ["RESOURCE_DEADLINE_AWARE_PCT", "RESOURCE_EQUAL_CPU_PCT", "RESOURCE_RATE_FIRST_PCT"] },
-    { title: "双模块增量", keys: ["MODULE_BASELINE_PCT", "MODULE_ASSOC_ONLY_PCT", "MODULE_RESOURCE_ONLY_PCT", "MODULE_JOINT_PCT"] },
-  ], notes: ["主实验和消融页面结构已经冻结。", "四格矩阵、三策略和模块分解都从同一 canonical bundle 回填。", "当前不放入任何旧数字或视觉化假数据。"] },
-  { kind: "data", title: "性能证据位置二：鲁棒性、扩展性与来源", groups: [
-    { title: "敏感性与扩展性", keys: ["SIC_SENSITIVITY_SERIES", "UAV_SCALING_SERIES", "USER_SCALING_SERIES"] },
-    { title: "鲁棒性与完整最优性", keys: ["CSI_ROBUSTNESS_SERIES", "EXACT_GAP_MEAN_PCT", "EXACT_GAP_MAX_PCT"] },
-    { title: "canonical provenance", keys: ["CANONICAL_COMMIT", "CANONICAL_RUN_DATE", "CANONICAL_MANIFEST_SHA256"] },
-  ], notes: ["这一页用于限定方法的适用范围和失败条件。", "小规模差距只有覆盖完整可行域时使用 exact 表述。", "每个图都必须回溯到提交、日期和 manifest 校验和。"] },
-  { kind: "risk", title: "从中期到毕业：五道门禁，不跳步跑实验", phases: [{ title: "可信模型", detail: "Tasks 6-8", color: C.teal }, { title: "算法闭环", detail: "Tasks 9-13", color: C.teal }, { title: "证据工程", detail: "Tasks 14-23", color: C.line }, { title: "正式实验", detail: "Task 24", color: C.brick }, { title: "毕业交付", detail: "Task 25", color: C.brick }], notes: ["后续工作按依赖和质量门禁推进。", "Schedule 和统一评估未通过前不会启动正式实验。", "确认性结果不支持创新时将回到设计或调整声明。"] },
-  { kind: "summary", left: "设计完成待实现\n干扰外部性感知的跨 UAV 联合关联与配对", right: "核心已完成并验证\ndeadline 解析需求与最大基数 CPU 分配", footer: "121 passed 仅证明软件规格 · 性能结论等待新版本 canonical 实验", notes: ["中期阶段已经形成两个边界清晰的创新点。", "创新一和创新二的完成状态必须分别表述。", "下一阶段重点是完成调度闭环并形成可复现性能证据。"] },
+  { kind: "title", title: "面向全频复用多无人机 NOMA-MEC 网络的干扰感知用户配对与截止时间资源分配研究", subtitle: "专业学位硕士研究生中期答辩", badge: "canonical v1 · 7/7 门禁通过", notes: ["本次汇报使用正式确认性实验数据。", "论文形成两个可独立消融、可组合运行的创新点。", "历史轨迹和 DRL 结果不进入当前性能证据。"] },
+  { kind: "generic", title: "研究目标：最大化独立任务的按时完成数", visual: "triangle", bullets: ["决策：服务 UAV、子载波、NOMA 角色、卸载比例、CPU", "约束：唯一服务、容量、接收功率次序、硬 SIC、CPU 预算", "任务判定：aᵢ + τᵢ ≤ dᵃᵇˢᵢ", "主指标：按时完成唯一任务数 / 到达唯一任务数"], notes: ["论文最终目标是任务级按时完成，而不是瞬时吞吐率。", "服务无人机变化会同时影响信道、干扰和服务器负载。", "失败任务只计一次，避免统计分母漂移。"] },
+  { kind: "timeline", title: "研究路线：从可信审计到正式证据", items: [{ title: "问题收缩", detail: "固定悬停\n退出轨迹/DRL", color: C.line }, { title: "可信模型", detail: "唯一任务\nSchedule", color: C.teal }, { title: "双创新", detail: "外部性调度\n+ deadline资源", color: C.teal }, { title: "证据工程", detail: "配对统计\ncanonical", color: C.green }, { title: "正式实验", detail: "50 unseen seeds\n7/7 gates", color: C.green }, { title: "毕业交付", detail: "论文/报告\n答辩材料", color: C.brick }], caption: "Tasks 1-24 已完成；当前任务是论文和答辩材料定稿", notes: ["路线调整保留多无人机 NOMA-MEC 工程场景。", "旧结果只解释研究演化，不支持新方法。", "正式实验已完成，现在不是等待数据阶段。"] },
+  { kind: "generic", title: "当前完成度：核心算法和正式实验均已完成", visual: "progress", bullets: ["可信任务、物理层与统一评价器", "ILP 初始化、SIC 修复与三类邻域", "解析资源需求、最大基数分配与证明", "基线、消融、配对统计与 canonical v1", "论文与答辩交付正在定稿"], notes: ["Tasks 1-24 已完成并形成提交记录。", "257 项测试是软件正确性证据。", "7/7 门禁是正式实验结论证据。"] },
+  { kind: "pipeline", title: "可信架构：所有方法经过同一条评价链", steps: ["不可变 trace", "显式 Schedule", "真实服务信道", "全频干扰/SIC", "最小资源", "完成集合", "配对统计", "canonical v1"], bullets: ["同一外生轨迹保证方法间按种子配对比较", "服务归属、物理层、CPU 和任务完成状态均从最终 Schedule 派生", "manifest 与 SHA256 把代码、配置、结果和论文数字连接起来"], notes: ["核心原则是消除互相矛盾的状态副本。", "主方法和所有基线不能绕过统一评价器。", "论文图表只由 canonical 资产生成。"] },
+  { kind: "schedule", title: "创新点一：干扰外部性感知的跨 UAV 联合关联与配对", caption: "Replace / Position / CrossUAV · 每次候选全局重算信道、干扰、SIC 与 CPU", notes: ["CrossUAV 动作同步改变真实服务归属。", "全局准则评价动作对全部接收端和服务器的外部性。", "有限可行集上只接受字典序严格改善，因此搜索有限终止。"] },
+  { kind: "figure", title: "创新点一结果：两个组件均获得独立正贡献", kicker: "CrossUAV 邻域贡献", value: "+0.0487 pp", interval: "95% CI [0.0138, 0.0841]", bullets: ["Holm p = 0.0201", "秩二列效应量 0.521", "全局准则另贡献 +0.1179 pp", "高完成率区域增益小但稳定为正"], status: "严格 2×2 消融支持", color: C.teal, figure: "pairing_ablation.png", notes: ["CrossUAV 与全局接受准则分别消融。", "创新点一的绝对增益不大，因此强调机制和约束一致性。", "结论限定在本文正式实验配置。"] },
+  { kind: "resource", title: "创新点二：deadline 驱动的卸载与 MEC 算力分配", notes: ["截止时间先转化为最小卸载比例和最小 CPU 需求。", "单位完成收益下，最小 CPU 成本最长前缀实现最大完成基数。", "解析证明、实现和小规模枚举共同验证。"] },
+  { kind: "figure", title: "创新点二结果：直接优化 deadline 带来主要增益", kicker: "相对 crossing / equal", value: "+8.6898 pp", interval: "95% CI [8.3736, 9.0106]", bullets: ["deadline-driven：98.11%", "crossing/equal：89.42%", "fixed-half/equal：76.13%", "Holm p < 1.6×10⁻¹⁴"], status: "主要性能来源", color: C.green, figure: "resource_ablation.png", notes: ["三种资源策略共享相同无线调度。", "创新点二效果幅度大且跨种子方向一致。", "该模块承担论文主要性能贡献。"] },
+  { kind: "evidence", title: "正式主实验：完整方法达到 98.11% 按时完成率", metrics: [
+    { label: "完整方法", value: "98.11%", detail: "95% CI [97.94%, 98.26%]", color: C.green, fill: C.greenPale },
+    { label: "相对 ExchangeStable", value: "+0.1907 pp", detail: "95% CI [0.1304, 0.2567]", color: C.teal, fill: C.tealPale },
+    { label: "最终约束", value: "0 违规", detail: "SIC 与 CPU 预算均无违规", color: C.brick, fill: C.brickPale },
+    { label: "N=20 调度运行时间", value: "P95 40.93 ms", detail: "低于 1 s 预注册门槛", color: C.tealDark, fill: C.pale },
+  ], notes: ["完整方法在 50 个未见随机种子上评估。", "强基线差值使用配对 bootstrap 与 Wilcoxon-Holm。", "运行时间是调度算法墙钟时间。"] },
+  { kind: "figure", title: "主方法与七类基线：完成率和强基线差值同时报告", kicker: "预注册强基线", value: "+0.1907 pp", interval: "Holm p = 6.71×10⁻⁶", bullets: ["Greedy：+3.24 pp", "Per-UAV ILP：+1.30 pp", "IA-Greedy：+0.49 pp", "Fair OFDMA：+0.58 pp"], status: "配对统计支持", color: C.teal, figure: "main_on_time.png", notes: ["主结果图展示所有方法的按时完成率。", "强基线 ExchangeStable 是最关键主比较。", "同时报告绝对完成率和配对差值，避免只看柱高。"] },
+  { kind: "matrix", title: "创新点一实验设计：邻域范围 × 接受准则", bullets: ["Intra/CrossUAV 控制邻域范围", "Bilateral/Global 控制接受准则", "四格共享初始化、轨迹和评价器", "CrossUAV 贡献：full − intra_global", "Global 贡献：full − cross_bilateral"], rows: ["Intra", "CrossUAV"], cols: ["Bilateral", "Global"], values: [[{ text: "97.9146%" }, { text: "98.0567%" }], [{ text: "97.9874%" }, { text: "98.1054%", highlight: true }]], notes: ["严格四格避免初始化和物理语义漂移。", "两个组件的置信区间均为正。", "不把模块联合增益冒充单个组件贡献。"] },
+  { kind: "figure", title: "机制与边界：CrossUAV 只在存在跨接收端耦合时有意义", kicker: "机制验证", value: "外部性可追踪", interval: "负控制 + 干扰耦合实验", bullets: ["K=1：无跨 UAV 邻域来源", "零耦合：外部性效应应收缩", "真实案例记录动作前后状态", "不把相关性当作机制证明"], status: "机制实验已完成", color: C.brick, figure: "mechanism_interference.png", notes: ["机制实验验证 CrossUAV 改善来自跨接收端干扰耦合。", "单 UAV 和零干扰用于负控制。", "详细事件日志支持答辩追问。"] },
+  { kind: "gates", title: "正式实验验收：7 / 7 门禁全部通过", gates: ["创新点一 CrossUAV 置信区间严格为正", "创新点一全局接受准则置信区间严格为正", "创新点二 deadline 贡献置信区间严格为正", "完整方法优于预注册强基线", "最终调度无 SIC / CPU 预算违规", "小规模完整枚举执行完毕且完成数差距为 0", "N=20 运行时间 P95 低于 1 s"], notes: ["门禁在确认性实验之前预先声明。", "所有门禁结果由 acceptance.json 统一给出。", "通过门禁不代表超出本文假设的部署保证。"] },
+  { kind: "generic", title: "工程验证与可复现交付", visual: "tests", bullets: ["Python 3.11 干净环境全量测试通过", "canonical v1 保存 manifest、配置和 SHA256", "论文数字由生成宏和图表资产统一注入", "中期报告与 PPT 已切换为正式数据"], notes: ["测试保护任务语义、物理层、算法、统计和产物。", "canonical 原始运行数据不手工修改。", "论文和答辩材料禁止重新录入旧数字。"] },
+  { kind: "risk", title: "从中期到毕业：剩余工作集中在论文定稿与答辩", phases: [{ title: "核心算法", detail: "已完成", color: C.green }, { title: "正式实验", detail: "已完成", color: C.green }, { title: "论文主体", detail: "八章初稿", color: C.teal }, { title: "学校模板", detail: "待适配", color: C.brick }, { title: "答辩材料", detail: "本轮定稿", color: C.teal }, { title: "毕业答辩", detail: "风险问答", color: C.brick }], notes: ["剩余风险不是核心实验缺失。", "创新点一应准确表述为小幅但稳定的独立贡献。", "最终提交前需补学校封面、授权页和格式要求。"] },
+  { kind: "summary", left: "已实现并独立验证\n跨 UAV 外部性调度\n+0.05 pp / +0.12 pp", right: "已实现并独立验证\ndeadline 最小资源分配\n+8.69 pp", footer: "98.11% 按时完成 · 0 约束违规 · 257 tests · 7/7 gates", notes: ["两个创新点边界清晰且均有正式数据支持。", "创新点二承担主要性能贡献。", "当前项目已进入专业硕士论文和毕业答辩定稿阶段。"] },
 ];
 
 async function main() {

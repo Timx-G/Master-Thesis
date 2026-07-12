@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+import re
 
 import pytest
 
@@ -125,6 +126,8 @@ def test_error_bar_is_bootstrap_ci_and_macros_match_statistics(tmp_path: Path):
     text = macros.read_text(encoding="utf-8")
     assert "\\newcommand{\\InnovationOneCrossGainPP}{10.00}" in text
     assert "\\newcommand{\\ExactOptimalPercent}{92.00\\%}" in text
+    assert "\\newcommand{\\FullRuntimePNinetyFiveMs}{120.00}" in text
+    assert not re.search(r"\\newcommand\{\\[A-Za-z]*\d", text)
     assert "innovation1\\_cross" in statistics_table.read_text(encoding="utf-8")
     assert robustness.exists()
     assert (figures / "main_on_time.pdf").exists()

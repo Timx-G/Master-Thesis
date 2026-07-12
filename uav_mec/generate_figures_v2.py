@@ -812,7 +812,7 @@ def generate_assets(
         "StrongBaselineCIHighPP": (
             f"{statistics['baseline_exchange']['ci_high_pp']:.2f}"
         ),
-        "FullRuntimeP95Ms": (
+        "FullRuntimePNinetyFiveMs": (
             f"{1000.0 * metrics['main']['full']['runtime_p95_s']:.2f}"
         ),
         "ExactOptimalPercent": (
