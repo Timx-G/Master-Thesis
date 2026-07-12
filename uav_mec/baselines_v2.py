@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 from collections import defaultdict
+from itertools import combinations
 
 import numpy as np
 
@@ -15,9 +16,15 @@ from .domain import (
     SlotSnapshot,
     Task,
 )
-from .evaluation import EvaluationConfig, build_outcome_from_rates
+from .evaluation import (
+    EvaluationConfig,
+    InfeasibleScheduleError,
+    build_outcome_from_rates,
+    evaluate_schedule,
+)
 from .model import NOMAChannel
 from .schedule import normalize_roles
+from .scheduler import network_objective
 
 
 def local_only_schedule(snapshot: SlotSnapshot) -> Schedule:
@@ -167,6 +174,7 @@ def evaluate_fair_ofdma(
                 and other_subcarrier == subcarrier
                 and phase in active_phases[other_id]
             )
+            cross_w *= cfg.cross_interference_scale
             phase_cross_w.append(cross_w)
             phase_sinrs.append(received_w / (cross_w + noise_w))
 
@@ -196,3 +204,87 @@ def evaluate_fair_ofdma(
         tuple(rates),
         cfg,
     )
+
+
+def ia_greedy_schedule(
+    snapshot: SlotSnapshot,
+    channel: NOMAChannel,
+    cfg: EvaluationConfig,
+) -> Schedule:
+    """Greedily add the best interference-aware nearest-UAV group per block."""
+    row_by_task = {
+        task.task_id: row for row, task in enumerate(snapshot.tasks)
+    }
+    task_by_id = {task.task_id: task for task in snapshot.tasks}
+    current = Schedule()
+    current_outcome = evaluate_schedule(snapshot, current, channel, cfg)
+    used: set[int] = set()
+
+    for subcarrier in range(cfg.n_subcarriers):
+        for uav in range(snapshot.num_uavs):
+            candidates = sorted(
+                (
+                    task
+                    for task in snapshot.tasks
+                    if task.requires_offload
+                    and task.task_id not in used
+                    and int(
+                        np.asarray(
+                            snapshot.channel_gains[
+                                row_by_task[task.task_id]
+                            ]
+                        ).argmax()
+                    )
+                    == uav
+                ),
+                key=lambda task: task.task_id,
+            )
+            groups = [(task.task_id,) for task in candidates]
+            groups.extend(
+                tuple(task.task_id for task in pair)
+                for pair in combinations(candidates, 2)
+            )
+            feasible = []
+            for task_ids in groups:
+                additions = tuple(
+                    ScheduleEntry(
+                        task_id,
+                        task_by_id[task_id].user_id,
+                        uav,
+                        subcarrier,
+                        "solo",
+                    )
+                    for task_id in task_ids
+                )
+                trial = normalize_roles(
+                    Schedule(current.entries + additions),
+                    snapshot,
+                )
+                try:
+                    outcome = evaluate_schedule(snapshot, trial, channel, cfg)
+                except InfeasibleScheduleError:
+                    continue
+                feasible.append(
+                    (
+                        network_objective(outcome),
+                        trial.stable_key(),
+                        outcome,
+                        trial,
+                    )
+                )
+            if not feasible:
+                continue
+            best = min(
+                feasible,
+                key=lambda item: (
+                    -item[0][0],
+                    -item[0][1],
+                    -item[0][2],
+                    item[1],
+                ),
+            )
+            if best[0] > network_objective(current_outcome):
+                current_outcome = best[2]
+                current = best[3]
+                used = {entry.task_id for entry in current.entries}
+    return current

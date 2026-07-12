@@ -39,6 +39,7 @@ class EvaluationConfig:
     cpu_per_uav_hz: float
     result_ratio: float
     allocation_policy: AllocationPolicy = AllocationPolicy.DEADLINE
+    cross_interference_scale: float = 1.0
 
     def __post_init__(self) -> None:
         if not isinstance(self.n_subcarriers, int) or isinstance(self.n_subcarriers, bool):
@@ -55,6 +56,11 @@ class EvaluationConfig:
             raise ValueError("result_ratio must be finite and non-negative")
         if not isinstance(self.allocation_policy, AllocationPolicy):
             raise ValueError("allocation_policy must be an AllocationPolicy value")
+        if (
+            not math.isfinite(self.cross_interference_scale)
+            or not 0.0 <= self.cross_interference_scale <= 1.0
+        ):
+            raise ValueError("cross_interference_scale must be in [0, 1]")
 
     @staticmethod
     def _require_positive(name: str, value: float) -> None:
@@ -111,6 +117,7 @@ def compute_rate_records(
             snapshot,
             cfg.transmit_power_w,
         )
+        cross_w *= cfg.cross_interference_scale
         if len(own_entries) == 1:
             entry = own_entries[0]
             received_w = (

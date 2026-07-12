@@ -18,6 +18,7 @@ from .artifacts import RunArtifactWriter
 from .baselines_v2 import (
     evaluate_fair_ofdma,
     greedy_schedule,
+    ia_greedy_schedule,
     local_only_schedule,
 )
 from .domain import Schedule, SlotOutcome, SlotSnapshot
@@ -39,7 +40,9 @@ KNOWN_METHODS = frozenset(
         "local_only",
         "fair_ofdma",
         "greedy",
+        "ia_greedy",
         "ilp",
+        "exchange_stable",
         "intra_bilateral",
         "cross_bilateral",
         "intra_global",
@@ -113,6 +116,9 @@ def load_definition(path: Path) -> ExperimentDefinition:
         cpu_per_uav_hz=scenario.f_per_uav,
         result_ratio=scenario.task.result_ratio,
         allocation_policy=allocation_policy,
+        cross_interference_scale=float(
+            evaluation_raw.get("cross_interference_scale", 1.0)
+        ),
     )
 
     search_raw = raw.get("search")
@@ -183,6 +189,13 @@ def _slot_method(
                 search_evaluation,
             )
             return evaluate_noma(snapshot, schedule)
+        if name == "ia_greedy":
+            schedule = ia_greedy_schedule(
+                snapshot,
+                channel,
+                search_evaluation,
+            )
+            return evaluate_noma(snapshot, schedule)
 
         initialization = build_initial_schedule(
             snapshot,
@@ -204,6 +217,11 @@ def _slot_method(
             return evaluate_noma(snapshot, initialization.schedule)
 
         search_map = {
+            "exchange_stable": SearchConfig(
+                False,
+                Acceptance.BILATERAL,
+                max_iterations,
+            ),
             "intra_bilateral": SearchConfig(
                 False,
                 Acceptance.BILATERAL,
