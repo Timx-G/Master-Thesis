@@ -1,0 +1,629 @@
+{
+  "all_gates_pass": true,
+  "exact": {
+    "by_seed": [
+      {
+        "arrivals": 23,
+        "completion_gap": 0,
+        "exact_on_time_rate": 1.0,
+        "full_on_time_rate": 1.0,
+        "seed": 1000
+      },
+      {
+        "arrivals": 27,
+        "completion_gap": 0,
+        "exact_on_time_rate": 1.0,
+        "full_on_time_rate": 1.0,
+        "seed": 1001
+      },
+      {
+        "arrivals": 18,
+        "completion_gap": 0,
+        "exact_on_time_rate": 1.0,
+        "full_on_time_rate": 1.0,
+        "seed": 1002
+      },
+      {
+        "arrivals": 25,
+        "completion_gap": 0,
+        "exact_on_time_rate": 1.0,
+        "full_on_time_rate": 1.0,
+        "seed": 1003
+      },
+      {
+        "arrivals": 19,
+        "completion_gap": 0,
+        "exact_on_time_rate": 1.0,
+        "full_on_time_rate": 1.0,
+        "seed": 1004
+      },
+      {
+        "arrivals": 21,
+        "completion_gap": 0,
+        "exact_on_time_rate": 1.0,
+        "full_on_time_rate": 1.0,
+        "seed": 1005
+      },
+      {
+        "arrivals": 17,
+        "completion_gap": 0,
+        "exact_on_time_rate": 1.0,
+        "full_on_time_rate": 1.0,
+        "seed": 1006
+      },
+      {
+        "arrivals": 15,
+        "completion_gap": 0,
+        "exact_on_time_rate": 1.0,
+        "full_on_time_rate": 1.0,
+        "seed": 1007
+      },
+      {
+        "arrivals": 24,
+        "completion_gap": 0,
+        "exact_on_time_rate": 1.0,
+        "full_on_time_rate": 1.0,
+        "seed": 1008
+      },
+      {
+        "arrivals": 23,
+        "completion_gap": 0,
+        "exact_on_time_rate": 1.0,
+        "full_on_time_rate": 1.0,
+        "seed": 1009
+      },
+      {
+        "arrivals": 16,
+        "completion_gap": 0,
+        "exact_on_time_rate": 1.0,
+        "full_on_time_rate": 1.0,
+        "seed": 1010
+      },
+      {
+        "arrivals": 20,
+        "completion_gap": 0,
+        "exact_on_time_rate": 1.0,
+        "full_on_time_rate": 1.0,
+        "seed": 1011
+      },
+      {
+        "arrivals": 23,
+        "completion_gap": 0,
+        "exact_on_time_rate": 1.0,
+        "full_on_time_rate": 1.0,
+        "seed": 1012
+      },
+      {
+        "arrivals": 23,
+        "completion_gap": 0,
+        "exact_on_time_rate": 1.0,
+        "full_on_time_rate": 1.0,
+        "seed": 1013
+      },
+      {
+        "arrivals": 17,
+        "completion_gap": 0,
+        "exact_on_time_rate": 1.0,
+        "full_on_time_rate": 1.0,
+        "seed": 1014
+      },
+      {
+        "arrivals": 21,
+        "completion_gap": 0,
+        "exact_on_time_rate": 1.0,
+        "full_on_time_rate": 1.0,
+        "seed": 1015
+      },
+      {
+        "arrivals": 23,
+        "completion_gap": 0,
+        "exact_on_time_rate": 1.0,
+        "full_on_time_rate": 1.0,
+        "seed": 1016
+      },
+      {
+        "arrivals": 23,
+        "completion_gap": 0,
+        "exact_on_time_rate": 1.0,
+        "full_on_time_rate": 1.0,
+        "seed": 1017
+      },
+      {
+        "arrivals": 21,
+        "completion_gap": 0,
+        "exact_on_time_rate": 1.0,
+        "full_on_time_rate": 1.0,
+        "seed": 1018
+      },
+      {
+        "arrivals": 23,
+        "completion_gap": 0,
+        "exact_on_time_rate": 1.0,
+        "full_on_time_rate": 1.0,
+        "seed": 1019
+      },
+      {
+        "arrivals": 17,
+        "completion_gap": 0,
+        "exact_on_time_rate": 1.0,
+        "full_on_time_rate": 1.0,
+        "seed": 1020
+      },
+      {
+        "arrivals": 17,
+        "completion_gap": 0,
+        "exact_on_time_rate": 1.0,
+        "full_on_time_rate": 1.0,
+        "seed": 1021
+      },
+      {
+        "arrivals": 22,
+        "completion_gap": 0,
+        "exact_on_time_rate": 1.0,
+        "full_on_time_rate": 1.0,
+        "seed": 1022
+      },
+      {
+        "arrivals": 17,
+        "completion_gap": 0,
+        "exact_on_time_rate": 1.0,
+        "full_on_time_rate": 1.0,
+        "seed": 1023
+      },
+      {
+        "arrivals": 23,
+        "completion_gap": 0,
+        "exact_on_time_rate": 1.0,
+        "full_on_time_rate": 1.0,
+        "seed": 1024
+      },
+      {
+        "arrivals": 30,
+        "completion_gap": 0,
+        "exact_on_time_rate": 1.0,
+        "full_on_time_rate": 1.0,
+        "seed": 1025
+      },
+      {
+        "arrivals": 32,
+        "completion_gap": 0,
+        "exact_on_time_rate": 1.0,
+        "full_on_time_rate": 1.0,
+        "seed": 1026
+      },
+      {
+        "arrivals": 21,
+        "completion_gap": 0,
+        "exact_on_time_rate": 1.0,
+        "full_on_time_rate": 1.0,
+        "seed": 1027
+      },
+      {
+        "arrivals": 19,
+        "completion_gap": 0,
+        "exact_on_time_rate": 1.0,
+        "full_on_time_rate": 1.0,
+        "seed": 1028
+      },
+      {
+        "arrivals": 26,
+        "completion_gap": 0,
+        "exact_on_time_rate": 1.0,
+        "full_on_time_rate": 1.0,
+        "seed": 1029
+      },
+      {
+        "arrivals": 24,
+        "completion_gap": 0,
+        "exact_on_time_rate": 1.0,
+        "full_on_time_rate": 1.0,
+        "seed": 1030
+      },
+      {
+        "arrivals": 23,
+        "completion_gap": 0,
+        "exact_on_time_rate": 1.0,
+        "full_on_time_rate": 1.0,
+        "seed": 1031
+      },
+      {
+        "arrivals": 21,
+        "completion_gap": 0,
+        "exact_on_time_rate": 1.0,
+        "full_on_time_rate": 1.0,
+        "seed": 1032
+      },
+      {
+        "arrivals": 17,
+        "completion_gap": 0,
+        "exact_on_time_rate": 1.0,
+        "full_on_time_rate": 1.0,
+        "seed": 1033
+      },
+      {
+        "arrivals": 23,
+        "completion_gap": 0,
+        "exact_on_time_rate": 1.0,
+        "full_on_time_rate": 1.0,
+        "seed": 1034
+      },
+      {
+        "arrivals": 26,
+        "completion_gap": 0,
+        "exact_on_time_rate": 1.0,
+        "full_on_time_rate": 1.0,
+        "seed": 1035
+      },
+      {
+        "arrivals": 25,
+        "completion_gap": 0,
+        "exact_on_time_rate": 1.0,
+        "full_on_time_rate": 1.0,
+        "seed": 1036
+      },
+      {
+        "arrivals": 24,
+        "completion_gap": 0,
+        "exact_on_time_rate": 1.0,
+        "full_on_time_rate": 1.0,
+        "seed": 1037
+      },
+      {
+        "arrivals": 25,
+        "completion_gap": 0,
+        "exact_on_time_rate": 1.0,
+        "full_on_time_rate": 1.0,
+        "seed": 1038
+      },
+      {
+        "arrivals": 31,
+        "completion_gap": 0,
+        "exact_on_time_rate": 1.0,
+        "full_on_time_rate": 1.0,
+        "seed": 1039
+      },
+      {
+        "arrivals": 18,
+        "completion_gap": 0,
+        "exact_on_time_rate": 1.0,
+        "full_on_time_rate": 1.0,
+        "seed": 1040
+      },
+      {
+        "arrivals": 19,
+        "completion_gap": 0,
+        "exact_on_time_rate": 1.0,
+        "full_on_time_rate": 1.0,
+        "seed": 1041
+      },
+      {
+        "arrivals": 21,
+        "completion_gap": 0,
+        "exact_on_time_rate": 1.0,
+        "full_on_time_rate": 1.0,
+        "seed": 1042
+      },
+      {
+        "arrivals": 23,
+        "completion_gap": 0,
+        "exact_on_time_rate": 1.0,
+        "full_on_time_rate": 1.0,
+        "seed": 1043
+      },
+      {
+        "arrivals": 21,
+        "completion_gap": 0,
+        "exact_on_time_rate": 1.0,
+        "full_on_time_rate": 1.0,
+        "seed": 1044
+      },
+      {
+        "arrivals": 25,
+        "completion_gap": 0,
+        "exact_on_time_rate": 1.0,
+        "full_on_time_rate": 1.0,
+        "seed": 1045
+      },
+      {
+        "arrivals": 26,
+        "completion_gap": 0,
+        "exact_on_time_rate": 1.0,
+        "full_on_time_rate": 1.0,
+        "seed": 1046
+      },
+      {
+        "arrivals": 28,
+        "completion_gap": 0,
+        "exact_on_time_rate": 1.0,
+        "full_on_time_rate": 1.0,
+        "seed": 1047
+      },
+      {
+        "arrivals": 23,
+        "completion_gap": 0,
+        "exact_on_time_rate": 1.0,
+        "full_on_time_rate": 1.0,
+        "seed": 1048
+      },
+      {
+        "arrivals": 26,
+        "completion_gap": 0,
+        "exact_on_time_rate": 1.0,
+        "full_on_time_rate": 1.0,
+        "seed": 1049
+      }
+    ],
+    "initializer_status_counts": {
+      "optimal": 500
+    },
+    "max_completion_gap": 0,
+    "mean_completion_gap": 0.0,
+    "optimal_slot_fraction": 1.0,
+    "optimality_metric": "completed task count per slot",
+    "run_id": "confirmatory-exact",
+    "search_termination_counts": {
+      "local_optimum": 500
+    },
+    "seeds": [
+      1000,
+      1001,
+      1002,
+      1003,
+      1004,
+      1005,
+      1006,
+      1007,
+      1008,
+      1009,
+      1010,
+      1011,
+      1012,
+      1013,
+      1014,
+      1015,
+      1016,
+      1017,
+      1018,
+      1019,
+      1020,
+      1021,
+      1022,
+      1023,
+      1024,
+      1025,
+      1026,
+      1027,
+      1028,
+      1029,
+      1030,
+      1031,
+      1032,
+      1033,
+      1034,
+      1035,
+      1036,
+      1037,
+      1038,
+      1039,
+      1040,
+      1041,
+      1042,
+      1043,
+      1044,
+      1045,
+      1046,
+      1047,
+      1048,
+      1049
+    ]
+  },
+  "gates": {
+    "constraint_violations_zero": true,
+    "exact_search_complete": true,
+    "full_beats_predeclared_strong_baseline": true,
+    "innovation1_acceptance_ci_positive": true,
+    "innovation1_cross_ci_positive": true,
+    "innovation2_deadline_ci_positive": true,
+    "n20_runtime_p95_below_one_second": true
+  },
+  "validation": {
+    "main": {
+      "cpu_budget_violations": 0,
+      "initializer_failures": 0,
+      "methods": [
+        "exchange_stable",
+        "fair_ofdma",
+        "full",
+        "greedy",
+        "ia_greedy",
+        "ilp",
+        "intra_global",
+        "local_only"
+      ],
+      "search_nonconvergence": 0,
+      "seeds": [
+        1000,
+        1001,
+        1002,
+        1003,
+        1004,
+        1005,
+        1006,
+        1007,
+        1008,
+        1009,
+        1010,
+        1011,
+        1012,
+        1013,
+        1014,
+        1015,
+        1016,
+        1017,
+        1018,
+        1019,
+        1020,
+        1021,
+        1022,
+        1023,
+        1024,
+        1025,
+        1026,
+        1027,
+        1028,
+        1029,
+        1030,
+        1031,
+        1032,
+        1033,
+        1034,
+        1035,
+        1036,
+        1037,
+        1038,
+        1039,
+        1040,
+        1041,
+        1042,
+        1043,
+        1044,
+        1045,
+        1046,
+        1047,
+        1048,
+        1049
+      ],
+      "sic_violations": 0,
+      "unique_tasks": 43107
+    },
+    "pairing": {
+      "cpu_budget_violations": 0,
+      "initializer_failures": 0,
+      "methods": [
+        "cross_bilateral",
+        "full",
+        "intra_bilateral",
+        "intra_global"
+      ],
+      "search_nonconvergence": 0,
+      "seeds": [
+        1000,
+        1001,
+        1002,
+        1003,
+        1004,
+        1005,
+        1006,
+        1007,
+        1008,
+        1009,
+        1010,
+        1011,
+        1012,
+        1013,
+        1014,
+        1015,
+        1016,
+        1017,
+        1018,
+        1019,
+        1020,
+        1021,
+        1022,
+        1023,
+        1024,
+        1025,
+        1026,
+        1027,
+        1028,
+        1029,
+        1030,
+        1031,
+        1032,
+        1033,
+        1034,
+        1035,
+        1036,
+        1037,
+        1038,
+        1039,
+        1040,
+        1041,
+        1042,
+        1043,
+        1044,
+        1045,
+        1046,
+        1047,
+        1048,
+        1049
+      ],
+      "sic_violations": 0,
+      "unique_tasks": 43107
+    },
+    "resource": {
+      "cpu_budget_violations": 0,
+      "initializer_failures": 0,
+      "methods": [
+        "full",
+        "full_crossing",
+        "full_fixed_half"
+      ],
+      "search_nonconvergence": 0,
+      "seeds": [
+        1000,
+        1001,
+        1002,
+        1003,
+        1004,
+        1005,
+        1006,
+        1007,
+        1008,
+        1009,
+        1010,
+        1011,
+        1012,
+        1013,
+        1014,
+        1015,
+        1016,
+        1017,
+        1018,
+        1019,
+        1020,
+        1021,
+        1022,
+        1023,
+        1024,
+        1025,
+        1026,
+        1027,
+        1028,
+        1029,
+        1030,
+        1031,
+        1032,
+        1033,
+        1034,
+        1035,
+        1036,
+        1037,
+        1038,
+        1039,
+        1040,
+        1041,
+        1042,
+        1043,
+        1044,
+        1045,
+        1046,
+        1047,
+        1048,
+        1049
+      ],
+      "sic_violations": 0,
+      "unique_tasks": 43107
+    }
+  }
+}

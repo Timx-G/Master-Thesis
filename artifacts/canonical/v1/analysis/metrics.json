@@ -1,0 +1,143 @@
+{
+  "main": {
+    "exchange_stable": {
+      "cpu_utilization": 0.33577886171047744,
+      "drop_rate": 0.020853674593597514,
+      "jain_user_on_time": 0.9992564106089964,
+      "mean_completed_delay_s": 0.6841176735805198,
+      "on_time_rate": 0.9791463254064026,
+      "runtime_p50_s": 0.016236856999739757,
+      "runtime_p95_s": 0.03013805484970362
+    },
+    "fair_ofdma": {
+      "cpu_utilization": 0.3161017696955687,
+      "drop_rate": 0.024786477229129716,
+      "jain_user_on_time": 0.998597234784535,
+      "mean_completed_delay_s": 0.6836507816446168,
+      "on_time_rate": 0.9752135227708701,
+      "runtime_p50_s": 0.000346468000088862,
+      "runtime_p95_s": 0.0006328181002118072
+    },
+    "full": {
+      "cpu_utilization": 0.3433403733013413,
+      "drop_rate": 0.018946349564601797,
+      "jain_user_on_time": 0.999445737467962,
+      "mean_completed_delay_s": 0.6843450087720043,
+      "on_time_rate": 0.9810536504353982,
+      "runtime_p50_s": 0.01815044700015278,
+      "runtime_p95_s": 0.0409258339500866
+    },
+    "greedy": {
+      "cpu_utilization": 0.3240548392576574,
+      "drop_rate": 0.05135180760903903,
+      "jain_user_on_time": 0.9936838451997037,
+      "mean_completed_delay_s": 0.6803795874926378,
+      "on_time_rate": 0.9486481923909609,
+      "runtime_p50_s": 0.0004543090001334349,
+      "runtime_p95_s": 0.0008207839997339761
+    },
+    "ia_greedy": {
+      "cpu_utilization": 0.36610288683557246,
+      "drop_rate": 0.023866033563237455,
+      "jain_user_on_time": 0.999070936090244,
+      "mean_completed_delay_s": 0.6837578457008319,
+      "on_time_rate": 0.9761339664367625,
+      "runtime_p50_s": 0.003200335500196161,
+      "runtime_p95_s": 0.010401546249840977
+    },
+    "ilp": {
+      "cpu_utilization": 0.32203692452252924,
+      "drop_rate": 0.031912304218551915,
+      "jain_user_on_time": 0.998444561578262,
+      "mean_completed_delay_s": 0.6827917813687783,
+      "on_time_rate": 0.9680876957814482,
+      "runtime_p50_s": 0.01354262000018025,
+      "runtime_p95_s": 0.0242555382997125
+    },
+    "intra_global": {
+      "cpu_utilization": 0.3388304926061384,
+      "drop_rate": 0.01943328113324924,
+      "jain_user_on_time": 0.9994215940429555,
+      "mean_completed_delay_s": 0.6842879921325341,
+      "on_time_rate": 0.980566718866751,
+      "runtime_p50_s": 0.016690482000058182,
+      "runtime_p95_s": 0.032530797900039946
+    },
+    "local_only": {
+      "cpu_utilization": 0.0,
+      "drop_rate": 0.5605780830375103,
+      "jain_user_on_time": 0.9707397820299445,
+      "mean_completed_delay_s": 0.5417017573287372,
+      "on_time_rate": 0.43942191696248967,
+      "runtime_p50_s": 8.05014999514242e-05,
+      "runtime_p95_s": 0.00019371609967038243
+    }
+  },
+  "pairing": {
+    "cross_bilateral": {
+      "cpu_utilization": 0.33938478793569943,
+      "drop_rate": 0.020125791749630285,
+      "jain_user_on_time": 0.9993071101422355,
+      "mean_completed_delay_s": 0.6842066002865862,
+      "on_time_rate": 0.9798742082503696,
+      "runtime_p50_s": 0.017428980500426405,
+      "runtime_p95_s": 0.03508729004981888
+    },
+    "full": {
+      "cpu_utilization": 0.3433403733013413,
+      "drop_rate": 0.018946349564601797,
+      "jain_user_on_time": 0.999445737467962,
+      "mean_completed_delay_s": 0.6843450087720043,
+      "on_time_rate": 0.9810536504353982,
+      "runtime_p50_s": 0.018224450999696273,
+      "runtime_p95_s": 0.04174255985001309
+    },
+    "intra_bilateral": {
+      "cpu_utilization": 0.33577886171047744,
+      "drop_rate": 0.020853674593597514,
+      "jain_user_on_time": 0.9992564106089964,
+      "mean_completed_delay_s": 0.6841176735805198,
+      "on_time_rate": 0.9791463254064026,
+      "runtime_p50_s": 0.016448539500061088,
+      "runtime_p95_s": 0.030692548350270955
+    },
+    "intra_global": {
+      "cpu_utilization": 0.3388304926061384,
+      "drop_rate": 0.01943328113324924,
+      "jain_user_on_time": 0.9994215940429555,
+      "mean_completed_delay_s": 0.6842879921325341,
+      "on_time_rate": 0.980566718866751,
+      "runtime_p50_s": 0.016835111499858613,
+      "runtime_p95_s": 0.03277213740000207
+    }
+  },
+  "resource": {
+    "full": {
+      "cpu_utilization": 0.3433403733013413,
+      "drop_rate": 0.018946349564601797,
+      "jain_user_on_time": 0.999445737467962,
+      "mean_completed_delay_s": 0.6843450087720043,
+      "on_time_rate": 0.9810536504353982,
+      "runtime_p50_s": 0.018065327999920555,
+      "runtime_p95_s": 0.04131361474983351
+    },
+    "full_crossing": {
+      "cpu_utilization": 0.8258999999999997,
+      "drop_rate": 0.10584415693858715,
+      "jain_user_on_time": 0.9966323812634974,
+      "mean_completed_delay_s": 0.5518920258395437,
+      "on_time_rate": 0.8941558430614128,
+      "runtime_p50_s": 0.01800110050044168,
+      "runtime_p95_s": 0.04154005599998529
+    },
+    "full_fixed_half": {
+      "cpu_utilization": 0.8258999999999997,
+      "drop_rate": 0.238660811530204,
+      "jain_user_on_time": 0.9881455541883681,
+      "mean_completed_delay_s": 0.5669731359726911,
+      "on_time_rate": 0.7613391884697961,
+      "runtime_p50_s": 0.01816578350008058,
+      "runtime_p95_s": 0.04080420709947248
+    }
+  }
+}

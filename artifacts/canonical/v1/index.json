@@ -1,0 +1,57 @@
+{
+  "analysis": "analysis",
+  "runs": {
+    "exact": "runs/exact",
+    "main": "runs/main",
+    "pairing": "runs/pairing",
+    "resource": "runs/resource"
+  },
+  "schema_version": 1,
+  "suites": {
+    "mechanism": {
+      "coupling0": "suites/mechanism/coupling0",
+      "coupling05": "suites/mechanism/coupling05",
+      "coupling1": "suites/mechanism/coupling1"
+    },
+    "robustness": {
+      "cpu2": "suites/robustness/cpu2",
+      "cpu4": "suites/robustness/cpu4",
+      "cpu8": "suites/robustness/cpu8",
+      "csi0": "suites/robustness/csi0",
+      "csi05": "suites/robustness/csi05",
+      "csi10": "suites/robustness/csi10",
+      "csi20": "suites/robustness/csi20",
+      "eps0": "suites/robustness/eps0",
+      "eps02": "suites/robustness/eps02",
+      "eps05": "suites/robustness/eps05",
+      "eps10": "suites/robustness/eps10",
+      "load_default": "suites/robustness/load_default",
+      "load_heavy": "suites/robustness/load_heavy",
+      "load_light": "suites/robustness/load_light",
+      "nf10": "suites/robustness/nf10",
+      "nf3": "suites/robustness/nf3",
+      "nf7": "suites/robustness/nf7",
+      "sic0": "suites/robustness/sic0",
+      "sic3": "suites/robustness/sic3",
+      "sic5": "suites/robustness/sic5",
+      "sicm3": "suites/robustness/sicm3",
+      "t06": "suites/robustness/t06",
+      "t08": "suites/robustness/t08",
+      "t10": "suites/robustness/t10"
+    },
+    "scalability": {
+      "k1": "suites/scalability/k1",
+      "k2": "suites/scalability/k2",
+      "k3": "suites/scalability/k3",
+      "k4": "suites/scalability/k4",
+      "k5": "suites/scalability/k5",
+      "n10": "suites/scalability/n10",
+      "n15": "suites/scalability/n15",
+      "n20": "suites/scalability/n20",
+      "n25": "suites/scalability/n25",
+      "n30": "suites/scalability/n30",
+      "n40": "suites/scalability/n40",
+      "n50": "suites/scalability/n50"
+    }
+  }
+}

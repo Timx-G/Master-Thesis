@@ -1,0 +1,8 @@
+{
+  "inputs": {
+    "exact": "artifacts/runs/confirmatory-v1/exact",
+    "main": "artifacts/runs/confirmatory-v1/main",
+    "pairing": "artifacts/runs/confirmatory-v1/pairing",
+    "resource": "artifacts/runs/confirmatory-v1/resource"
+  }
+}
