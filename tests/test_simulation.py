@@ -1,10 +1,17 @@
 import numpy as np
 import pytest
 
-from uav_mec.domain import ExperimentTrace, Schedule, SlotSnapshot, Task
+from uav_mec.domain import (
+    AllocationDecision,
+    ExperimentTrace,
+    Schedule,
+    SlotOutcome,
+    SlotSnapshot,
+    Task,
+)
 from uav_mec.evaluation import EvaluationConfig
 from uav_mec.model import ScenarioConfig
-from uav_mec.simulation import run_episode
+from uav_mec.simulation import run_episode, run_outcome_episode
 from uav_mec.trace import generate_trace
 
 
@@ -59,3 +66,28 @@ def test_episode_rejects_every_repeated_task_id(placement):
 
     with pytest.raises(ValueError, match="repeats a task_id"):
         run_episode(trace, lambda snapshot: Schedule(), cfg, evaluation_config(cfg))
+
+
+def test_outcome_runner_rejects_a_method_that_changes_arrival_accounting():
+    task = Task(1, 0, 0, 1e6, 1.4e9, 0.8, 1e9)
+    trace = ExperimentTrace(
+        123,
+        (SlotSnapshot(0, (task,), np.ones((1, 1)), 1),),
+    )
+    wrong = SlotOutcome(0, (), (), (), (), (), 0.0, 0.0)
+
+    with pytest.raises(ValueError, match="arrived_task_ids"):
+        run_outcome_episode(trace, lambda snapshot: wrong)
+
+
+def test_outcome_runner_rejects_duplicate_completion_ids():
+    task = Task(1, 0, 0, 1e6, 0.4e9, 0.8, 1e9)
+    trace = ExperimentTrace(
+        123,
+        (SlotSnapshot(0, (task,), np.ones((1, 1)), 1),),
+    )
+    decision = AllocationDecision(1, 0.0, 0.0, True, 0.4, 0.4, "local")
+    wrong = SlotOutcome(0, (1,), (1, 1), (), (decision,), (), 0.4, 0.0)
+
+    with pytest.raises(ValueError, match="completion partition"):
+        run_outcome_episode(trace, lambda snapshot: wrong)
