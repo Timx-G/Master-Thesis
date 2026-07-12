@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from itertools import combinations
+from typing import Literal
 
 import numpy as np
 from scipy.optimize import Bounds, LinearConstraint, milp
@@ -16,7 +17,7 @@ from .evaluation import (
     evaluate_schedule,
 )
 from .model import NOMAChannel
-from .schedule import normalize_roles
+from .schedule import normalize_roles, validate_schedule
 
 
 class InitializationError(RuntimeError):
@@ -222,3 +223,156 @@ def build_initial_schedule(
     )
     evaluate_schedule(snapshot, repaired, channel, cfg)
     return InitializationResult(repaired, "optimal")
+
+
+MoveType = Literal["replace", "position", "cross"]
+
+
+@dataclass(frozen=True, slots=True)
+class Neighbor:
+    schedule: Schedule
+    move_type: MoveType
+    affected_blocks: tuple[tuple[int, int], ...]
+
+
+def _with_task(
+    entry: ScheduleEntry,
+    task_id: int,
+    user_id: int,
+) -> ScheduleEntry:
+    return ScheduleEntry(
+        task_id,
+        user_id,
+        entry.serving_uav,
+        entry.subcarrier,
+        entry.noma_role,
+    )
+
+
+def _nearest_uav(snapshot: SlotSnapshot, task_id: int) -> int:
+    row = next(
+        row
+        for row, task in enumerate(snapshot.tasks)
+        if task.task_id == task_id
+    )
+    return int(np.asarray(snapshot.channel_gains[row]).argmax())
+
+
+def _normalized_neighbor(
+    entries: list[ScheduleEntry],
+    move_type: MoveType,
+    affected: set[tuple[int, int]],
+    snapshot: SlotSnapshot,
+    n_subcarriers: int,
+) -> Neighbor:
+    schedule = normalize_roles(Schedule(tuple(entries)), snapshot)
+    validate_schedule(schedule, snapshot, n_subcarriers)
+    return Neighbor(schedule, move_type, tuple(sorted(affected)))
+
+
+def generate_neighbors(
+    schedule: Schedule,
+    snapshot: SlotSnapshot,
+    n_subcarriers: int,
+    allow_cross_uav: bool,
+) -> tuple[Neighbor, ...]:
+    """Enumerate canonical Replace, Position, and optional CrossUAV moves."""
+    validate_schedule(schedule, snapshot, n_subcarriers)
+    scheduled_ids = {entry.task_id for entry in schedule.entries}
+    unscheduled = [
+        task
+        for task in snapshot.tasks
+        if task.requires_offload and task.task_id not in scheduled_ids
+    ]
+    neighbors: list[Neighbor] = []
+    entries = list(schedule.entries)
+
+    for index, old in enumerate(entries):
+        for task in unscheduled:
+            if _nearest_uav(snapshot, task.task_id) != old.serving_uav:
+                continue
+            changed = entries.copy()
+            changed[index] = _with_task(old, task.task_id, task.user_id)
+            neighbors.append(
+                _normalized_neighbor(
+                    changed,
+                    "replace",
+                    {(old.serving_uav, old.subcarrier)},
+                    snapshot,
+                    n_subcarriers,
+                )
+            )
+
+    for left in range(len(entries)):
+        for right in range(left + 1, len(entries)):
+            first, second = entries[left], entries[right]
+            if (
+                first.serving_uav != second.serving_uav
+                or first.subcarrier == second.subcarrier
+            ):
+                continue
+            changed = entries.copy()
+            changed[left] = _with_task(
+                first,
+                second.task_id,
+                second.user_id,
+            )
+            changed[right] = _with_task(
+                second,
+                first.task_id,
+                first.user_id,
+            )
+            neighbors.append(
+                _normalized_neighbor(
+                    changed,
+                    "position",
+                    {
+                        (first.serving_uav, first.subcarrier),
+                        (second.serving_uav, second.subcarrier),
+                    },
+                    snapshot,
+                    n_subcarriers,
+                )
+            )
+
+    if allow_cross_uav:
+        for left in range(len(entries)):
+            for right in range(left + 1, len(entries)):
+                first, second = entries[left], entries[right]
+                if first.serving_uav == second.serving_uav:
+                    continue
+                changed = entries.copy()
+                changed[left] = _with_task(
+                    first,
+                    second.task_id,
+                    second.user_id,
+                )
+                changed[right] = _with_task(
+                    second,
+                    first.task_id,
+                    first.user_id,
+                )
+                neighbors.append(
+                    _normalized_neighbor(
+                        changed,
+                        "cross",
+                        {
+                            (first.serving_uav, first.subcarrier),
+                            (second.serving_uav, second.subcarrier),
+                        },
+                        snapshot,
+                        n_subcarriers,
+                    )
+                )
+
+    ordered = sorted(
+        neighbors,
+        key=lambda neighbor: (
+            neighbor.move_type,
+            neighbor.schedule.stable_key(),
+        ),
+    )
+    unique: dict[tuple, Neighbor] = {}
+    for neighbor in ordered:
+        unique.setdefault(neighbor.schedule.stable_key(), neighbor)
+    return tuple(unique.values())
