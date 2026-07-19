@@ -160,8 +160,17 @@ def test_true_sic_outage_is_counted_as_a_miss_instead_of_crashing():
 
     assert outcome.completed_task_ids == ()
     assert outcome.missed_task_ids == (1, 2)
+    assert outcome.sic_outage_task_ids == (1, 2)
+    assert outcome.plan_key
     assert all(not record.sic_feasible for record in outcome.rates)
     assert {decision.reason for decision in outcome.decisions} == {"sic_outage"}
+    assert all(decision.alpha > 0.0 for decision in outcome.decisions)
+    assert all(decision.cpu_hz > 0.0 for decision in outcome.decisions)
+    assert {
+        (layer.task_id, layer.decode_rank)
+        for record in outcome.rates
+        for layer in record.sic_layers
+    } == {(1, 0), (2, 1)}
 
 
 @pytest.mark.parametrize("error", [-0.1, float("nan")])

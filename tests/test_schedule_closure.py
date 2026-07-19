@@ -6,10 +6,12 @@ import pytest
 from uav_mec.closure import (
     ClosedExecutableSchedule,
     close_assignment,
+    freeze_plan,
     rate_raw_assignment,
 )
 from uav_mec.domain import (
     ChannelBasis,
+    FrozenSlotPlan,
     Schedule,
     ScheduleEntry,
     SlotSnapshot,
@@ -114,3 +116,35 @@ def test_closure_rejects_a_semantic_fingerprint_mismatch() -> None:
             channel,
             replace(cfg, cpu_per_uav_hz=cfg.cpu_per_uav_hz * 2.0),
         )
+
+
+def test_freeze_plan_accepts_only_planning_basis_closure() -> None:
+    snapshot, raw, channel, cfg = _overloaded_case()
+    planning = close_assignment(
+        snapshot,
+        rate_raw_assignment(
+            snapshot,
+            raw,
+            channel,
+            cfg,
+            channel_basis=ChannelBasis.PLANNING,
+        ),
+        channel,
+        cfg,
+    )
+    plan = freeze_plan(planning)
+
+    assert isinstance(plan, FrozenSlotPlan)
+    assert plan.schedule == planning.schedule
+    assert plan.planning_rates == planning.rate_snapshot.rates
+    assert plan.semantic_fingerprint == planning.rate_snapshot.semantic_fingerprint
+
+    realized = replace(
+        planning,
+        rate_snapshot=replace(
+            planning.rate_snapshot,
+            channel_basis=ChannelBasis.REALIZED,
+        ),
+    )
+    with pytest.raises(ValueError, match="planning-basis"):
+        freeze_plan(realized)

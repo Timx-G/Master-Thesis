@@ -4,8 +4,13 @@ from dataclasses import replace
 import numpy as np
 import pytest
 
-from uav_mec.domain import Schedule, ScheduleEntry, SlotSnapshot, Task
-from uav_mec.evaluation import EvaluationConfig, evaluate_schedule
+from uav_mec.closure import close_assignment, freeze_plan, rate_raw_assignment
+from uav_mec.domain import ChannelBasis, Schedule, ScheduleEntry, SlotSnapshot, Task
+from uav_mec.evaluation import (
+    EvaluationConfig,
+    evaluate_frozen_plan,
+    evaluate_schedule,
+)
 from uav_mec.model import ChannelConfig, NOMAChannel
 from uav_mec.resource_allocation import (
     AllocationPolicy,
@@ -194,3 +199,49 @@ def test_evaluation_config_rejects_raw_policy_strings():
             4e9,
             allocation_policy="deadline",
         )
+
+
+def test_realized_replay_preserves_fixed_policy_cpu_decisions() -> None:
+    task = Task(1, 0, 0, 1e6, 1.2e9, 0.8, 1e9)
+    snapshot = SlotSnapshot(
+        0,
+        (task,),
+        np.array([[2e-8]]),
+        1,
+        estimated_channel_gains=np.array([[1e-7]]),
+    )
+    schedule = Schedule((ScheduleEntry(1, 0, 0, 0, "solo"),))
+    cfg = EvaluationConfig(
+        1,
+        5e6,
+        0.2,
+        0.02,
+        0.01,
+        4e9,
+        allocation_policy=AllocationPolicy.FIXED_HALF_EQUAL,
+    )
+    channel = NOMAChannel(ChannelConfig(), 100.0)
+    closed = close_assignment(
+        snapshot,
+        rate_raw_assignment(
+            snapshot,
+            schedule,
+            channel,
+            cfg,
+            channel_basis=ChannelBasis.PLANNING,
+        ),
+        channel,
+        cfg,
+    )
+
+    realized = evaluate_frozen_plan(
+        snapshot,
+        freeze_plan(closed),
+        channel,
+        cfg,
+    )
+
+    planned = closed.allocation.decisions[0]
+    replayed = realized.decisions[0]
+    assert replayed.alpha == planned.alpha == 0.5
+    assert replayed.cpu_hz == planned.cpu_hz

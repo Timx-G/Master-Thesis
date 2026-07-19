@@ -1,12 +1,16 @@
+import inspect
+
 import numpy as np
 import pytest
 
+from uav_mec.closure import close_assignment, freeze_plan, rate_raw_assignment
 from uav_mec.domain import ChannelBasis, Schedule, ScheduleEntry, SlotSnapshot, Task
 from uav_mec.evaluation import (
     EvaluationConfig,
     InfeasibleScheduleError,
     build_outcome_from_rates,
     compute_rate_records,
+    evaluate_frozen_plan,
     evaluate_schedule,
 )
 from uav_mec.externality import aggregate_victim_link_exposure
@@ -27,6 +31,84 @@ def config(
         gamma_sic_min=gamma,
         cpu_per_uav_hz=cpu_per_uav_hz,
     )
+
+
+def _basis_case() -> tuple[SlotSnapshot, Schedule, NOMAChannel, EvaluationConfig]:
+    tasks = (
+        Task(
+            1,
+            0,
+            0,
+            1e6,
+            1.4e9,
+            0.8,
+            1e9,
+            slot_duration_s=1.0,
+            result_ratio=0.0,
+        ),
+        Task(
+            2,
+            1,
+            0,
+            1e6,
+            1.4e9,
+            0.8,
+            1e9,
+            slot_duration_s=1.0,
+            result_ratio=0.0,
+        ),
+    )
+    snapshot = SlotSnapshot(
+        0,
+        tasks,
+        np.array([[1e-9], [8e-9]]),
+        1,
+        estimated_channel_gains=np.array([[9e-9], [2e-9]]),
+    )
+    schedule = Schedule(
+        (
+            ScheduleEntry(1, 0, 0, 0, "strong"),
+            ScheduleEntry(2, 1, 0, 0, "weak"),
+        )
+    )
+    evaluation = EvaluationConfig(
+        n_subcarriers=1,
+        bandwidth_hz=5e6,
+        transmit_power_w=0.2,
+        sic_residual=0.02,
+        gamma_sic_min=0.01,
+        cpu_per_uav_hz=4e9,
+    )
+    return snapshot, schedule, NOMAChannel(ChannelConfig(), 100.0), evaluation
+
+
+def test_realized_replay_never_reallocates_or_recloses() -> None:
+    snapshot, schedule, channel, evaluation = _basis_case()
+    rated = rate_raw_assignment(
+        snapshot,
+        schedule,
+        channel,
+        evaluation,
+        channel_basis=ChannelBasis.PLANNING,
+    )
+    plan = freeze_plan(close_assignment(snapshot, rated, channel, evaluation))
+    planned_decisions = tuple(
+        (decision.task_id, decision.alpha, decision.cpu_hz)
+        for decision in plan.allocation.decisions
+    )
+    replay_source = inspect.getsource(evaluate_frozen_plan)
+    assert "allocate_with_policy" not in replay_source
+    assert "close_assignment" not in replay_source
+    realized = evaluate_frozen_plan(snapshot, plan, channel, evaluation)
+    assert realized.plan_key == plan.stable_key()
+    assert realized.schedule == plan.schedule
+    assert tuple(
+        (decision.task_id, decision.alpha, decision.cpu_hz)
+        for decision in realized.decisions
+    ) == planned_decisions
+    assert {record.channel_basis for record in realized.rates} == {
+        ChannelBasis.REALIZED
+    }
 
 
 def test_evaluation_config_has_no_global_result_ratio() -> None:

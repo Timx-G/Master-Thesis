@@ -7,7 +7,14 @@ from collections import defaultdict
 from collections.abc import Mapping
 from dataclasses import dataclass
 
-from .domain import ChannelBasis, RateRecord, Schedule, SlotSnapshot, Task
+from .domain import (
+    ChannelBasis,
+    FrozenSlotPlan,
+    RateRecord,
+    Schedule,
+    SlotSnapshot,
+    Task,
+)
 from .evaluation import (
     EvaluationConfig,
     InfeasibleScheduleError,
@@ -60,6 +67,46 @@ class ClosedExecutableSchedule:
             self.rate_snapshot.semantic_fingerprint,
             self.allocation_policy.value,
         )
+
+
+def freeze_plan(closed: ClosedExecutableSchedule) -> FrozenSlotPlan:
+    """Seal one planning-basis executable schedule for realized replay."""
+    if not isinstance(closed, ClosedExecutableSchedule):
+        raise TypeError("closed must be a ClosedExecutableSchedule")
+    if closed.rate_snapshot.channel_basis is not ChannelBasis.PLANNING:
+        raise ValueError("only a planning-basis closed schedule can be frozen")
+    if closed.rate_snapshot.assignment != closed.schedule:
+        raise ValueError("closed schedule and planning rate snapshot disagree")
+
+    scheduled_ids = tuple(closed.schedule.task_ids)
+    rate_ids = tuple(sorted(record.task_id for record in closed.rate_snapshot.rates))
+    decision_ids = tuple(
+        sorted(decision.task_id for decision in closed.allocation.decisions)
+    )
+    admitted_ids = tuple(sorted(closed.allocation.completed_task_ids))
+    if not (
+        scheduled_ids == rate_ids == decision_ids == admitted_ids
+    ):
+        raise ValueError(
+            "closed schedule, rates, decisions, and admission must agree"
+        )
+    if any(
+        record.channel_basis is not ChannelBasis.PLANNING
+        for record in closed.rate_snapshot.rates
+    ):
+        raise ValueError("frozen planning rates must use the planning basis")
+    if any(
+        not decision.completed
+        for decision in closed.allocation.decisions
+    ):
+        raise ValueError("a frozen closed allocation must be executable")
+
+    return FrozenSlotPlan(
+        schedule=closed.schedule,
+        planning_rates=closed.rate_snapshot.rates,
+        allocation=closed.allocation,
+        semantic_fingerprint=closed.rate_snapshot.semantic_fingerprint,
+    )
 
 
 def rate_raw_assignment(

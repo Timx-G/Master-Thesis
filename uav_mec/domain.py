@@ -2,10 +2,13 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 from enum import Enum
 
 import numpy as np
+
+if TYPE_CHECKING:
+    from .resource_allocation import AllocationResult
 
 NomaRole = Literal["strong", "weak", "solo"]
 
@@ -296,6 +299,8 @@ class SlotOutcome:
     total_slack_s: float
     total_cross_interference_w: float
     runtime_s: float = 0.0
+    plan_key: tuple = ()
+    sic_outage_task_ids: tuple[int, ...] = ()
     aggregate_victim_link_exposure_w: float = field(init=False)
 
     def __post_init__(self) -> None:
@@ -304,6 +309,12 @@ class SlotOutcome:
         object.__setattr__(self, "missed_task_ids", tuple(self.missed_task_ids))
         object.__setattr__(self, "decisions", tuple(self.decisions))
         object.__setattr__(self, "rates", tuple(self.rates))
+        object.__setattr__(self, "plan_key", tuple(self.plan_key))
+        object.__setattr__(
+            self,
+            "sic_outage_task_ids",
+            tuple(self.sic_outage_task_ids),
+        )
         # Imported lazily to keep the domain records independent of the
         # certificate module at import time.  This is the active v2 metric;
         # ``total_cross_interference_w`` remains a compatibility field.
@@ -319,14 +330,57 @@ class SlotOutcome:
     def completed_count(self) -> int:
         return len(self.completed_task_ids)
 
+
+@dataclass(frozen=True, slots=True)
+class FrozenSlotPlan:
+    schedule: Schedule
+    planning_rates: tuple[RateRecord, ...]
+    allocation: AllocationResult
+    semantic_fingerprint: str
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "planning_rates", tuple(self.planning_rates))
+
+    def stable_key(self) -> tuple:
+        decisions = tuple(
+            (
+                row.task_id,
+                row.alpha.hex(),
+                row.cpu_hz.hex(),
+                row.completed,
+            )
+            for row in self.allocation.decisions
+        )
+        return (
+            self.schedule.stable_key(),
+            decisions,
+            self.semantic_fingerprint,
+        )
+
+
 @dataclass(frozen=True, slots=True)
 class RealizedSlotOutcome:
-    plan_key: tuple = ()
-    schedule: Schedule = Schedule()
-    decisions: tuple[AllocationDecision, ...] = ()
-    rates: tuple[RateRecord, ...] = ()
-    completed_task_ids: tuple[int, ...] = ()
-    sic_outage_task_ids: tuple[int, ...] = ()
+    plan_key: tuple
+    schedule: Schedule
+    decisions: tuple[AllocationDecision, ...]
+    rates: tuple[RateRecord, ...]
+    completed_task_ids: tuple[int, ...]
+    sic_outage_task_ids: tuple[int, ...]
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "plan_key", tuple(self.plan_key))
+        object.__setattr__(self, "decisions", tuple(self.decisions))
+        object.__setattr__(self, "rates", tuple(self.rates))
+        object.__setattr__(
+            self,
+            "completed_task_ids",
+            tuple(self.completed_task_ids),
+        )
+        object.__setattr__(
+            self,
+            "sic_outage_task_ids",
+            tuple(self.sic_outage_task_ids),
+        )
 
 
 @dataclass(frozen=True, slots=True)

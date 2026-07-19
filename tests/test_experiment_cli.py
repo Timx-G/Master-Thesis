@@ -45,6 +45,10 @@ def test_smoke_experiment_writes_complete_bundle(
     with (output / "slots.csv").open(newline="") as handle:
         slot_rows = list(csv.DictReader(handle))
     assert len(slot_rows) == 3 * 2 * 3
+    assert all(json.loads(row["plan_key"]) is not None for row in slot_rows)
+    assert all(
+        json.loads(row["sic_outage_task_ids"]) == [] for row in slot_rows
+    )
     assert all(int(row["sic_violations"]) == 0 for row in slot_rows)
     assert all(
         float(row["aggregate_victim_link_exposure_w"])
@@ -55,6 +59,9 @@ def test_smoke_experiment_writes_complete_bundle(
         "mean_aggregate_victim_link_exposure_w_by_seed" in values
         for values in summary["methods"].values()
     )
+    with (output / "tasks.csv").open(newline="") as handle:
+        task_rows = list(csv.DictReader(handle))
+    assert all("plan_key" in row and "sic_outage" in row for row in task_rows)
 
     manifest = json.loads((output / "manifest.json").read_text())
     assert manifest["config_sha256"] == hashlib.sha256(

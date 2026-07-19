@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import json
 import math
 import platform
 import subprocess
@@ -23,11 +24,12 @@ from .baselines_v2 import (
     ia_greedy_schedule,
     local_only_schedule,
 )
-from .closure import close_assignment, rate_raw_assignment
+from .closure import close_assignment, freeze_plan, rate_raw_assignment
 from .domain import ChannelBasis, Schedule, SlotOutcome, SlotSnapshot
 from .evaluation import (
     EvaluationConfig,
-    evaluate_realized_schedule,
+    build_outcome_from_realized,
+    evaluate_frozen_plan,
 )
 from .externality import aggregate_victim_link_exposure
 from .model import NOMAChannel, ScenarioConfig
@@ -220,12 +222,13 @@ def _slot_method(
             channel,
             target_evaluation,
         )
-        return evaluate_realized_schedule(
+        realized = evaluate_frozen_plan(
             snapshot,
-            closed.schedule,
+            freeze_plan(closed),
             channel,
             target_evaluation,
         )
+        return build_outcome_from_realized(snapshot, realized)
 
     def method(snapshot: SlotSnapshot) -> SlotOutcome:
         planning = snapshot
@@ -442,6 +445,16 @@ def run_definition(
                 aggregate_exposure_w = aggregate_victim_link_exposure(
                     outcome.rates
                 )
+                plan_key_json = json.dumps(
+                    _jsonable(outcome.plan_key),
+                    allow_nan=False,
+                    separators=(",", ":"),
+                )
+                outage_ids_json = json.dumps(
+                    list(outcome.sic_outage_task_ids),
+                    allow_nan=False,
+                    separators=(",", ":"),
+                )
                 decision_by_id = {
                     decision.task_id: decision
                     for decision in outcome.decisions
@@ -486,6 +499,10 @@ def run_definition(
                                 None if rate is None else rate.subcarrier
                             ),
                             "reason": decision.reason,
+                            "plan_key": plan_key_json,
+                            "sic_outage": (
+                                task_id in outcome.sic_outage_task_ids
+                            ),
                         }
                     )
                 slot_rows.append(
@@ -506,6 +523,8 @@ def run_definition(
                             not record.sic_feasible
                             for record in outcome.rates
                         ),
+                        "plan_key": plan_key_json,
+                        "sic_outage_task_ids": outage_ids_json,
                         "runtime_s": outcome.runtime_s,
                     }
                 )
@@ -597,6 +616,8 @@ def run_definition(
             "serving_uav",
             "subcarrier",
             "reason",
+            "plan_key",
+            "sic_outage",
         ),
     )
     writer.write_csv(
@@ -612,6 +633,8 @@ def run_definition(
             "cross_interference_w",
             "aggregate_victim_link_exposure_w",
             "sic_violations",
+            "plan_key",
+            "sic_outage_task_ids",
             "runtime_s",
         ),
     )

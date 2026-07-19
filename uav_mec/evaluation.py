@@ -13,7 +13,9 @@ from typing import TYPE_CHECKING
 
 from .domain import (
     AllocationDecision,
+    FrozenSlotPlan,
     RateRecord,
+    RealizedSlotOutcome,
     Schedule,
     ScheduleEntry,
     SlotOutcome,
@@ -22,12 +24,12 @@ from .domain import (
     SicLayerCheck,
 )
 from .externality import aggregate_victim_link_exposure
+from .latency import completion_delay_s
 from .model import NOMAChannel
 from .resource_allocation import AllocationPolicy, allocate_with_policy
 from .schedule import (
     ScheduleValidationError,
     normalize_roles,
-    serving_uav_by_task,
     validate_schedule,
 )
 
@@ -532,25 +534,53 @@ def evaluate_schedule(
     return build_outcome_from_closed(snapshot, closed)
 
 
-def evaluate_realized_schedule(
+def evaluate_frozen_plan(
     snapshot: SlotSnapshot,
-    planned_schedule: Schedule,
+    plan: FrozenSlotPlan,
     channel: NOMAChannel,
     cfg: EvaluationConfig,
     *,
     downlink_rates_bps: Mapping[int, float] | None = None,
-) -> SlotOutcome:
-    """Evaluate a planned schedule on truth, recording actual SIC outages.
+) -> RealizedSlotOutcome:
+    """Replay truth against a frozen plan without changing any plan decision."""
+    if not isinstance(plan, FrozenSlotPlan):
+        raise TypeError("plan must be a FrozenSlotPlan")
+    expected_fingerprint = semantic_fingerprint(
+        snapshot,
+        channel,
+        cfg,
+        ChannelBasis.PLANNING,
+        downlink_rates_bps=downlink_rates_bps,
+    )
+    if plan.semantic_fingerprint != expected_fingerprint:
+        raise ValueError("frozen plan semantic fingerprint mismatch")
 
-    The receiver may reorder a planned pair using its realized channel, but no
-    user association or resource-block decision is changed. A pair that still
-    violates the hard threshold is excluded from MEC allocation and counted as
-    a miss while its transmission remains in every other link's interference.
-    """
+    scheduled_ids = tuple(plan.schedule.task_ids)
+    planning_rate_ids = tuple(
+        sorted(record.task_id for record in plan.planning_rates)
+    )
+    decision_ids = tuple(
+        sorted(decision.task_id for decision in plan.allocation.decisions)
+    )
+    admitted_ids = tuple(sorted(plan.allocation.completed_task_ids))
+    if not (
+        scheduled_ids == planning_rate_ids == decision_ids == admitted_ids
+    ):
+        raise ValueError(
+            "frozen schedule, rates, decisions, and admission must agree"
+        )
+    if any(
+        record.channel_basis is not ChannelBasis.PLANNING
+        for record in plan.planning_rates
+    ):
+        raise ValueError("frozen planning rates must use the planning basis")
+    if any(not decision.completed for decision in plan.allocation.decisions):
+        raise ValueError("frozen allocation must contain executable decisions")
+
     try:
         rates = compute_rate_records(
             snapshot,
-            planned_schedule,
+            plan.schedule,
             channel,
             cfg,
             channel_basis=ChannelBasis.REALIZED,
@@ -558,61 +588,143 @@ def evaluate_realized_schedule(
     except ScheduleValidationError as exc:
         raise InfeasibleScheduleError(str(exc)) from exc
 
-    outage_ids = {
-        record.task_id for record in rates if not record.sic_feasible
-    }
-    if not outage_ids:
-        return build_outcome_from_rates(
-            snapshot,
-            serving_uav_by_task(planned_schedule),
-            rates,
-            cfg,
-            downlink_rates_bps=downlink_rates_bps,
+    rate_by_id = {record.task_id: record for record in rates}
+    if tuple(sorted(rate_by_id)) != scheduled_ids:
+        raise ValueError("realized rates must cover the frozen schedule exactly")
+    task_by_id = {task.task_id: task for task in snapshot.tasks}
+    outage_ids = tuple(
+        sorted(record.task_id for record in rates if not record.sic_feasible)
+    )
+    outage_id_set = set(outage_ids)
+    decisions = []
+    for planned in plan.allocation.decisions:
+        task = task_by_id[planned.task_id]
+        rate = rate_by_id[planned.task_id]
+        try:
+            delay_s = completion_delay_s(
+                task,
+                planned.alpha,
+                rate.rate_bps,
+                planned.cpu_hz,
+                None
+                if downlink_rates_bps is None
+                else downlink_rates_bps.get(planned.task_id),
+            )
+        except ValueError:
+            delay_s = None
+
+        if planned.task_id in outage_id_set:
+            completed = False
+            slack_s = 0.0
+            reason = "sic_outage"
+        elif delay_s is None or not math.isfinite(delay_s):
+            completed = False
+            slack_s = 0.0
+            reason = "invalid_realized_rate"
+        elif delay_s > task.deadline_s:
+            completed = False
+            slack_s = 0.0
+            reason = "realized_deadline"
+        else:
+            completed = True
+            slack_s = task.deadline_s - delay_s
+            reason = planned.reason
+        decisions.append(
+            AllocationDecision(
+                task_id=planned.task_id,
+                alpha=planned.alpha,
+                cpu_hz=planned.cpu_hz,
+                completed=completed,
+                delay_s=delay_s,
+                slack_s=slack_s,
+                reason=reason,
+            )
         )
 
-    realized_uav = serving_uav_by_task(planned_schedule)
-    feasible_rates = tuple(
-        record for record in rates if record.task_id not in outage_ids
+    ordered_decisions = tuple(
+        sorted(decisions, key=lambda decision: decision.task_id)
     )
-    feasible_uav = {
-        task_id: uav
-        for task_id, uav in realized_uav.items()
-        if task_id not in outage_ids
+    return RealizedSlotOutcome(
+        plan_key=plan.stable_key(),
+        schedule=plan.schedule,
+        decisions=ordered_decisions,
+        rates=rates,
+        completed_task_ids=tuple(
+            decision.task_id
+            for decision in ordered_decisions
+            if decision.completed
+        ),
+        sic_outage_task_ids=outage_ids,
+    )
+
+
+def build_outcome_from_realized(
+    snapshot: SlotSnapshot,
+    realized: RealizedSlotOutcome,
+) -> SlotOutcome:
+    """Project scheduled replay decisions into one outcome per arrival."""
+    if not isinstance(realized, RealizedSlotOutcome):
+        raise TypeError("realized must be a RealizedSlotOutcome")
+    scheduled_ids = set(realized.schedule.task_ids)
+    rate_ids = {record.task_id for record in realized.rates}
+    scheduled_decisions = {
+        decision.task_id: decision for decision in realized.decisions
     }
-    base = build_outcome_from_rates(
-        snapshot,
-        feasible_uav,
-        feasible_rates,
-        cfg,
-        downlink_rates_bps=downlink_rates_bps,
-    )
-    decisions = tuple(
-        AllocationDecision(
-            decision.task_id,
-            0.0,
-            0.0,
-            False,
-            None,
-            0.0,
-            "sic_outage",
+    if (
+        len(rate_ids) != len(realized.rates)
+        or len(scheduled_decisions) != len(realized.decisions)
+        or scheduled_ids != rate_ids
+        or scheduled_ids != set(scheduled_decisions)
+    ):
+        raise ValueError(
+            "realized schedule, rates, and decisions must agree"
         )
-        if decision.task_id in outage_ids
-        else decision
-        for decision in base.decisions
-    )
+
+    task_by_id = {task.task_id: task for task in snapshot.tasks}
+    if not scheduled_ids <= set(task_by_id):
+        raise ValueError("realized schedule contains an unknown task")
+    decisions = dict(scheduled_decisions)
+    for task in snapshot.tasks:
+        if task.task_id in decisions:
+            continue
+        if task.requires_offload:
+            decisions[task.task_id] = AllocationDecision(
+                task.task_id,
+                0.0,
+                0.0,
+                False,
+                None,
+                0.0,
+                "unscheduled",
+            )
+        else:
+            decisions[task.task_id] = AllocationDecision(
+                task.task_id,
+                0.0,
+                0.0,
+                True,
+                task.local_delay_s,
+                task.deadline_s - task.local_delay_s,
+                "local",
+            )
+
+    ordered = tuple(decisions[task_id] for task_id in sorted(decisions))
+    rates = tuple(realized.rates)
     return SlotOutcome(
         slot_index=snapshot.slot_index,
-        arrived_task_ids=base.arrived_task_ids,
+        arrived_task_ids=tuple(sorted(task_by_id)),
         completed_task_ids=tuple(
-            decision.task_id for decision in decisions if decision.completed
+            decision.task_id for decision in ordered if decision.completed
         ),
         missed_task_ids=tuple(
-            decision.task_id for decision in decisions if not decision.completed
+            decision.task_id for decision in ordered if not decision.completed
         ),
-        decisions=decisions,
+        decisions=ordered,
         rates=rates,
         total_slack_s=math.fsum(
-            decision.slack_s for decision in decisions if decision.completed
+            decision.slack_s for decision in ordered if decision.completed
         ),
         total_cross_interference_w=aggregate_victim_link_exposure(rates),
+        plan_key=realized.plan_key,
+        sic_outage_task_ids=realized.sic_outage_task_ids,
     )
