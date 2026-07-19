@@ -5,7 +5,12 @@ from pathlib import Path
 
 import pytest
 
-from uav_mec.experiment import load_definition, run_experiment
+import numpy as np
+
+from uav_mec.domain import SlotSnapshot, Task
+from uav_mec.evaluation import EvaluationConfig
+from uav_mec.experiment import _slot_method, load_definition, run_experiment
+from uav_mec.model import ScenarioConfig
 
 
 def test_smoke_experiment_writes_complete_bundle(tmp_path: Path):
@@ -50,6 +55,41 @@ def test_smoke_experiment_writes_complete_bundle(tmp_path: Path):
     ).hexdigest()
     checksum_lines = (output / "checksums.sha256").read_text().splitlines()
     assert len(checksum_lines) == 5
+
+
+def test_experiment_closes_raw_baseline_before_realized_evaluation() -> None:
+    tasks = tuple(
+        Task(i, i, 0, 1e6, 1.6e9, 0.8, 0.5e9)
+        for i in (1, 2)
+    )
+    snapshot = SlotSnapshot(
+        0,
+        tasks,
+        np.array([[9e-8], [3e-8]]),
+        1,
+    )
+    scenario = ScenarioConfig(num_uavs=1, n_subcarriers=1)
+    evaluation = EvaluationConfig(
+        1,
+        5e6,
+        0.2,
+        0.02,
+        0.01,
+        1.2e9,
+    )
+
+    outcome = _slot_method(
+        "greedy",
+        scenario,
+        evaluation,
+        20,
+        [],
+    )(snapshot)
+
+    assert {record.task_id for record in outcome.rates} == set(
+        outcome.completed_task_ids
+    )
+    assert len(outcome.rates) < 2
 
 
 @pytest.mark.parametrize(

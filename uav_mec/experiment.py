@@ -23,7 +23,8 @@ from .baselines_v2 import (
     ia_greedy_schedule,
     local_only_schedule,
 )
-from .domain import Schedule, SlotOutcome, SlotSnapshot
+from .closure import close_assignment, rate_raw_assignment
+from .domain import ChannelBasis, Schedule, SlotOutcome, SlotSnapshot
 from .evaluation import (
     EvaluationConfig,
     evaluate_realized_schedule,
@@ -202,9 +203,21 @@ def _slot_method(
         snapshot: SlotSnapshot,
         schedule: Schedule,
     ) -> SlotOutcome:
+        closed = close_assignment(
+            snapshot,
+            rate_raw_assignment(
+                snapshot,
+                schedule,
+                channel,
+                target_evaluation,
+                channel_basis=ChannelBasis.PLANNING,
+            ),
+            channel,
+            target_evaluation,
+        )
         return evaluate_realized_schedule(
             snapshot,
-            schedule,
+            closed.schedule,
             channel,
             target_evaluation,
         )

@@ -58,6 +58,46 @@ def test_replace_search_strictly_improves_and_converges():
     assert result.termination_reason == "local_optimum"
 
 
+def test_search_returns_a_closed_executable_schedule() -> None:
+    tasks = tuple(
+        Task(i, i, 0, 1e6, 1.6e9, 0.8, 0.5e9)
+        for i in (1, 2)
+    )
+    snapshot = SlotSnapshot(
+        0,
+        tasks,
+        np.array([[9e-8], [3e-8]]),
+        1,
+    )
+    initial = Schedule(
+        (
+            ScheduleEntry(1, 1, 0, 0, "strong"),
+            ScheduleEntry(2, 2, 0, 0, "weak"),
+        )
+    )
+    evaluation = EvaluationConfig(
+        1,
+        5e6,
+        0.2,
+        0.02,
+        0.01,
+        1.2e9,
+    )
+
+    result = optimize_schedule(
+        initial,
+        snapshot,
+        NOMAChannel(ChannelConfig(), 100.0),
+        evaluation,
+        SearchConfig(False, Acceptance.GLOBAL, 20),
+    )
+
+    assert set(result.schedule.task_ids) == set(
+        result.outcome.completed_task_ids
+    )
+    assert set(result.schedule.task_ids) < set(initial.task_ids)
+
+
 def test_search_reports_iteration_limit_after_accepting_last_allowed_move():
     snapshot, initial, evaluation = replace_case()
 

@@ -190,6 +190,10 @@ class Schedule:
             )
         )
 
+    @property
+    def task_ids(self) -> tuple[int, ...]:
+        return tuple(sorted(entry.task_id for entry in self.entries))
+
 
 @dataclass(frozen=True, slots=True, eq=False)
 class SlotSnapshot:

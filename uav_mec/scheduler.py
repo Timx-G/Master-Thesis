@@ -10,12 +10,17 @@ from typing import Literal
 import numpy as np
 from scipy.optimize import Bounds, LinearConstraint, milp
 
+from .closure import (
+    ClosedExecutableSchedule,
+    close_assignment,
+    rate_raw_assignment,
+)
 from .domain import ChannelBasis, Schedule, ScheduleEntry, SlotOutcome, SlotSnapshot
 from .evaluation import (
     EvaluationConfig,
     InfeasibleScheduleError,
+    build_outcome_from_closed,
     compute_rate_records,
-    evaluate_schedule,
 )
 from .model import NOMAChannel
 from .schedule import normalize_roles, validate_schedule
@@ -36,6 +41,26 @@ class _Candidate:
     uav: int
     task_ids: tuple[int, ...]
     benefit: int
+
+
+def _close_planning_schedule(
+    snapshot: SlotSnapshot,
+    schedule: Schedule,
+    channel: NOMAChannel,
+    cfg: EvaluationConfig,
+) -> ClosedExecutableSchedule:
+    return close_assignment(
+        snapshot,
+        rate_raw_assignment(
+            snapshot,
+            schedule,
+            channel,
+            cfg,
+            channel_basis=ChannelBasis.PLANNING,
+        ),
+        channel,
+        cfg,
+    )
 
 
 def _candidate_schedule(
@@ -96,9 +121,15 @@ def _candidates_for_uav(
         trial = _Candidate(uav, ordered_ids, 0)
         schedule = _candidate_schedule(trial, 0, snapshot)
         try:
-            outcome = evaluate_schedule(snapshot, schedule, channel, cfg)
+            closed = _close_planning_schedule(
+                snapshot,
+                schedule,
+                channel,
+                cfg,
+            )
         except InfeasibleScheduleError:
             continue
+        outcome = build_outcome_from_closed(snapshot, closed)
         benefit = max(outcome.completed_count - local_count, 0)
         if benefit > 0:
             candidates.append(_Candidate(uav, ordered_ids, benefit))
@@ -224,8 +255,8 @@ def build_initial_schedule(
         channel,
         cfg,
     )
-    evaluate_schedule(snapshot, repaired, channel, cfg)
-    return InitializationResult(repaired, "optimal")
+    closed = _close_planning_schedule(snapshot, repaired, channel, cfg)
+    return InitializationResult(closed.schedule, "optimal")
 
 
 MoveType = Literal["replace", "position", "cross"]
@@ -490,13 +521,19 @@ def optimize_schedule(
     search: SearchConfig,
 ) -> SearchResult:
     """Run deterministic first-improvement search over feasible schedules."""
-    current = normalize_roles(initial, snapshot, channel_basis=ChannelBasis.PLANNING)
-    current_outcome = evaluate_schedule(
+    current_raw = normalize_roles(
+        initial,
         snapshot,
-        current,
+        channel_basis=ChannelBasis.PLANNING,
+    )
+    initial_closed = _close_planning_schedule(
+        snapshot,
+        current_raw,
         channel,
         evaluation,
     )
+    current = initial_closed.schedule
+    current_outcome = build_outcome_from_closed(snapshot, initial_closed)
     events: list[SearchEvent] = []
     visited = {current.stable_key()}
     iterations = 0
@@ -506,7 +543,7 @@ def optimize_schedule(
         iterations += 1
         improved = False
         for neighbor in generate_neighbors(
-            current,
+            current_raw,
             snapshot,
             evaluation.n_subcarriers,
             search.allow_cross_uav,
@@ -527,7 +564,7 @@ def optimize_schedule(
                 continue
 
             try:
-                candidate_outcome = evaluate_schedule(
+                candidate_closed = _close_planning_schedule(
                     snapshot,
                     neighbor.schedule,
                     channel,
@@ -546,6 +583,29 @@ def optimize_schedule(
                 )
                 continue
 
+            candidate_schedule = candidate_closed.schedule
+            schedule_key = candidate_schedule.stable_key()
+            if schedule_key in visited:
+                events.append(
+                    SearchEvent(
+                        neighbor.move_type,
+                        False,
+                        "visited schedule after closure",
+                        before_objective,
+                        before_objective,
+                        schedule_key,
+                    )
+                )
+                continue
+            candidate_outcome = build_outcome_from_closed(
+                snapshot,
+                candidate_closed,
+            )
+            closed_neighbor = Neighbor(
+                candidate_schedule,
+                neighbor.move_type,
+                neighbor.affected_blocks,
+            )
             after_objective = network_objective(candidate_outcome)
             if search.acceptance is Acceptance.GLOBAL:
                 accepted = after_objective > before_objective
@@ -554,7 +614,7 @@ def optimize_schedule(
                 accepted = _bilateral_accepts(
                     current,
                     current_outcome,
-                    neighbor,
+                    closed_neighbor,
                     candidate_outcome,
                 )
                 accepted_reason = "bilateral Pareto improvement"
@@ -573,7 +633,8 @@ def optimize_schedule(
                 )
             )
             if accepted:
-                current = neighbor.schedule
+                current_raw = neighbor.schedule
+                current = candidate_schedule
                 current_outcome = candidate_outcome
                 visited.add(schedule_key)
                 improved = True

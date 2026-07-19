@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import hashlib
 import math
+import struct
 from collections import defaultdict
 from collections.abc import Mapping
 from dataclasses import dataclass
 from numbers import Integral
+from typing import TYPE_CHECKING
 
 from .domain import (
     AllocationDecision,
@@ -27,6 +30,13 @@ from .schedule import (
     serving_uav_by_task,
     validate_schedule,
 )
+
+if TYPE_CHECKING:
+    from .closure import ClosedExecutableSchedule
+
+
+_SEMANTIC_FINGERPRINT_SCHEMA = "thesis-v2-semantic-fingerprint-v1"
+_CANONICAL_LATENCY_SCHEMA = "task-latency-v1"
 
 
 class InfeasibleScheduleError(ValueError):
@@ -67,6 +77,101 @@ class EvaluationConfig:
     def _require_positive(name: str, value: float) -> None:
         if not math.isfinite(value) or value <= 0.0:
             raise ValueError(f"{name} must be finite and positive")
+
+
+def _fingerprint_part(digest: object, value: str | bytes) -> None:
+    payload = value.encode("utf-8") if isinstance(value, str) else value
+    digest.update(struct.pack(">Q", len(payload)))
+    digest.update(payload)
+
+
+def _fingerprint_float(digest: object, value: float) -> None:
+    _fingerprint_part(digest, float(value).hex())
+
+
+def semantic_fingerprint(
+    snapshot: SlotSnapshot,
+    channel: NOMAChannel,
+    cfg: EvaluationConfig,
+    channel_basis: ChannelBasis,
+    *,
+    downlink_rates_bps: Mapping[int, float] | None = None,
+) -> str:
+    """Return the process-independent key for allocation and closure semantics."""
+    if not isinstance(channel_basis, ChannelBasis):
+        raise ValueError("channel_basis must be a ChannelBasis value")
+    if downlink_rates_bps is not None and not isinstance(
+        downlink_rates_bps,
+        Mapping,
+    ):
+        raise TypeError("downlink_rates_bps must be a mapping or None")
+
+    digest = hashlib.sha256()
+    _fingerprint_part(digest, _SEMANTIC_FINGERPRINT_SCHEMA)
+    _fingerprint_part(digest, str(snapshot.slot_index))
+    _fingerprint_part(digest, str(len(snapshot.tasks)))
+    for task in snapshot.tasks:
+        _fingerprint_part(digest, str(task.user_id))
+        _fingerprint_part(digest, str(task.job_index))
+        _fingerprint_part(digest, str(task.task_id))
+        _fingerprint_part(digest, str(task.user_id))
+        _fingerprint_part(digest, str(task.arrival_slot))
+        _fingerprint_float(digest, task.data_bits)
+        _fingerprint_float(digest, task.comp_cycles)
+        _fingerprint_float(digest, task.deadline_s)
+        _fingerprint_float(digest, task.local_cpu_hz)
+        _fingerprint_part(digest, str(task.job_index))
+        _fingerprint_float(digest, task.slot_duration_s)
+        _fingerprint_float(digest, task.result_ratio)
+
+    _fingerprint_part(digest, channel_basis.value)
+    gains = snapshot.channel_gains_for(channel_basis)
+    _fingerprint_part(digest, gains.dtype.str)
+    _fingerprint_part(digest, str(len(gains.shape)))
+    for dimension in gains.shape:
+        _fingerprint_part(digest, str(dimension))
+    _fingerprint_part(digest, gains.tobytes(order="C"))
+
+    _fingerprint_float(digest, cfg.bandwidth_hz)
+    _fingerprint_float(digest, channel.cfg.bandwidth)
+    _fingerprint_float(digest, channel.cfg.noise_psd_dbm_hz)
+    _fingerprint_float(digest, channel.cfg.noise_figure_db)
+    _fingerprint_float(digest, cfg.transmit_power_w)
+    _fingerprint_float(digest, cfg.sic_residual)
+    _fingerprint_float(digest, cfg.gamma_sic_min)
+    _fingerprint_float(digest, cfg.cross_interference_scale)
+    _fingerprint_part(digest, str(cfg.n_subcarriers))
+    _fingerprint_part(digest, str(snapshot.num_uavs))
+    for uav in range(snapshot.num_uavs):
+        _fingerprint_part(digest, str(uav))
+        _fingerprint_float(digest, cfg.cpu_per_uav_hz)
+    _fingerprint_part(digest, cfg.allocation_policy.value)
+
+    if downlink_rates_bps is None:
+        _fingerprint_part(digest, "no-independent-downlink")
+    else:
+        _fingerprint_part(digest, "independent-downlink-items")
+        items: list[tuple[int, float]] = []
+        for task_id, rate_bps in downlink_rates_bps.items():
+            if (
+                not isinstance(task_id, Integral)
+                or isinstance(task_id, bool)
+            ):
+                raise TypeError("downlink task IDs must be integers")
+            rate = float(rate_bps)
+            if not math.isfinite(rate) or rate <= 0.0:
+                raise ValueError(
+                    "downlink rates must be finite and positive"
+                )
+            items.append((int(task_id), rate))
+        items.sort()
+        _fingerprint_part(digest, str(len(items)))
+        for task_id, rate_bps in items:
+            _fingerprint_part(digest, str(task_id))
+            _fingerprint_float(digest, rate_bps)
+
+    _fingerprint_part(digest, _CANONICAL_LATENCY_SCHEMA)
+    return digest.hexdigest()
 
 
 def _cross_interference_w(
@@ -326,6 +431,75 @@ def build_outcome_from_rates(
     )
 
 
+def build_outcome_from_closed(
+    snapshot: SlotSnapshot,
+    closed: ClosedExecutableSchedule,
+) -> SlotOutcome:
+    """Project one closed planning result into the complete slot outcome schema."""
+    scheduled_ids = set(closed.schedule.task_ids)
+    admitted_ids = set(closed.allocation.completed_task_ids)
+    if scheduled_ids != admitted_ids:
+        raise ValueError("closed schedule and allocation must have identical task IDs")
+    if closed.rate_snapshot.assignment != closed.schedule:
+        raise ValueError("closed schedule and rate snapshot disagree")
+
+    task_by_id = {task.task_id: task for task in snapshot.tasks}
+    decisions = {
+        decision.task_id: decision
+        for decision in closed.allocation.decisions
+    }
+    if set(decisions) != scheduled_ids or any(
+        not decision.completed for decision in decisions.values()
+    ):
+        raise ValueError("closed allocation must contain only admitted decisions")
+
+    for task in snapshot.tasks:
+        if task.task_id in decisions:
+            continue
+        if task.requires_offload:
+            decisions[task.task_id] = AllocationDecision(
+                task.task_id,
+                0.0,
+                0.0,
+                False,
+                None,
+                0.0,
+                "unscheduled",
+            )
+        else:
+            decisions[task.task_id] = AllocationDecision(
+                task.task_id,
+                0.0,
+                0.0,
+                True,
+                task.local_delay_s,
+                task.deadline_s - task.local_delay_s,
+                "local",
+            )
+
+    ordered = tuple(decisions[task_id] for task_id in sorted(decisions))
+    completed = tuple(
+        decision.task_id for decision in ordered if decision.completed
+    )
+    missed = tuple(
+        decision.task_id for decision in ordered if not decision.completed
+    )
+    rates = tuple(closed.rate_snapshot.rates)
+    exposure_w = aggregate_victim_link_exposure(rates)
+    return SlotOutcome(
+        slot_index=snapshot.slot_index,
+        arrived_task_ids=tuple(sorted(task_by_id)),
+        completed_task_ids=completed,
+        missed_task_ids=missed,
+        decisions=ordered,
+        rates=rates,
+        total_slack_s=math.fsum(
+            decision.slack_s for decision in ordered if decision.completed
+        ),
+        total_cross_interference_w=exposure_w,
+    )
+
+
 def evaluate_schedule(
     snapshot: SlotSnapshot,
     schedule: Schedule,
@@ -334,26 +508,28 @@ def evaluate_schedule(
     *,
     downlink_rates_bps: Mapping[int, float] | None = None,
 ) -> SlotOutcome:
-    """Return one decision per arrived task for a candidate schedule."""
+    """Close a raw planning assignment and return one decision per arrival."""
+    from .closure import close_assignment, rate_raw_assignment
+
     try:
-        rates = compute_rate_records(snapshot, schedule, channel, cfg, channel_basis=ChannelBasis.PLANNING)
+        rated = rate_raw_assignment(
+            snapshot,
+            schedule,
+            channel,
+            cfg,
+            channel_basis=ChannelBasis.PLANNING,
+            downlink_rates_bps=downlink_rates_bps,
+        )
     except ScheduleValidationError as exc:
         raise InfeasibleScheduleError(str(exc)) from exc
-
-    sic_violations = [
-        record.task_id for record in rates if not record.sic_feasible
-    ]
-    if sic_violations:
-        raise InfeasibleScheduleError(
-            f"SIC threshold violated by tasks {sic_violations}"
-        )
-    return build_outcome_from_rates(
+    closed = close_assignment(
         snapshot,
-        serving_uav_by_task(schedule),
-        rates,
+        rated,
+        channel,
         cfg,
         downlink_rates_bps=downlink_rates_bps,
     )
+    return build_outcome_from_closed(snapshot, closed)
 
 
 def evaluate_realized_schedule(
