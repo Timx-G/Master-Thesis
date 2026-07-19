@@ -203,7 +203,7 @@ def _deadline_feasible_cpu_hz(
 def required_resources(
     task: Task,
     rate_bps: float,
-    result_ratio: float,
+    result_ratio: float | None = None,
 ) -> ResourceRequirement:
     """Return the task's pre-budget deadline-feasible resource requirements.
 
@@ -218,6 +218,8 @@ def required_resources(
     ``feasible`` means the module's normalized floating-point delay checks meet the
     deadline. MEC CPU-budget admission is handled separately by the allocator.
     """
+    if result_ratio is None:
+        result_ratio = task.result_ratio
     if not math.isfinite(result_ratio) or result_ratio < 0:
         raise ValueError("result_ratio must be finite and non-negative")
     if task.local_delay_s <= task.deadline_s:
@@ -289,7 +291,7 @@ def allocate_deadline_tasks(
     tasks: Sequence[Task],
     rates_bps: Mapping[int, float],
     cpu_budget_hz: float,
-    result_ratio: float,
+    result_ratio: float | None = None,
 ) -> AllocationResult:
     """Return the canonical maximum-cardinality deadline allocation.
 
@@ -305,7 +307,7 @@ def allocate_deadline_tasks(
     """
     if not math.isfinite(cpu_budget_hz) or cpu_budget_hz < 0.0:
         raise ValueError("cpu_budget_hz must be finite and non-negative")
-    if not math.isfinite(result_ratio) or result_ratio < 0.0:
+    if result_ratio is not None and (not math.isfinite(result_ratio) or result_ratio < 0.0):
         raise ValueError("result_ratio must be finite and non-negative")
 
     task_list = tuple(tasks)
@@ -565,7 +567,7 @@ def allocate_with_policy(
     tasks: Sequence[Task],
     rates_bps: Mapping[int, float],
     cpu_budget_hz: float,
-    result_ratio: float,
+    result_ratio: float | None = None,
 ) -> AllocationResult:
     """Route a fixed task/rate set through one controlled allocation policy."""
     if not isinstance(policy, AllocationPolicy):

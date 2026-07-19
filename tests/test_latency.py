@@ -2,6 +2,7 @@ import pytest
 
 from uav_mec.domain import Task
 from uav_mec.latency import branch_delays_s, completion_delay_s
+from uav_mec.resource_allocation import required_resources
 
 
 def _task(rho: float) -> Task:
@@ -27,3 +28,9 @@ def test_zero_rho_needs_no_downlink_rate() -> None:
 def test_positive_rho_requires_an_independent_downlink_rate() -> None:
     with pytest.raises(ValueError, match="downlink_rate_bps"):
         completion_delay_s(_task(0.25), 0.5, 400.0, 600.0, None)
+
+
+def test_resource_requirement_defaults_to_task_level_ratio() -> None:
+    task = _task(0.25)
+    requirement = required_resources(task, rate_bps=10_000.0)
+    assert requirement.task_id == task.task_id
