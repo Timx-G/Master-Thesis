@@ -6,7 +6,7 @@ from uav_mec.model import ScenarioConfig
 from uav_mec.trace import generate_trace
 
 
-def test_trace_is_identical_for_the_same_seed():
+def test_trace_is_identical_for_the_same_seed(development_seed_access):
     cfg = ScenarioConfig(
         num_users=6,
         num_slots=4,
@@ -14,8 +14,8 @@ def test_trace_is_identical_for_the_same_seed():
         user_mobility=True,
     )
 
-    first = generate_trace(cfg, 123)
-    second = generate_trace(cfg, 123)
+    first = generate_trace(cfg, 123, seed_access=development_seed_access)
+    second = generate_trace(cfg, 123, seed_access=development_seed_access)
 
     assert first.seed == second.seed
     assert [slot.tasks for slot in first.slots] == [slot.tasks for slot in second.slots]
@@ -23,10 +23,10 @@ def test_trace_is_identical_for_the_same_seed():
         np.testing.assert_array_equal(left.channel_gains, right.channel_gains)
 
 
-def test_trace_assigns_each_arrival_one_stable_task_id():
+def test_trace_assigns_each_arrival_one_stable_task_id(development_seed_access):
     cfg = ScenarioConfig(num_users=8, num_slots=6, random_burst=True)
 
-    trace = generate_trace(cfg, 456)
+    trace = generate_trace(cfg, 456, seed_access=development_seed_access)
 
     tasks = [task for snapshot in trace.slots for task in snapshot.tasks]
     task_ids = [task.task_id for task in tasks]
@@ -47,8 +47,8 @@ def test_experiment_trace_freezes_a_supplied_slot_list():
     assert len(trace.slots) == 1
 
 
-def test_trace_rejects_unsupported_nonfixed_cluster_layout():
+def test_trace_rejects_unsupported_nonfixed_cluster_layout(development_seed_access):
     cfg = ScenarioConfig(fixed_cluster_centers=False)
 
     with pytest.raises(ValueError, match="fixed_cluster_centers"):
-        generate_trace(cfg, 1)
+        generate_trace(cfg, 1, seed_access=development_seed_access)

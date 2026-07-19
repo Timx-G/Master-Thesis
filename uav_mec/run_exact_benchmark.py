@@ -21,6 +21,11 @@ from .experiment import (
 )
 from .model import NOMAChannel
 from .scheduler import network_objective
+from .seed_access import (
+    SeedAccessRecorder,
+    development_permit,
+    pilot_permit,
+)
 from .trace import generate_trace
 
 
@@ -28,6 +33,8 @@ def run_exact_definition(
     definition: ExperimentDefinition,
     config_path: Path,
     output_dir: Path,
+    *,
+    seed_access: SeedAccessRecorder,
 ) -> None:
     if definition.methods != ("full", "exact"):
         raise ValueError("exact benchmark methods must be ('full', 'exact')")
@@ -35,6 +42,17 @@ def run_exact_definition(
         raise ValueError(
             "complete benchmark is frozen at no more than five users"
         )
+
+    if not isinstance(seed_access, SeedAccessRecorder):
+        raise TypeError("seed_access must be a SeedAccessRecorder")
+    seed_access.record(
+        "run_exact_definition",
+        definition.seeds,
+        {
+            "run_id": definition.run_id,
+            "config_path": str(Path(config_path)),
+        },
+    )
 
     writer = RunArtifactWriter(output_dir)
     rows: list[dict[str, object]] = []
@@ -51,6 +69,7 @@ def run_exact_definition(
             definition.scenario,
             seed,
             definition.csi_error_std,
+            seed_access=seed_access,
         )
         full_completed = 0
         exact_completed = 0
@@ -194,11 +213,25 @@ def main() -> None:
     )
     parser.add_argument("--config", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--registry", type=Path, required=True)
+    parser.add_argument("--ledger", type=Path, required=True)
+    parser.add_argument(
+        "--purpose",
+        choices=("development", "pilot"),
+        required=True,
+        help="formal execution is available only through the guarded v2 runner",
+    )
     args = parser.parse_args()
+    permit = (
+        development_permit(args.registry)
+        if args.purpose == "development"
+        else pilot_permit(args.registry)
+    )
     run_exact_definition(
         load_definition(args.config),
         args.config,
         args.output,
+        seed_access=SeedAccessRecorder(args.ledger, permit),
     )
 
 

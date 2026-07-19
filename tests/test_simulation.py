@@ -26,14 +26,20 @@ def evaluation_config(cfg: ScenarioConfig) -> EvaluationConfig:
     )
 
 
-def test_episode_denominator_equals_unique_arrivals_without_retries():
+def test_episode_denominator_equals_unique_arrivals_without_retries(
+    development_seed_access,
+):
     cfg = ScenarioConfig(
         num_users=6,
         num_slots=5,
         random_burst=True,
         user_mobility=True,
     )
-    trace = generate_trace(cfg, 321)
+    trace = generate_trace(
+        cfg,
+        321,
+        seed_access=development_seed_access,
+    )
     calls = []
 
     def empty_scheduler(snapshot):

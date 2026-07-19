@@ -9,6 +9,7 @@ from uav_mec.run_exact_benchmark import run_exact_definition
 
 def test_exact_benchmark_never_reports_heuristic_above_optimum(
     tmp_path: Path,
+    development_seed_access,
 ):
     config_path = Path("configs/thesis/confirmatory_exact.toml")
     base = load_definition(config_path)
@@ -23,7 +24,12 @@ def test_exact_benchmark_never_reports_heuristic_above_optimum(
     )
     output = tmp_path / "exact"
 
-    run_exact_definition(definition, config_path, output)
+    run_exact_definition(
+        definition,
+        config_path,
+        output,
+        seed_access=development_seed_access,
+    )
 
     with (output / "exact_slots.csv").open(
         encoding="utf-8",

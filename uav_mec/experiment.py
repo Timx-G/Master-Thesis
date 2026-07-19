@@ -40,6 +40,11 @@ from .scheduler import (
     repair_sic,
 )
 from .simulation import run_outcome_episode
+from .seed_access import (
+    SeedAccessRecorder,
+    development_permit,
+    pilot_permit,
+)
 from .trace import generate_trace
 
 KNOWN_METHODS = frozenset(
@@ -369,7 +374,19 @@ def run_definition(
     definition: ExperimentDefinition,
     config_path: Path,
     output_dir: Path,
+    *,
+    seed_access: SeedAccessRecorder,
 ) -> None:
+    if not isinstance(seed_access, SeedAccessRecorder):
+        raise TypeError("seed_access must be a SeedAccessRecorder")
+    seed_access.record(
+        "run_definition",
+        definition.seeds,
+        {
+            "run_id": definition.run_id,
+            "config_path": str(Path(config_path)),
+        },
+    )
     writer = RunArtifactWriter(output_dir)
     task_rows: list[dict[str, object]] = []
     slot_rows: list[dict[str, object]] = []
@@ -382,6 +399,7 @@ def run_definition(
             definition.scenario,
             seed,
             definition.csi_error_std,
+            seed_access=seed_access,
         )
         task_by_id = {
             task.task_id: task
@@ -622,11 +640,17 @@ def run_definition(
     )
 
 
-def run_experiment(config_path: Path, output_dir: Path) -> None:
+def run_experiment(
+    config_path: Path,
+    output_dir: Path,
+    *,
+    seed_access: SeedAccessRecorder,
+) -> None:
     run_definition(
         load_definition(config_path),
         config_path,
         output_dir,
+        seed_access=seed_access,
     )
 
 
@@ -636,8 +660,25 @@ def main() -> None:
     )
     parser.add_argument("--config", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--registry", type=Path, required=True)
+    parser.add_argument("--ledger", type=Path, required=True)
+    parser.add_argument(
+        "--purpose",
+        choices=("development", "pilot"),
+        required=True,
+        help="formal execution is available only through the guarded v2 runner",
+    )
     args = parser.parse_args()
-    run_experiment(args.config, args.output)
+    permit = (
+        development_permit(args.registry)
+        if args.purpose == "development"
+        else pilot_permit(args.registry)
+    )
+    run_experiment(
+        args.config,
+        args.output,
+        seed_access=SeedAccessRecorder(args.ledger, permit),
+    )
 
 
 if __name__ == "__main__":

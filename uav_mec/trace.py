@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 import math
+from dataclasses import asdict
 
 import numpy as np
-from .seed_access import SeedAccessRecorder
 
 from .domain import ExperimentTrace, SlotSnapshot, Task
 from .model import (
@@ -16,6 +18,7 @@ from .model import (
     ScenarioConfig,
     UAV_HOVER_POSITIONS,
 )
+from .seed_access import SeedAccessRecorder
 
 
 def _centers(cfg: ScenarioConfig) -> np.ndarray:
@@ -29,12 +32,23 @@ def _centers(cfg: ScenarioConfig) -> np.ndarray:
     return known[cfg.num_clusters].copy()
 
 
+def _scenario_fingerprint(cfg: ScenarioConfig) -> str:
+    encoded = json.dumps(
+        asdict(cfg),
+        ensure_ascii=False,
+        allow_nan=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
 def generate_trace(
     cfg: ScenarioConfig,
     seed: int,
     csi_error_std: float = 0.0,
     *,
-    seed_access: SeedAccessRecorder | None = None,
+    seed_access: SeedAccessRecorder,
 ) -> ExperimentTrace:
     """Generate all task arrivals and channels from one seed-owned RNG."""
     if not math.isfinite(csi_error_std) or csi_error_std < 0.0:
@@ -46,8 +60,16 @@ def generate_trace(
     if not cfg.fixed_cluster_centers:
         raise ValueError("trusted trace requires fixed_cluster_centers=True")
 
-    if seed_access is not None:
-        seed_access.record("generate_trace", [seed], {"scenario": repr(cfg), "csi_error_std": csi_error_std})
+    if not isinstance(seed_access, SeedAccessRecorder):
+        raise TypeError("seed_access must be a SeedAccessRecorder")
+    seed_access.record(
+        "generate_trace",
+        [seed],
+        {
+            "scenario_fingerprint": _scenario_fingerprint(cfg),
+            "csi_error_std": csi_error_std,
+        },
+    )
     rng = np.random.default_rng(seed)
     csi_rng = np.random.default_rng(seed + 7_919)
     centers = _centers(cfg)

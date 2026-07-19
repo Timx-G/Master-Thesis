@@ -34,7 +34,9 @@ def test_pairing_ablation_changes_only_topology_and_acceptance():
     )
 
 
-def test_resource_ablation_freezes_schedule_search_policy():
+def test_resource_ablation_freezes_schedule_search_policy(
+    development_seed_access,
+):
     definition = load_definition(
         Path("configs/thesis/confirmatory_resource.toml")
     )
@@ -45,7 +47,8 @@ def test_resource_ablation_freezes_schedule_search_policy():
     )
     snapshot = generate_trace(
         definition.scenario,
-        definition.seeds[0],
+        42,
+        seed_access=development_seed_access,
     ).slots[0]
     signatures = []
     for method in definition.methods:
@@ -136,6 +139,7 @@ def test_suite_case_executes_with_resolved_manifest(
     suite_name: str,
     value_path: tuple[str, ...],
     expected: object,
+    development_seed_access,
 ):
     case = build_suite(suite_name)[0]
     definition = replace(
@@ -145,7 +149,12 @@ def test_suite_case_executes_with_resolved_manifest(
     )
     output = tmp_path / suite_name
 
-    run_definition(definition, BASE_PATH, output)
+    run_definition(
+        definition,
+        BASE_PATH,
+        output,
+        seed_access=development_seed_access,
+    )
 
     manifest = json.loads(
         (output / "manifest.json").read_text(encoding="utf-8")

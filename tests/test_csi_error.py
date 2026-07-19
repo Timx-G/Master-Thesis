@@ -23,11 +23,28 @@ def test_scheduler_uses_estimated_csi_for_nearest_uav():
     assert snapshot.channel_gains[0, 0] > snapshot.channel_gains[0, 1]
 
 
-def test_csi_error_is_deterministic_and_does_not_change_exogenous_truth():
+def test_csi_error_is_deterministic_and_does_not_change_exogenous_truth(
+    development_seed_access,
+):
     cfg = ScenarioConfig(num_users=6, num_slots=2, random_burst=True)
-    perfect = generate_trace(cfg, 99, csi_error_std=0.0)
-    noisy_a = generate_trace(cfg, 99, csi_error_std=0.1)
-    noisy_b = generate_trace(cfg, 99, csi_error_std=0.1)
+    perfect = generate_trace(
+        cfg,
+        99,
+        csi_error_std=0.0,
+        seed_access=development_seed_access,
+    )
+    noisy_a = generate_trace(
+        cfg,
+        99,
+        csi_error_std=0.1,
+        seed_access=development_seed_access,
+    )
+    noisy_b = generate_trace(
+        cfg,
+        99,
+        csi_error_std=0.1,
+        seed_access=development_seed_access,
+    )
 
     for clean, left, right in zip(
         perfect.slots,
@@ -148,6 +165,11 @@ def test_true_sic_outage_is_counted_as_a_miss_instead_of_crashing():
 
 
 @pytest.mark.parametrize("error", [-0.1, float("nan")])
-def test_trace_rejects_nonphysical_csi_error(error):
+def test_trace_rejects_nonphysical_csi_error(error, development_seed_access):
     with pytest.raises(ValueError, match="csi_error_std"):
-        generate_trace(ScenarioConfig(num_users=1, num_slots=1), 1, error)
+        generate_trace(
+            ScenarioConfig(num_users=1, num_slots=1),
+            1,
+            error,
+            seed_access=development_seed_access,
+        )

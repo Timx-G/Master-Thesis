@@ -49,11 +49,14 @@ def test_ia_greedy_does_not_fill_blocks_with_zero_benefit_users():
     assert schedule.entries == ()
 
 
-def test_registered_controlled_baselines_execute_on_shared_trace():
+def test_registered_controlled_baselines_execute_on_shared_trace(
+    development_seed_access,
+):
     definition = load_definition(Path("configs/thesis/smoke.toml"))
     snapshot = generate_trace(
         definition.scenario,
         definition.seeds[0],
+        seed_access=development_seed_access,
     ).slots[0]
 
     for name in ("ia_greedy", "exchange_stable", "intra_bilateral"):

@@ -13,11 +13,18 @@ from uav_mec.experiment import _slot_method, load_definition, run_experiment
 from uav_mec.model import ScenarioConfig
 
 
-def test_smoke_experiment_writes_complete_bundle(tmp_path: Path):
+def test_smoke_experiment_writes_complete_bundle(
+    tmp_path: Path,
+    development_seed_access,
+):
     config_path = Path("configs/thesis/smoke.toml")
     output = tmp_path / "smoke-run"
 
-    run_experiment(config_path, output)
+    run_experiment(
+        config_path,
+        output,
+        seed_access=development_seed_access,
+    )
 
     expected_files = {
         "checksums.sha256",

@@ -11,6 +11,11 @@ from .experiment import (
     load_definition,
     run_definition,
 )
+from .seed_access import (
+    SeedAccessRecorder,
+    development_permit,
+    pilot_permit,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -225,13 +230,19 @@ def build_suite(name: str) -> tuple[SuiteCase, ...]:
     raise ValueError(f"unknown suite {name}")
 
 
-def run_suite(name: str, output_dir: Path) -> None:
+def run_suite(
+    name: str,
+    output_dir: Path,
+    *,
+    seed_access: SeedAccessRecorder,
+) -> None:
     output_dir.mkdir(parents=True, exist_ok=False)
     for case in build_suite(name):
         run_definition(
             case.definition,
             BASE_PATH,
             output_dir / case.name,
+            seed_access=seed_access,
         )
 
 
@@ -245,8 +256,25 @@ def main() -> None:
         required=True,
     )
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--registry", type=Path, required=True)
+    parser.add_argument("--ledger", type=Path, required=True)
+    parser.add_argument(
+        "--purpose",
+        choices=("development", "pilot"),
+        required=True,
+        help="formal execution is available only through the guarded v2 runner",
+    )
     args = parser.parse_args()
-    run_suite(args.suite, args.output)
+    permit = (
+        development_permit(args.registry)
+        if args.purpose == "development"
+        else pilot_permit(args.registry)
+    )
+    run_suite(
+        args.suite,
+        args.output,
+        seed_access=SeedAccessRecorder(args.ledger, permit),
+    )
 
 
 if __name__ == "__main__":
