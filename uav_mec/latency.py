@@ -16,15 +16,52 @@ class BranchDelays:
 
     @property
     def edge_s(self) -> float:
-        return math.fsum((self.uplink_s, self.mec_s, self.downlink_s))
+        try:
+            return math.fsum((self.uplink_s, self.mec_s, self.downlink_s))
+        except OverflowError:
+            return math.inf
 
     @property
     def completion_s(self) -> float:
         return max(self.local_s, self.edge_s)
 
 
-def branch_delays_s(task: Task, alpha: float, uplink_rate_bps: float,
-                    mec_cpu_hz: float, downlink_rate_bps: float | None) -> BranchDelays:
+def _positive_product_ratio(
+    numerators: tuple[float, ...],
+    denominators: tuple[float, ...] = (),
+) -> float:
+    """Evaluate a non-negative product ratio without intermediate overflow."""
+    if any(value == 0.0 for value in numerators):
+        return 0.0
+
+    significand = 1.0
+    exponent = 0
+    for value in numerators:
+        fraction, value_exponent = math.frexp(value)
+        significand *= fraction
+        exponent += value_exponent
+        significand, normalization = math.frexp(significand)
+        exponent += normalization
+    for value in denominators:
+        fraction, value_exponent = math.frexp(value)
+        significand /= fraction
+        exponent -= value_exponent
+        significand, normalization = math.frexp(significand)
+        exponent += normalization
+
+    try:
+        return math.ldexp(significand, exponent)
+    except OverflowError:
+        return math.inf
+
+
+def branch_delays_s(
+    task: Task,
+    alpha: float,
+    uplink_rate_bps: float,
+    mec_cpu_hz: float,
+    downlink_rate_bps: float | None,
+) -> BranchDelays:
     if not math.isfinite(alpha) or not 0.0 <= alpha <= 1.0:
         raise ValueError("alpha must be finite and in [0, 1]")
     if alpha == 0.0:
@@ -37,11 +74,23 @@ def branch_delays_s(task: Task, alpha: float, uplink_rate_bps: float,
         not math.isfinite(downlink_rate_bps) or downlink_rate_bps <= 0.0):
         raise ValueError("downlink_rate_bps is required for positive result_ratio")
     return BranchDelays(
-        local_s=(1.0 - alpha) * task.comp_cycles / task.local_cpu_hz,
-        uplink_s=alpha * task.data_bits / uplink_rate_bps,
-        mec_s=alpha * task.comp_cycles / mec_cpu_hz,
+        local_s=_positive_product_ratio(
+            (1.0 - alpha, task.comp_cycles),
+            (task.local_cpu_hz,),
+        ),
+        uplink_s=_positive_product_ratio(
+            (alpha, task.data_bits),
+            (uplink_rate_bps,),
+        ),
+        mec_s=_positive_product_ratio(
+            (alpha, task.comp_cycles),
+            (mec_cpu_hz,),
+        ),
         downlink_s=0.0 if task.result_ratio == 0.0 else
-            alpha * task.result_ratio * task.data_bits / float(downlink_rate_bps),
+            _positive_product_ratio(
+                (alpha, task.result_ratio, task.data_bits),
+                (float(downlink_rate_bps),),
+            ),
     )
 
 

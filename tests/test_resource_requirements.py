@@ -13,12 +13,21 @@ from uav_mec.resource_allocation import (
 )
 
 
-def make_task(comp_cycles: float) -> Task:
-    return Task(1, 0, 0, 1_000_000.0, comp_cycles, 0.8, 1_000_000_000.0)
+def make_task(comp_cycles: float, result_ratio: float = 0.1) -> Task:
+    return Task(
+        1,
+        0,
+        0,
+        1_000_000.0,
+        comp_cycles,
+        0.8,
+        1_000_000_000.0,
+        result_ratio=result_ratio,
+    )
 
 
 def test_local_feasible_task_requires_no_radio_or_mec():
-    req = required_resources(make_task(600_000_000.0), rate_bps=1.0, result_ratio=0.1)
+    req = required_resources(make_task(600_000_000.0), rate_bps=1.0)
     assert req.feasible
     assert req.local_only
     assert req.alpha == 0.0
@@ -28,7 +37,11 @@ def test_local_feasible_task_requires_no_radio_or_mec():
 
 def test_heavy_task_uses_minimum_offload_and_cpu():
     task = make_task(1_200_000_000.0)
-    req = required_resources(task, rate_bps=4_000_000.0, result_ratio=0.1)
+    req = required_resources(
+        task,
+        rate_bps=4_000_000.0,
+        downlink_rate_bps=4_000_000.0,
+    )
     expected_alpha = 1.0 - 0.8e9 / 1.2e9
     expected_cpu = expected_alpha * 1.2e9 / (0.8 - expected_alpha * 1.1e6 / 4e6)
     assert req.alpha == pytest.approx(expected_alpha)
@@ -37,14 +50,21 @@ def test_heavy_task_uses_minimum_offload_and_cpu():
 
 
 def test_link_is_infeasible_when_transmission_alone_exceeds_deadline():
-    req = required_resources(make_task(2_000_000_000.0), rate_bps=100_000.0, result_ratio=0.1)
+    req = required_resources(
+        make_task(2_000_000_000.0),
+        rate_bps=100_000.0,
+        downlink_rate_bps=100_000.0,
+    )
     assert not req.feasible
     assert req.reason is RequirementReason.LINK_INFEASIBLE
 
 
-def test_negative_result_ratio_is_rejected():
-    with pytest.raises(ValueError, match="result_ratio"):
-        required_resources(make_task(1_200_000_000.0), rate_bps=4_000_000.0, result_ratio=-0.1)
+def test_positive_result_ratio_requires_an_independent_downlink_rate():
+    with pytest.raises(ValueError, match="downlink_rate_bps"):
+        required_resources(
+            make_task(1_200_000_000.0),
+            rate_bps=4_000_000.0,
+        )
 
 
 @pytest.mark.parametrize("unused_rate", [0.0, -1.0, math.nan, math.inf])
@@ -52,7 +72,7 @@ def test_local_deadline_equality_ignores_unused_rate(unused_rate: float):
     task = make_task(800_000_000.0)
     assert task.local_delay_s == task.deadline_s
 
-    req = required_resources(task, rate_bps=unused_rate, result_ratio=0.1)
+    req = required_resources(task, rate_bps=unused_rate)
 
     assert req == ResourceRequirement(
         task_id=task.task_id,
@@ -69,7 +89,6 @@ def test_nonlocal_task_rejects_invalid_rate(invalid_rate: float):
     req = required_resources(
         make_task(1_200_000_000.0),
         rate_bps=invalid_rate,
-        result_ratio=0.1,
     )
 
     assert not req.feasible
@@ -77,14 +96,16 @@ def test_nonlocal_task_rejects_invalid_rate(invalid_rate: float):
     assert req.reason is RequirementReason.INVALID_RATE
 
 
-@pytest.mark.parametrize("invalid_ratio", [math.nan, math.inf])
-def test_result_ratio_is_validated_before_local_fast_path(invalid_ratio: float):
-    with pytest.raises(ValueError, match="result_ratio"):
-        required_resources(
-            make_task(600_000_000.0),
-            rate_bps=math.nan,
-            result_ratio=invalid_ratio,
-        )
+@pytest.mark.parametrize("invalid_rate", [0.0, -1.0, math.nan, math.inf])
+def test_nonlocal_task_rejects_invalid_downlink_rate(invalid_rate: float):
+    req = required_resources(
+        make_task(1_200_000_000.0),
+        rate_bps=4_000_000.0,
+        downlink_rate_bps=invalid_rate,
+    )
+
+    assert not req.feasible
+    assert req.reason is RequirementReason.INVALID_RATE
 
 
 def test_analytical_requirement_matches_independent_full_alpha_grid():
@@ -92,7 +113,7 @@ def test_analytical_requirement_matches_independent_full_alpha_grid():
     rate_bps = 4_000_000.0
     result_ratio = 0.1
 
-    req = required_resources(task, rate_bps, result_ratio)
+    req = required_resources(task, rate_bps, downlink_rate_bps=rate_bps)
 
     alphas = np.linspace(0.0, 1.0, 20_001)
     local_delays = (1.0 - alphas) * task.comp_cycles / task.local_cpu_hz
@@ -112,7 +133,7 @@ def test_ordinary_scale_requirement_is_minimal_and_meets_both_branches():
     result_ratio = 0.1
     epsilon = 1e-9
 
-    req = required_resources(task, rate_bps, result_ratio)
+    req = required_resources(task, rate_bps, downlink_rate_bps=rate_bps)
 
     returned_local_delay = (1.0 - req.alpha) * task.comp_cycles / task.local_cpu_hz
     returned_edge_delay = req.alpha * (
@@ -139,11 +160,10 @@ def test_link_denominator_exactly_zero_and_below_are_infeasible():
     task = Task(2, 0, 0, 2.0, 2.0, 1.0, 1.0)
     boundary_rate = 1.0
 
-    at_boundary = required_resources(task, boundary_rate, result_ratio=0.0)
+    at_boundary = required_resources(task, boundary_rate)
     below_boundary = required_resources(
         task,
         math.nextafter(boundary_rate, 0.0),
-        result_ratio=0.0,
     )
 
     assert not at_boundary.feasible
@@ -156,7 +176,7 @@ def test_link_denominator_one_ulp_above_zero_is_feasible():
     task = Task(2, 0, 0, 2.0, 2.0, 1.0, 1.0)
     rate_bps = math.nextafter(1.0, math.inf)
 
-    req = required_resources(task, rate_bps, result_ratio=0.0)
+    req = required_resources(task, rate_bps)
     independently_recomputed_delay = req.alpha * (
         task.data_bits / rate_bps + task.comp_cycles / req.cpu_hz
     )
@@ -167,9 +187,22 @@ def test_link_denominator_one_ulp_above_zero_is_feasible():
 
 
 def test_cpu_is_adjusted_when_independent_delay_is_one_ulp_late():
-    task = Task(3, 0, 0, 1.0, 3.0, 0.1, 1.0)
+    task = Task(
+        3,
+        0,
+        0,
+        1.0,
+        3.0,
+        0.1,
+        1.0,
+        result_ratio=0.1,
+    )
 
-    req = required_resources(task, rate_bps=100_000.0, result_ratio=0.1)
+    req = required_resources(
+        task,
+        rate_bps=100_000.0,
+        downlink_rate_bps=100_000.0,
+    )
     independently_recomputed_delay = req.alpha * (
         1.1 * (task.data_bits / 100_000.0) + task.comp_cycles / req.cpu_hz
     )
@@ -193,7 +226,7 @@ def test_subnormal_rounding_is_conservative_bounded_and_feasible(monkeypatch):
     monkeypatch.setattr(resource_allocation.math, "nextafter", counted_nextafter)
     task = Task(4, 0, 0, smallest_positive, smallest_positive, 0.75, smallest_positive)
 
-    req = required_resources(task, rate_bps=1.0, result_ratio=0.0)
+    req = required_resources(task, rate_bps=1.0)
     local_delay = (1.0 - req.alpha) * task.comp_cycles / task.local_cpu_hz
     expected_alpha = 0.5
     predecessor = real_nextafter(expected_alpha, 0.0)
@@ -221,9 +254,14 @@ def test_transmission_ratio_avoids_intermediate_overflow():
         comp_cycles=2e9,
         deadline_s=2.0,
         local_cpu_hz=1e8,
+        result_ratio=1.0,
     )
 
-    req = required_resources(task, rate_bps=1e308, result_ratio=1.0)
+    req = required_resources(
+        task,
+        rate_bps=1e308,
+        downlink_rate_bps=1e308,
+    )
 
     assert req.feasible
     assert req.reason is RequirementReason.MEC
@@ -245,7 +283,6 @@ def test_unrepresentable_cpu_requirement_is_not_reported_feasible():
     req = required_resources(
         task,
         rate_bps=math.nextafter(1.0, math.inf),
-        result_ratio=0.0,
     )
 
     assert not req.feasible
@@ -253,23 +290,32 @@ def test_unrepresentable_cpu_requirement_is_not_reported_feasible():
 
 
 @pytest.mark.parametrize(
-    ("task", "rate_bps", "result_ratio"),
+    ("task", "rate_bps", "downlink_rate_bps"),
     [
-        (make_task(1_200_000_000.0), 4_000_000.0, 0.1),
-        (make_task(1_600_000_000.0), 4_000_000.0, 0.1),
+        (make_task(1_200_000_000.0), 4_000_000.0, 4_000_000.0),
+        (make_task(1_600_000_000.0), 4_000_000.0, 4_000_000.0),
         (
-            Task(5, 0, 0, 1e308, 2e9, 2.0, 1e8),
+            Task(
+                5,
+                0,
+                0,
+                1e308,
+                2e9,
+                2.0,
+                1e8,
+                result_ratio=1.0,
+            ),
             1e308,
-            1.0,
+            1e308,
         ),
     ],
 )
 def test_feasible_mec_requirement_has_finite_positive_resources(
     task: Task,
     rate_bps: float,
-    result_ratio: float,
+    downlink_rate_bps: float,
 ):
-    req = required_resources(task, rate_bps, result_ratio)
+    req = required_resources(task, rate_bps, downlink_rate_bps)
 
     assert req.feasible
     assert not req.local_only
@@ -280,7 +326,11 @@ def test_feasible_mec_requirement_has_finite_positive_resources(
 
 
 def test_resource_requirement_is_immutable():
-    req = required_resources(make_task(1_200_000_000.0), 4_000_000.0, 0.1)
+    req = required_resources(
+        make_task(1_200_000_000.0),
+        4_000_000.0,
+        4_000_000.0,
+    )
 
     with pytest.raises(FrozenInstanceError):
         req.cpu_hz = 1.0

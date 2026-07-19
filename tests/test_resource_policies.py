@@ -105,7 +105,7 @@ def test_evaluator_routes_tasks_through_selected_policy():
     task = Task(1, 0, 0, 1e6, 1.2e9, 0.8, 1e9)
     snapshot = SlotSnapshot(0, (task,), np.array([[1e-7]]), 1)
     schedule = Schedule((ScheduleEntry(1, 0, 0, 0, "solo"),))
-    deadline = EvaluationConfig(1, 5e6, 0.2, 0.02, 1.0, 4e9, 0.1)
+    deadline = EvaluationConfig(1, 5e6, 0.2, 0.02, 1.0, 4e9)
     fixed = replace(
         deadline,
         allocation_policy=AllocationPolicy.FIXED_HALF_EQUAL,
@@ -131,6 +131,5 @@ def test_evaluation_config_rejects_raw_policy_strings():
             0.02,
             1.0,
             4e9,
-            0.1,
             allocation_policy="deadline",
         )

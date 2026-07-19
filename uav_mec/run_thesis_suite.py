@@ -35,7 +35,6 @@ def _with_scenario(
         bandwidth_hz=scenario.channel.bandwidth,
         transmit_power_w=scenario.channel.p_max,
         cpu_per_uav_hz=scenario.f_per_uav,
-        result_ratio=scenario.task.result_ratio,
     )
     return SuiteCase(
         name,

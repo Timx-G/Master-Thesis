@@ -101,7 +101,7 @@ class TaskConfig:
     t_max: float = 0.8              # deadline (s) — Phase 0 calibrated (Greedy=70%, gap=8.9pp)
     f_local: float = 1e9            # local CPU frequency (cycles/s, 1 GHz)
     kappa: float = 1e-27            # energy coefficient for local computing
-    result_ratio: float = 0.1       # result-to-input ratio (result download size / input upload size)
+    result_ratio: float = 0.0       # no result return unless an independent downlink is configured
 
     def __post_init__(self) -> None:
         if not math.isfinite(self.result_ratio) or not 0.0 <= self.result_ratio <= 1.0:

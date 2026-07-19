@@ -28,7 +28,7 @@ def replace_case():
     )
     snapshot = SlotSnapshot(0, tasks, np.array([[2e-16], [9e-8]]), 1)
     initial = Schedule((ScheduleEntry(1, 0, 0, 0, "solo"),))
-    evaluation = EvaluationConfig(1, 5e6, 0.2, 0.02, 1.0, 4e9, 0.1)
+    evaluation = EvaluationConfig(1, 5e6, 0.2, 0.02, 1.0, 4e9)
     return snapshot, initial, evaluation
 
 
@@ -86,7 +86,7 @@ def test_search_is_deterministic():
             ScheduleEntry(3, 3, 0, 0, "weak"),
         )
     )
-    evaluation = EvaluationConfig(2, 5e6, 0.2, 0.02, 1.0, 4e9, 0.1)
+    evaluation = EvaluationConfig(2, 5e6, 0.2, 0.02, 1.0, 4e9)
     channel = NOMAChannel(ChannelConfig(), 100.0)
     cfg = SearchConfig(False, Acceptance.GLOBAL, 20)
 

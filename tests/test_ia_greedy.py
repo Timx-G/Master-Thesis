@@ -24,7 +24,7 @@ def test_ia_greedy_returns_a_feasible_schedule_on_shared_spectrum():
     )
     snapshot = SlotSnapshot(0, tasks, gains, 2)
     channel = NOMAChannel(ChannelConfig(), 100.0)
-    cfg = EvaluationConfig(2, 5e6, 0.2, 0.02, 1.0, 4e9, 0.1)
+    cfg = EvaluationConfig(2, 5e6, 0.2, 0.02, 1.0, 4e9)
 
     schedule = ia_greedy_schedule(snapshot, channel, cfg)
     outcome = evaluate_schedule(snapshot, schedule, channel, cfg)
@@ -38,7 +38,7 @@ def test_ia_greedy_returns_a_feasible_schedule_on_shared_spectrum():
 def test_ia_greedy_does_not_fill_blocks_with_zero_benefit_users():
     task = Task(1, 0, 0, 1e6, 1.4e9, 0.8, 1e9)
     snapshot = SlotSnapshot(0, (task,), np.zeros((1, 1)), 1)
-    cfg = EvaluationConfig(1, 5e6, 0.2, 0.02, 1.0, 4e9, 0.1)
+    cfg = EvaluationConfig(1, 5e6, 0.2, 0.02, 1.0, 4e9)
 
     schedule = ia_greedy_schedule(
         snapshot,

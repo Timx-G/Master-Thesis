@@ -23,7 +23,6 @@ def evaluation_config(cfg: ScenarioConfig) -> EvaluationConfig:
         0.02,
         1.0,
         cfg.f_per_uav,
-        cfg.task.result_ratio,
     )
 
 

@@ -54,10 +54,19 @@ def test_allocator_cardinality_matches_brute_force():
 
 
 def test_completion_delay_matches_normalized_parallel_branch_model():
-    task = Task(20, 0, 0, 1e6, 1.6e9, 0.8, 1e9)
+    task = Task(
+        20,
+        0,
+        0,
+        1e6,
+        1.6e9,
+        0.8,
+        1e9,
+        result_ratio=0.1,
+    )
     rate_bps = 4e6
     result_ratio = 0.1
-    requirement = required_resources(task, rate_bps, result_ratio)
+    requirement = required_resources(task, rate_bps, rate_bps)
     local_delay_s = (1.0 - requirement.alpha) * task.comp_cycles / task.local_cpu_hz
     edge_delay_s = requirement.alpha * (
         (1.0 + result_ratio) * task.data_bits / rate_bps + task.comp_cycles / requirement.cpu_hz
@@ -65,10 +74,10 @@ def test_completion_delay_matches_normalized_parallel_branch_model():
 
     delay_s = completion_delay_s(
         task,
-        rate_bps,
-        result_ratio,
         requirement.alpha,
+        rate_bps,
         requirement.cpu_hz,
+        rate_bps,
     )
 
     assert delay_s == pytest.approx(max(local_delay_s, edge_delay_s))
@@ -80,10 +89,20 @@ def test_allocator_validates_cpu_budget_even_without_tasks(invalid_budget: float
         allocate_deadline_tasks((), {}, invalid_budget, 0.1)
 
 
-@pytest.mark.parametrize("invalid_ratio", [-1.0, math.nan, math.inf])
-def test_allocator_validates_result_ratio_even_without_tasks(invalid_ratio: float):
-    with pytest.raises(ValueError, match="result_ratio"):
-        allocate_deadline_tasks((), {}, 0.0, invalid_ratio)
+def test_allocator_requires_downlink_map_for_positive_task_ratio():
+    task = Task(
+        21,
+        0,
+        0,
+        1e6,
+        1.2e9,
+        0.8,
+        1e9,
+        result_ratio=0.1,
+    )
+
+    with pytest.raises(KeyError, match="downlink_rate_bps"):
+        allocate_deadline_tasks((task,), {task.task_id: 4e6}, 4e9)
 
 
 def test_allocator_rejects_duplicate_task_ids():
@@ -327,24 +346,33 @@ def test_mixed_allocation_has_one_ordered_consistent_decision_per_task():
 
 
 def test_completed_mec_decision_uses_task4_requirement_and_canonical_delay():
-    task = Task(350, 0, 0, 1e6, 1.6e9, 0.8, 1e9)
+    task = Task(
+        350,
+        0,
+        0,
+        1e6,
+        1.6e9,
+        0.8,
+        1e9,
+        result_ratio=0.1,
+    )
     rate_bps = 4e6
     result_ratio = 0.1
-    requirement = required_resources(task, rate_bps, result_ratio)
+    requirement = required_resources(task, rate_bps, rate_bps)
 
     result = allocate_deadline_tasks(
         (task,),
         {task.task_id: rate_bps},
         requirement.cpu_hz,
-        result_ratio,
+        {task.task_id: rate_bps},
     )
     decision = result.decisions[0]
     expected_delay_s = completion_delay_s(
         task,
-        rate_bps,
-        result_ratio,
         requirement.alpha,
+        rate_bps,
         requirement.cpu_hz,
+        rate_bps,
     )
 
     assert decision.alpha == requirement.alpha
@@ -358,7 +386,7 @@ def test_completed_mec_decision_uses_task4_requirement_and_canonical_delay():
 def test_completion_delay_local_path_ignores_unused_radio_and_mec_values():
     task = Task(360, 0, 0, 1e6, 600e6, 0.8, 1e9)
 
-    assert completion_delay_s(task, math.nan, 0.1, 0.0, 0.0) == task.local_delay_s
+    assert completion_delay_s(task, 0.0, math.nan, 0.0) == task.local_delay_s
 
 
 def test_local_deadline_equality_uses_same_ieee_path_for_classification_and_decision():
@@ -384,20 +412,21 @@ def test_canonical_delay_preserves_task4_grouped_ieee_feasibility_check():
         float.fromhex("0x1.ba18e2de49403p+118"),
         float.fromhex("0x1.b7fe4b6a84df2p+140"),
         float.fromhex("0x1.22499787aab76p-24"),
+        result_ratio=float.fromhex("0x1.999999999999ap-4"),
     )
     rate_bps = float.fromhex("0x1.8a0269110889ap+283")
     result_ratio = float.fromhex("0x1.999999999999ap-4")
 
-    requirement = required_resources(task, rate_bps, result_ratio)
+    requirement = required_resources(task, rate_bps, rate_bps)
     grouped_delay_s = requirement.alpha * (
         (1.0 + result_ratio) * (task.data_bits / rate_bps) + task.comp_cycles / requirement.cpu_hz
     )
     delay_s = completion_delay_s(
         task,
-        rate_bps,
-        result_ratio,
         requirement.alpha,
+        rate_bps,
         requirement.cpu_hz,
+        rate_bps,
     )
 
     assert grouped_delay_s <= task.deadline_s

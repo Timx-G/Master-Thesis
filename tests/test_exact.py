@@ -14,7 +14,7 @@ def test_complete_enumeration_is_never_worse_than_greedy():
     gains = np.array([[9e-8], [7e-8], [5e-8], [3e-8], [1e-8]])
     snapshot = SlotSnapshot(0, tasks, gains, 1)
     channel = NOMAChannel(ChannelConfig(), 100.0)
-    cfg = EvaluationConfig(2, 5e6, 0.2, 0.02, 1.0, 4e9, 0.1)
+    cfg = EvaluationConfig(2, 5e6, 0.2, 0.02, 1.0, 4e9)
 
     greedy = evaluate_schedule(
         snapshot,
@@ -40,7 +40,7 @@ def test_exact_search_enumerates_non_nearest_uav_associations():
     )
     snapshot = SlotSnapshot(0, tasks, gains, 2)
     channel = NOMAChannel(ChannelConfig(), 100.0)
-    cfg = EvaluationConfig(1, 5e6, 0.2, 0.02, 1.0, 8e9, 0.1)
+    cfg = EvaluationConfig(1, 5e6, 0.2, 0.02, 1.0, 8e9)
 
     result = exact_schedule(snapshot, channel, cfg, max_heavy_tasks=4)
 
@@ -60,7 +60,7 @@ def test_exact_search_enumerates_non_nearest_uav_associations():
 def test_exact_evaluation_count_has_no_duplicate_empty_schedule():
     task = Task(1, 0, 0, 1e6, 1.4e9, 0.8, 1e9)
     snapshot = SlotSnapshot(0, (task,), np.array([[1e-8]]), 1)
-    cfg = EvaluationConfig(1, 5e6, 0.2, 0.02, 1.0, 4e9, 0.1)
+    cfg = EvaluationConfig(1, 5e6, 0.2, 0.02, 1.0, 4e9)
 
     result = exact_schedule(
         snapshot,
@@ -75,7 +75,7 @@ def test_exact_evaluation_count_has_no_duplicate_empty_schedule():
 def test_exact_search_rejects_instances_above_declared_limit():
     tasks = tuple(Task(i, i, 0, 1e6, 1.4e9, 0.8, 1e9) for i in range(2))
     snapshot = SlotSnapshot(0, tasks, np.ones((2, 1)), 1)
-    cfg = EvaluationConfig(1, 5e6, 0.2, 0.02, 1.0, 4e9, 0.1)
+    cfg = EvaluationConfig(1, 5e6, 0.2, 0.02, 1.0, 4e9)
 
     with pytest.raises(ValueError, match="limited to 1"):
         exact_schedule(

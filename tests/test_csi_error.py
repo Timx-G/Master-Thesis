@@ -104,7 +104,7 @@ def test_final_rate_uses_true_channel_after_estimated_csi_planning():
         num_uavs=2,
         n_subcarriers=1,
     )
-    cfg = EvaluationConfig(1, 5e6, 0.2, 0.02, 1.0, 4e9, 0.1)
+    cfg = EvaluationConfig(1, 5e6, 0.2, 0.02, 1.0, 4e9)
 
     outcome = _slot_method("greedy", scenario, cfg, 5, [])(snapshot)
 
@@ -136,7 +136,7 @@ def test_true_sic_outage_is_counted_as_a_miss_instead_of_crashing():
         num_uavs=1,
         n_subcarriers=1,
     )
-    cfg = EvaluationConfig(1, 5e6, 0.2, 0.02, 1.0, 4e9, 0.1)
+    cfg = EvaluationConfig(1, 5e6, 0.2, 0.02, 1.0, 4e9)
 
     outcome = _slot_method("greedy", scenario, cfg, 5, [])(snapshot)
 

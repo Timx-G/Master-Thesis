@@ -24,8 +24,46 @@ def config(
         sic_residual=0.02,
         gamma_sic_min=gamma,
         cpu_per_uav_hz=cpu_per_uav_hz,
-        result_ratio=0.1,
     )
+
+
+def test_evaluation_config_has_no_global_result_ratio() -> None:
+    cfg = config()
+
+    assert not hasattr(cfg, "result_ratio")
+
+
+def test_evaluation_uses_independent_downlink_rate_for_positive_task_rho() -> None:
+    task = Task(
+        99,
+        0,
+        0,
+        1e6,
+        1.2e9,
+        0.8,
+        1e9,
+        result_ratio=0.5,
+    )
+    snapshot = SlotSnapshot(0, (task,), np.array([[1e-7]]), 1)
+    schedule = Schedule((ScheduleEntry(99, 0, 0, 0, "solo"),))
+    channel = NOMAChannel(ChannelConfig(), 100.0)
+
+    fast = evaluate_schedule(
+        snapshot,
+        schedule,
+        channel,
+        config(),
+        downlink_rates_bps={99: 10e6},
+    )
+    slow = evaluate_schedule(
+        snapshot,
+        schedule,
+        channel,
+        config(),
+        downlink_rates_bps={99: 1e6},
+    )
+
+    assert fast.decisions[0].cpu_hz < slow.decisions[0].cpu_hz
 
 
 def test_cross_uav_user_uses_schedule_serving_channel_and_cpu_pool():
@@ -211,7 +249,6 @@ def test_invalid_schedule_is_reported_as_infeasible_evaluation():
     (
         ("sic_residual", 1.1),
         ("sic_residual", float("nan")),
-        ("result_ratio", -0.1),
         ("gamma_sic_min", 0.0),
     ),
 )
@@ -223,7 +260,6 @@ def test_evaluation_config_rejects_nonphysical_values(field, value):
         "sic_residual": 0.02,
         "gamma_sic_min": 1.0,
         "cpu_per_uav_hz": 4e9,
-        "result_ratio": 0.1,
     }
     values[field] = value
 

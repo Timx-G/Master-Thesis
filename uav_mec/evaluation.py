@@ -40,7 +40,6 @@ class EvaluationConfig:
     sic_residual: float
     gamma_sic_min: float
     cpu_per_uav_hz: float
-    result_ratio: float
     allocation_policy: AllocationPolicy = AllocationPolicy.DEADLINE
     cross_interference_scale: float = 1.0
 
@@ -55,8 +54,6 @@ class EvaluationConfig:
         self._require_positive("cpu_per_uav_hz", self.cpu_per_uav_hz)
         if not math.isfinite(self.sic_residual) or not 0.0 <= self.sic_residual <= 1.0:
             raise ValueError("sic_residual must be finite and in [0, 1]")
-        if not math.isfinite(self.result_ratio) or self.result_ratio < 0.0:
-            raise ValueError("result_ratio must be finite and non-negative")
         if not isinstance(self.allocation_policy, AllocationPolicy):
             raise ValueError("allocation_policy must be an AllocationPolicy value")
         if (
@@ -213,6 +210,8 @@ def build_outcome_from_rates(
     uav_by_task: Mapping[int, int],
     rates: tuple[RateRecord, ...],
     cfg: EvaluationConfig,
+    *,
+    downlink_rates_bps: Mapping[int, float] | None = None,
 ) -> SlotOutcome:
     """Apply shared task accounting and per-serving-UAV CPU allocation."""
     task_by_id = {task.task_id: task for task in snapshot.tasks}
@@ -284,7 +283,7 @@ def build_outcome_from_rates(
             scheduled_tasks,
             rate_by_id,
             cfg.cpu_per_uav_hz,
-            cfg.result_ratio,
+            downlink_rates_bps,
         )
         decisions.update(
             {decision.task_id: decision for decision in allocation.decisions}
@@ -333,6 +332,8 @@ def evaluate_schedule(
     schedule: Schedule,
     channel: NOMAChannel,
     cfg: EvaluationConfig,
+    *,
+    downlink_rates_bps: Mapping[int, float] | None = None,
 ) -> SlotOutcome:
     """Return one decision per arrived task for a candidate schedule."""
     try:
@@ -352,6 +353,7 @@ def evaluate_schedule(
         serving_uav_by_task(schedule),
         rates,
         cfg,
+        downlink_rates_bps=downlink_rates_bps,
     )
 
 
@@ -360,6 +362,8 @@ def evaluate_realized_schedule(
     planned_schedule: Schedule,
     channel: NOMAChannel,
     cfg: EvaluationConfig,
+    *,
+    downlink_rates_bps: Mapping[int, float] | None = None,
 ) -> SlotOutcome:
     """Evaluate a planned schedule on truth, recording actual SIC outages.
 
@@ -385,9 +389,10 @@ def evaluate_realized_schedule(
     if not outage_ids:
         return build_outcome_from_rates(
             snapshot,
-            serving_uav_by_task(realized_schedule),
+            serving_uav_by_task(planned_schedule),
             rates,
             cfg,
+            downlink_rates_bps=downlink_rates_bps,
         )
 
     realized_uav = serving_uav_by_task(planned_schedule)
@@ -404,6 +409,7 @@ def evaluate_realized_schedule(
         feasible_uav,
         feasible_rates,
         cfg,
+        downlink_rates_bps=downlink_rates_bps,
     )
     decisions = tuple(
         AllocationDecision(

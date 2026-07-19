@@ -29,7 +29,7 @@ def snapshot() -> SlotSnapshot:
 
 
 def eval_cfg() -> EvaluationConfig:
-    return EvaluationConfig(2, 5e6, 0.2, 0.02, 1.0, 4e9, 0.1)
+    return EvaluationConfig(2, 5e6, 0.2, 0.02, 1.0, 4e9)
 
 
 def test_initializer_returns_a_fully_feasible_schedule():
@@ -90,7 +90,7 @@ def test_sic_repair_keeps_the_strong_user_as_solo():
             ScheduleEntry(2, 1, 0, 0, "weak"),
         )
     )
-    strict = EvaluationConfig(1, 5e6, 0.2, 0.02, 3.0, 4e9, 0.1)
+    strict = EvaluationConfig(1, 5e6, 0.2, 0.02, 3.0, 4e9)
 
     repaired = repair_sic(
         schedule,

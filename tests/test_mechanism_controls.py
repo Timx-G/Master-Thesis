@@ -9,7 +9,7 @@ from uav_mec.model import ChannelConfig, NOMAChannel
 
 
 def base_config() -> EvaluationConfig:
-    return EvaluationConfig(1, 5e6, 0.2, 0.02, 1.0, 4e9, 0.1)
+    return EvaluationConfig(1, 5e6, 0.2, 0.02, 1.0, 4e9)
 
 
 def test_zero_cross_scale_removes_only_cross_uav_interference():

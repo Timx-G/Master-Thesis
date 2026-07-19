@@ -17,7 +17,6 @@ def evaluation_config(n_subcarriers: int = 2) -> EvaluationConfig:
         0.02,
         1.0,
         4e9,
-        0.1,
     )
 
 

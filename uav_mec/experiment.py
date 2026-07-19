@@ -141,7 +141,6 @@ def load_definition(path: Path) -> ExperimentDefinition:
         sic_residual=float(evaluation_raw["sic_residual"]),
         gamma_sic_min=float(evaluation_raw["gamma_sic_min"]),
         cpu_per_uav_hz=scenario.f_per_uav,
-        result_ratio=scenario.task.result_ratio,
         allocation_policy=allocation_policy,
         cross_interference_scale=float(
             evaluation_raw.get("cross_interference_scale", 1.0)

@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from enum import Enum
 
 from .domain import AllocationDecision, Task
-from .latency import branch_delays_s
+from .latency import completion_delay_s
 
 _MAX_ULP_CORRECTIONS = 4
 
@@ -96,41 +96,6 @@ def _local_branch_delay(task: Task, alpha: float) -> float:
     return (1.0 - alpha) * task.comp_cycles / task.local_cpu_hz
 
 
-def completion_delay_s(
-    task: Task,
-    rate_bps: float,
-    result_ratio: float,
-    alpha: float,
-    cpu_hz: float,
-) -> float:
-    """Return the normalized parallel local/MEC completion delay.
-
-    ``alpha == 0`` is the explicit local-only path and does not consume or
-    validate radio and MEC resources. For positive ``alpha``, normalized product
-    ratios avoid intermediate overflow. The returned edge delay conservatively
-    covers both the normalized split and finite grouped IEEE evaluations so Task 4
-    corrections only move CPU toward deadline feasibility.
-    """
-    if not math.isfinite(result_ratio) or result_ratio < 0.0:
-        raise ValueError("result_ratio must be finite and non-negative")
-    if not math.isfinite(alpha) or not 0.0 <= alpha <= 1.0:
-        raise ValueError("alpha must be finite and between zero and one")
-
-    if alpha == 0.0:
-        return task.local_delay_s
-    if not math.isfinite(rate_bps) or rate_bps <= 0.0:
-        raise ValueError("rate_bps must be finite and positive when alpha is positive")
-    if not math.isfinite(cpu_hz) or cpu_hz <= 0.0:
-        raise ValueError("cpu_hz must be finite and positive when alpha is positive")
-
-    # Legacy callers provide one link rate and a scalar rho.  Route through
-    # the canonical branch model with the same rate for the result downlink;
-    # thesis-v2 callers use ``uav_mec.latency`` directly with task-level rho.
-    from dataclasses import replace
-    canonical_task = replace(task, result_ratio=result_ratio)
-    return branch_delays_s(canonical_task, alpha, rate_bps, cpu_hz, rate_bps).completion_s
-
-
 def _deadline_feasible_alpha(task: Task) -> tuple[float, bool]:
     """Return a conservative deadline-feasible alpha under IEEE arithmetic."""
     local_fraction = _positive_product_ratio(
@@ -167,9 +132,8 @@ def _deadline_feasible_alpha(task: Task) -> tuple[float, bool]:
 def _deadline_feasible_cpu_hz(
     task: Task,
     alpha: float,
-    rate_bps: float,
-    result_ratio: float,
     transmission_s: float,
+    transfer_per_alpha_s: float,
 ) -> float:
     """Return a conservative deadline-feasible CPU requirement."""
     denominator = task.deadline_s - transmission_s
@@ -178,15 +142,11 @@ def _deadline_feasible_cpu_hz(
         (denominator,),
     )
 
-    transfer_per_alpha = _positive_product_ratio(
-        (1.0 + result_ratio, task.data_bits),
-        (rate_bps,),
-    )
     deadline_per_alpha = _positive_product_ratio(
         (task.deadline_s,),
         (alpha,),
     )
-    grouped_window = deadline_per_alpha - transfer_per_alpha
+    grouped_window = deadline_per_alpha - transfer_per_alpha_s
     grouped_candidate = 0.0
     if math.isfinite(grouped_window) and grouped_window > 0.0:
         grouped_candidate = _positive_product_ratio(
@@ -203,7 +163,7 @@ def _deadline_feasible_cpu_hz(
 def required_resources(
     task: Task,
     rate_bps: float,
-    result_ratio: float | None = None,
+    downlink_rate_bps: float | None = None,
 ) -> ResourceRequirement:
     """Return the task's pre-budget deadline-feasible resource requirements.
 
@@ -218,10 +178,6 @@ def required_resources(
     ``feasible`` means the module's normalized floating-point delay checks meet the
     deadline. MEC CPU-budget admission is handled separately by the allocator.
     """
-    if result_ratio is None:
-        result_ratio = task.result_ratio
-    if not math.isfinite(result_ratio) or result_ratio < 0:
-        raise ValueError("result_ratio must be finite and non-negative")
     if task.local_delay_s <= task.deadline_s:
         return ResourceRequirement(
             task.task_id,
@@ -240,23 +196,61 @@ def required_resources(
             math.inf,
             RequirementReason.INVALID_RATE,
         )
+    if task.result_ratio > 0.0 and downlink_rate_bps is None:
+        raise ValueError(
+            "downlink_rate_bps is required for positive result_ratio"
+        )
+    if task.result_ratio > 0.0 and (
+        not math.isfinite(float(downlink_rate_bps))
+        or float(downlink_rate_bps) <= 0.0
+    ):
+        return ResourceRequirement(
+            task.task_id,
+            False,
+            False,
+            0.0,
+            math.inf,
+            RequirementReason.INVALID_RATE,
+        )
     alpha, local_branch_feasible = _deadline_feasible_alpha(task)
     if not local_branch_feasible:
         return _link_infeasible(task, alpha)
-    transmission_s = _positive_product_ratio(
-        (alpha, 1.0 + result_ratio, task.data_bits),
+    uplink_s = _positive_product_ratio(
+        (alpha, task.data_bits),
         (rate_bps,),
     )
+    downlink_s = (
+        0.0
+        if task.result_ratio == 0.0
+        else _positive_product_ratio(
+            (alpha, task.result_ratio, task.data_bits),
+            (float(downlink_rate_bps),),
+        )
+    )
+    transmission_s = _cpu_sum((uplink_s, downlink_s))
     denominator = task.deadline_s - transmission_s
     if not math.isfinite(denominator) or denominator <= 0.0:
         return _link_infeasible(task, alpha)
 
+    transfer_per_alpha_s = _cpu_sum(
+        (
+            _positive_product_ratio(
+                (task.data_bits,),
+                (rate_bps,),
+            ),
+            0.0
+            if task.result_ratio == 0.0
+            else _positive_product_ratio(
+                (task.result_ratio, task.data_bits),
+                (float(downlink_rate_bps),),
+            ),
+        )
+    )
     cpu_hz = _deadline_feasible_cpu_hz(
         task,
         alpha,
-        rate_bps,
-        result_ratio,
         transmission_s,
+        transfer_per_alpha_s,
     )
     if not math.isfinite(cpu_hz) or cpu_hz <= 0.0:
         return _link_infeasible(task, alpha)
@@ -264,10 +258,10 @@ def required_resources(
     for _ in range(_MAX_ULP_CORRECTIONS + 1):
         delay_s = completion_delay_s(
             task,
-            rate_bps,
-            result_ratio,
             alpha,
+            rate_bps,
             cpu_hz,
+            downlink_rate_bps,
         )
         if math.isfinite(delay_s) and delay_s <= task.deadline_s:
             break
@@ -291,7 +285,7 @@ def allocate_deadline_tasks(
     tasks: Sequence[Task],
     rates_bps: Mapping[int, float],
     cpu_budget_hz: float,
-    result_ratio: float | None = None,
+    downlink_rates_bps: Mapping[int, float] | None = None,
 ) -> AllocationResult:
     """Return the canonical maximum-cardinality deadline allocation.
 
@@ -307,8 +301,6 @@ def allocate_deadline_tasks(
     """
     if not math.isfinite(cpu_budget_hz) or cpu_budget_hz < 0.0:
         raise ValueError("cpu_budget_hz must be finite and non-negative")
-    if result_ratio is not None and (not math.isfinite(result_ratio) or result_ratio < 0.0):
-        raise ValueError("result_ratio must be finite and non-negative")
 
     task_list = tuple(tasks)
     seen_task_ids: set[int] = set()
@@ -324,6 +316,21 @@ def allocate_deadline_tasks(
     )
     if missing_rate_task_ids:
         raise KeyError(f"missing rate_bps for task {missing_rate_task_ids[0]}")
+    missing_downlink_task_ids = sorted(
+        task.task_id
+        for task in task_list
+        if task.requires_offload
+        and task.result_ratio > 0.0
+        and (
+            downlink_rates_bps is None
+            or task.task_id not in downlink_rates_bps
+        )
+    )
+    if missing_downlink_task_ids:
+        raise KeyError(
+            "missing downlink_rate_bps for task "
+            f"{missing_downlink_task_ids[0]}"
+        )
 
     local_decisions: list[AllocationDecision] = []
     mec_requirements: list[ResourceRequirement] = []
@@ -338,14 +345,15 @@ def allocate_deadline_tasks(
         requirement = required_resources(
             task,
             rate_bps,
-            result_ratio,
+            None
+            if task.result_ratio == 0.0
+            else downlink_rates_bps[task.task_id],
         )
         if requirement.local_only:
             delay_s = completion_delay_s(
                 task,
-                math.nan,
-                result_ratio,
                 0.0,
+                math.nan,
                 0.0,
             )
             if not math.isfinite(delay_s) or delay_s > task.deadline_s:
@@ -384,10 +392,12 @@ def allocate_deadline_tasks(
             rate_bps = rates_bps[task_id]
             delay_s = completion_delay_s(
                 task,
-                rate_bps,
-                result_ratio,
                 requirement.alpha,
+                rate_bps,
                 requirement.cpu_hz,
+                None
+                if task.result_ratio == 0.0
+                else downlink_rates_bps[task_id],
             )
             if not math.isfinite(delay_s) or delay_s > task.deadline_s:
                 raise RuntimeError(f"selected task {task_id} violates its deadline requirement")
@@ -444,13 +454,11 @@ def _equal_cpu_allocation(
     tasks: Sequence[Task],
     rates_bps: Mapping[int, float],
     cpu_budget_hz: float,
-    result_ratio: float,
+    downlink_rates_bps: Mapping[int, float] | None,
     fixed_alpha: float | None,
 ) -> AllocationResult:
     if not math.isfinite(cpu_budget_hz) or cpu_budget_hz < 0.0:
         raise ValueError("cpu_budget_hz must be finite and non-negative")
-    if not math.isfinite(result_ratio) or result_ratio < 0.0:
-        raise ValueError("result_ratio must be finite and non-negative")
     if fixed_alpha is not None and (
         not math.isfinite(fixed_alpha) or not 0.0 <= fixed_alpha <= 1.0
     ):
@@ -461,6 +469,22 @@ def _equal_cpu_allocation(
         raise ValueError("duplicate task_id in allocation input")
     if not ordered_tasks:
         return AllocationResult((), (), 0.0)
+
+    missing_downlink_task_ids = sorted(
+        task.task_id
+        for task in ordered_tasks
+        if task.requires_offload
+        and task.result_ratio > 0.0
+        and (
+            downlink_rates_bps is None
+            or task.task_id not in downlink_rates_bps
+        )
+    )
+    if missing_downlink_task_ids:
+        raise KeyError(
+            "missing downlink_rate_bps for task "
+            f"{missing_downlink_task_ids[0]}"
+        )
 
     if cpu_budget_hz == 0.0:
         decisions = tuple(
@@ -481,7 +505,22 @@ def _equal_cpu_allocation(
     decisions: list[AllocationDecision] = []
     for task in ordered_tasks:
         rate_bps = rates_bps.get(task.task_id, 0.0)
-        if not math.isfinite(rate_bps) or rate_bps <= 0.0:
+        downlink_rate_bps = (
+            None
+            if task.result_ratio == 0.0
+            else downlink_rates_bps[task.task_id]
+        )
+        if (
+            not math.isfinite(rate_bps)
+            or rate_bps <= 0.0
+            or (
+                task.result_ratio > 0.0
+                and (
+                    not math.isfinite(downlink_rate_bps)
+                    or downlink_rate_bps <= 0.0
+                )
+            )
+        ):
             decisions.append(
                 AllocationDecision(
                     task.task_id,
@@ -497,15 +536,24 @@ def _equal_cpu_allocation(
 
         if fixed_alpha is None:
             local_full_s = task.comp_cycles / task.local_cpu_hz
-            try:
-                edge_unit_s = math.fsum(
-                    (
-                        (1.0 + result_ratio) * task.data_bits / rate_bps,
-                        task.comp_cycles / cpu_hz,
-                    )
+            edge_unit_s = _cpu_sum(
+                (
+                    _positive_product_ratio(
+                        (task.data_bits,),
+                        (rate_bps,),
+                    ),
+                    _positive_product_ratio(
+                        (task.comp_cycles,),
+                        (cpu_hz,),
+                    ),
+                    0.0
+                    if task.result_ratio == 0.0
+                    else _positive_product_ratio(
+                        (task.result_ratio, task.data_bits),
+                        (downlink_rate_bps,),
+                    ),
                 )
-            except OverflowError:
-                edge_unit_s = math.inf
+            )
             denominator = local_full_s + edge_unit_s
             alpha = local_full_s / denominator if math.isfinite(denominator) else math.nan
         else:
@@ -527,10 +575,10 @@ def _equal_cpu_allocation(
 
         delay_s = completion_delay_s(
             task,
-            rate_bps,
-            result_ratio,
             alpha,
+            rate_bps,
             cpu_hz,
+            downlink_rate_bps,
         )
         completed = math.isfinite(delay_s) and delay_s <= task.deadline_s
         reason = (
@@ -567,7 +615,7 @@ def allocate_with_policy(
     tasks: Sequence[Task],
     rates_bps: Mapping[int, float],
     cpu_budget_hz: float,
-    result_ratio: float | None = None,
+    downlink_rates_bps: Mapping[int, float] | None = None,
 ) -> AllocationResult:
     """Route a fixed task/rate set through one controlled allocation policy."""
     if not isinstance(policy, AllocationPolicy):
@@ -577,14 +625,14 @@ def allocate_with_policy(
             tasks,
             rates_bps,
             cpu_budget_hz,
-            result_ratio,
+            downlink_rates_bps,
         )
     if policy is AllocationPolicy.CROSSING_EQUAL:
         return _equal_cpu_allocation(
             tasks,
             rates_bps,
             cpu_budget_hz,
-            result_ratio,
+            downlink_rates_bps,
             None,
         )
     if policy is AllocationPolicy.FIXED_HALF_EQUAL:
@@ -592,7 +640,7 @@ def allocate_with_policy(
             tasks,
             rates_bps,
             cpu_budget_hz,
-            result_ratio,
+            downlink_rates_bps,
             0.5,
         )
     raise ValueError(f"unsupported allocation policy {policy}")
