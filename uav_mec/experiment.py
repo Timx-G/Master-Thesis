@@ -51,21 +51,58 @@ from .trace import generate_trace
 
 KNOWN_METHODS = frozenset(
     {
-        "local_only",
-        "fair_ofdma",
-        "greedy",
-        "ia_greedy",
-        "ilp",
-        "exchange_stable",
-        "intra_bilateral",
         "cross_bilateral",
-        "intra_global",
-        "full",
-        "full_fixed_half",
-        "full_crossing",
         "exact",
+        "exact_admission",
+        "exchange_dd",
+        "exchange_edf",
+        "exchange_stable",
+        "fair_ofdma",
+        "fixed_radio_dd",
+        "fixed_radio_dd_deadline_generated",
+        "fixed_radio_dd_radio_neutral",
+        "fixed_radio_edf",
+        "fixed_radio_edf_deadline_generated",
+        "fixed_radio_edf_radio_neutral",
+        "full",
+        "full_crossing",
+        "full_fixed_half",
+        "greedy",
+        "guo_jagp_adapted",
+        "ia_greedy",
+        "iea_dd",
+        "iea_edf",
+        "ilp",
+        "intra_bilateral",
+        "intra_global",
+        "local_only",
+        "per_uav_ilp",
+        "single_start_first",
     }
 )
+
+
+@dataclass(frozen=True, slots=True)
+class ExperimentCase:
+    """Registry-facing projection of one case declared by a config."""
+
+    case_id: str
+    role: str
+    fixed_sample_size: int | None = None
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.case_id, str) or not self.case_id.strip():
+            raise ValueError("case_id must be a non-empty string")
+        if self.role not in {"primary", "supporting", "correctness"}:
+            raise ValueError(
+                "case role must be primary, supporting, or correctness"
+            )
+        if self.fixed_sample_size is not None and (
+            not isinstance(self.fixed_sample_size, int)
+            or isinstance(self.fixed_sample_size, bool)
+            or self.fixed_sample_size <= 0
+        ):
+            raise ValueError("fixed_sample_size must be a positive integer")
 
 
 @dataclass(frozen=True, slots=True)
@@ -77,6 +114,8 @@ class ExperimentDefinition:
     evaluation: EvaluationConfig
     max_iterations: int
     csi_error_std: float = 0.0
+    sample_size_policy: str | None = None
+    cases: tuple[ExperimentCase, ...] = ()
 
 
 def load_definition(path: Path) -> ExperimentDefinition:
@@ -171,6 +210,29 @@ def load_definition(path: Path) -> ExperimentDefinition:
     csi_error_std = float(trace_raw.get("csi_error_std", 0.0))
     if not np.isfinite(csi_error_std) or csi_error_std < 0.0:
         raise ValueError("csi_error_std must be finite and non-negative")
+
+    sample_size_policy = raw.get("sample_size_policy")
+    if sample_size_policy is not None and (
+        not isinstance(sample_size_policy, str)
+        or not sample_size_policy.strip()
+    ):
+        raise ValueError("sample_size_policy must be a non-empty string")
+    raw_cases = raw.get("cases", [])
+    if not isinstance(raw_cases, list):
+        raise ValueError("cases must be a table array")
+    cases: list[ExperimentCase] = []
+    for index, raw_case in enumerate(raw_cases):
+        if not isinstance(raw_case, dict):
+            raise ValueError(f"cases[{index}] must be a table")
+        cases.append(
+            ExperimentCase(
+                case_id=raw_case.get("case_id"),
+                role=raw_case.get("role"),
+                fixed_sample_size=raw_case.get("fixed_sample_size"),
+            )
+        )
+    if len({case.case_id for case in cases}) != len(cases):
+        raise ValueError("case_id values must be unique")
     return ExperimentDefinition(
         run_id=run_id,
         seeds=seeds,
@@ -179,6 +241,8 @@ def load_definition(path: Path) -> ExperimentDefinition:
         evaluation=evaluation,
         max_iterations=max_iterations,
         csi_error_std=csi_error_std,
+        sample_size_policy=sample_size_policy,
+        cases=tuple(cases),
     )
 
 

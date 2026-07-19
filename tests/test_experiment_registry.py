@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import tomllib
+from dataclasses import replace
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 
+from uav_mec.experiment import load_definition
 from uav_mec.experiment_registry import (
     load_registry,
     registered_family,
@@ -14,16 +15,6 @@ from uav_mec.experiment_registry import (
 
 
 REGISTRY_PATH = Path("configs/thesis/experiment_registry_v2.toml")
-
-
-def _definition_for(family, **changes: object) -> SimpleNamespace:
-    values: dict[str, object] = {
-        "seeds": family.seeds,
-        "methods": family.methods,
-        "scenario": SimpleNamespace(num_slots=family.num_slots),
-    }
-    values.update(changes)
-    return SimpleNamespace(**values)
 
 
 def test_v2_registry_freezes_approved_candidate_pools_and_all_eight_families() -> None:
@@ -206,12 +197,6 @@ def test_registry_links_each_family_to_one_matching_config() -> None:
             "confirmatory_pairing.toml",
             "confirmatory_resource.toml",
         }
-        validate_registered_definition(
-            registry,
-            family.name,
-            _definition_for(family),
-        )
-
     h2_raw = tomllib.loads(
         registered_family(registry, "externality").config_path.read_text(
             encoding="utf-8"
@@ -224,6 +209,28 @@ def test_registry_links_each_family_to_one_matching_config() -> None:
     assert h2_raw["scenario"]["cluster_std"] == 5.0
     assert h2_raw["scenario"]["task"]["period_choices"] == [2]
     assert h2_raw["evaluation"]["cross_interference_scale"] == 1.0
+
+
+def test_all_eight_registered_configs_load_and_validate_real_definitions() -> None:
+    registry = load_registry(REGISTRY_PATH)
+
+    definitions = {
+        family.name: load_definition(family.config_path)
+        for family in registry.families
+    }
+
+    assert len(definitions) == 8
+    for family in registry.families:
+        definition = definitions[family.name]
+        assert definition.sample_size_policy == family.sample_size_policy
+        assert tuple(
+            (case.case_id, case.role, case.fixed_sample_size)
+            for case in definition.cases
+        ) == tuple(
+            (case.case_id, case.role, case.fixed_sample_size)
+            for case in family.cases
+        )
+        validate_registered_definition(registry, family.name, definition)
 
 
 def test_registry_primary_hypotheses_freeze_test_estimand_and_holm_family() -> None:
@@ -279,30 +286,46 @@ def test_registry_primary_hypotheses_freeze_test_estimand_and_holm_family() -> N
     }
 
 
-def test_registry_rejects_config_seed_method_or_slot_drift() -> None:
+def test_registry_rejects_resolved_definition_drift() -> None:
     registry = load_registry(REGISTRY_PATH)
     family = registered_family(registry, "main")
+    definition = load_definition(family.config_path)
 
     with pytest.raises(ValueError, match="main.seeds"):
         validate_registered_definition(
             registry,
             "main",
-            _definition_for(family, seeds=family.seeds[:-1]),
+            replace(definition, seeds=family.seeds[:-1]),
         )
     with pytest.raises(ValueError, match="main.methods"):
         validate_registered_definition(
             registry,
             "main",
-            _definition_for(family, methods=family.methods[:-1]),
+            replace(definition, methods=family.methods[:-1]),
         )
     with pytest.raises(ValueError, match="main.num_slots"):
         validate_registered_definition(
             registry,
             "main",
-            _definition_for(
-                family,
-                scenario=SimpleNamespace(num_slots=family.num_slots - 1),
+            replace(
+                definition,
+                scenario=replace(
+                    definition.scenario,
+                    num_slots=family.num_slots - 1,
+                ),
             ),
+        )
+    with pytest.raises(ValueError, match="main.sample_size_policy"):
+        validate_registered_definition(
+            registry,
+            "main",
+            replace(definition, sample_size_policy="fixed"),
+        )
+    with pytest.raises(ValueError, match="main.cases"):
+        validate_registered_definition(
+            registry,
+            "main",
+            replace(definition, cases=()),
         )
     with pytest.raises(KeyError, match="unregistered"):
         registered_family(registry, "unregistered")

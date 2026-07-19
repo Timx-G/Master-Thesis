@@ -117,6 +117,7 @@ class ScenarioConfig:
     seed: Optional[int] = None
     # V2: clustered users
     num_clusters: int = 3           # number of user hotspots
+    cluster_layout: str = "fixed"   # named layout; formal H2 uses pairwise_overlap
     cluster_std: float = 50.0       # std of Gaussian clusters (m)
     fixed_cluster_centers: bool = True  # use deterministic cluster layout for reproducibility
     # V2: battery budget

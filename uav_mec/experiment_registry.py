@@ -556,6 +556,24 @@ def validate_registered_definition(
     num_slots = _field(scenario, "num_slots")
     if num_slots != family.num_slots:
         raise ValueError(f"{family.name}.num_slots mismatch")
+    sample_size_policy = _field(definition, "sample_size_policy")
+    if sample_size_policy != family.sample_size_policy:
+        raise ValueError(f"{family.name}.sample_size_policy mismatch")
+    raw_cases = tuple(_field(definition, "cases"))
+    cases = tuple(
+        (
+            _field(case, "case_id"),
+            _field(case, "role"),
+            _field(case, "fixed_sample_size"),
+        )
+        for case in raw_cases
+    )
+    expected_cases = tuple(
+        (case.case_id, case.role, case.fixed_sample_size)
+        for case in family.cases
+    )
+    if cases != expected_cases:
+        raise ValueError(f"{family.name}.cases mismatch")
 
     try:
         definition_path = _field(definition, "config_path")
