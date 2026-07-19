@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from enum import Enum
 
 from .domain import AllocationDecision, Task
+from .latency import branch_delays_s
 
 _MAX_ULP_CORRECTIONS = 4
 
@@ -122,27 +123,12 @@ def completion_delay_s(
     if not math.isfinite(cpu_hz) or cpu_hz <= 0.0:
         raise ValueError("cpu_hz must be finite and positive when alpha is positive")
 
-    local_delay_s = _positive_product_ratio(
-        (1.0 - alpha, task.comp_cycles),
-        (task.local_cpu_hz,),
-    )
-    transmission_s = _positive_product_ratio(
-        (alpha, 1.0 + result_ratio, task.data_bits),
-        (rate_bps,),
-    )
-    computation_s = _positive_product_ratio(
-        (alpha, task.comp_cycles),
-        (cpu_hz,),
-    )
-    try:
-        edge_delay_s = math.fsum((transmission_s, computation_s))
-    except OverflowError:
-        edge_delay_s = math.inf
-
-    grouped_terms = (1.0 + result_ratio) * (task.data_bits / rate_bps) + (task.comp_cycles / cpu_hz)
-    if math.isfinite(grouped_terms):
-        edge_delay_s = max(edge_delay_s, alpha * grouped_terms)
-    return max(local_delay_s, edge_delay_s)
+    # Legacy callers provide one link rate and a scalar rho.  Route through
+    # the canonical branch model with the same rate for the result downlink;
+    # thesis-v2 callers use ``uav_mec.latency`` directly with task-level rho.
+    from dataclasses import replace
+    canonical_task = replace(task, result_ratio=result_ratio)
+    return branch_delays_s(canonical_task, alpha, rate_bps, cpu_hz, rate_bps).completion_s
 
 
 def _deadline_feasible_alpha(task: Task) -> tuple[float, bool]:
