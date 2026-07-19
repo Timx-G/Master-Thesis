@@ -99,7 +99,13 @@ def semantic_fingerprint(
     *,
     downlink_rates_bps: Mapping[int, float] | None = None,
 ) -> str:
-    """Return the process-independent key for allocation and closure semantics."""
+    """Return the complete process-independent thesis-v2 semantic key.
+
+    The length-framed SHA-256 stream covers task/timing semantics, the selected
+    channel provenance and gains, radio/SIC parameters, CPU/allocation policy,
+    canonical independent-downlink items, and the canonical latency schema.
+    Object identity and process-local hashes are deliberately excluded.
+    """
     if not isinstance(channel_basis, ChannelBasis):
         raise ValueError("channel_basis must be a ChannelBasis value")
     if downlink_rates_bps is not None and not isinstance(

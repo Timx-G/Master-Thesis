@@ -19,7 +19,7 @@ TOML definition -> immutable trace -> scheduler/baseline -> hard evaluator
 -> passed evidence gates -> canonical JSON -> figures and LaTeX
 ```
 
-Every method receives identical task IDs and channels for a seed. Raw confirmatory outputs are ignored; only checksum-audited lightweight evidence under `artifacts/canonical/v1/` is tracked.
+Every method receives identical task IDs and channels for a seed. Raw confirmatory outputs are ignored. The tracked canonical-v1 bundle verifies only its historical snapshot and cannot validate thesis-v2.
 
 ## Repository Layout
 
@@ -32,6 +32,16 @@ Every method receives identical task IDs and channels for a seed. Raw confirmato
 - `defense/`: 20-slide outline, two-contribution comparison, and risk questions.
 - `deliverables/defense_2026/`: proposal report, midterm report, and midterm defense deck.
 - `tests/`: behavioral, invariant, statistical, evidence-contract, and document tests.
+
+## Thesis-v2 Semantic Gate
+
+Run this non-experimental gate before any v2 smoke, pilot, confirmatory, or publication command:
+
+```bash
+make semantic-gate PYTHON=/home/link/miniconda/envs/llm-ops-torch26/bin/python
+```
+
+A canonical-v1 checksum check cannot validate thesis-v2 semantics.
 
 ## Quick Verification
 

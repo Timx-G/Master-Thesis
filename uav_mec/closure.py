@@ -36,6 +36,8 @@ class ClosureConvergenceError(RuntimeError):
 
 @dataclass(frozen=True, slots=True)
 class RawRateSnapshot:
+    """Rated raw assignment bound to its complete semantic fingerprint."""
+
     assignment: Schedule
     rates: tuple[RateRecord, ...]
     channel_basis: ChannelBasis
@@ -54,6 +56,8 @@ class RawRateSnapshot:
 
 @dataclass(frozen=True, slots=True)
 class ClosedExecutableSchedule:
+    """Deletion-closed allocation whose stable key carries full semantics."""
+
     schedule: Schedule
     rate_snapshot: RawRateSnapshot
     allocation: AllocationResult

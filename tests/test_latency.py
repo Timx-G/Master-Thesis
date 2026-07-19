@@ -1,10 +1,15 @@
+import ast
 import inspect
 import math
+from pathlib import Path
 
+import numpy as np
 import pytest
 
 from uav_mec.domain import Task
 from uav_mec.latency import branch_delays_s, completion_delay_s
+from uav_mec.model import ChannelConfig, NOMAChannel, offload_delay
+from uav_mec.pairing import evaluate_pairing, kkt_alpha
 from uav_mec.resource_allocation import required_resources
 
 
@@ -64,3 +69,54 @@ def test_canonical_delay_returns_infinity_for_unrepresentable_edge_sum() -> None
     )
 
     assert math.isinf(completion_delay_s(task, 1.0, 1.0, 1.0))
+
+
+def test_formal_pipeline_does_not_call_legacy_delay_helpers() -> None:
+    formal_paths = (
+        Path("uav_mec/closure.py"),
+        Path("uav_mec/evaluation.py"),
+        Path("uav_mec/resource_allocation.py"),
+        Path("uav_mec/scheduler.py"),
+        Path("uav_mec/exact.py"),
+        Path("uav_mec/baselines_v2.py"),
+        Path("uav_mec/experiment.py"),
+    )
+    forbidden_calls = {"kkt_alpha", "evaluate_pairing", "offload_delay"}
+    for path in formal_paths:
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        called = {
+            node.func.id
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
+        }
+        imported_pairing = any(
+            isinstance(node, ast.ImportFrom)
+            and (node.module or "").endswith("pairing")
+            or isinstance(node, ast.Import)
+            and any(alias.name.endswith("pairing") for alias in node.names)
+            for node in ast.walk(tree)
+        )
+        assert not imported_pairing, path
+        assert not called.intersection(forbidden_calls), (path, called)
+
+
+def test_legacy_delay_entry_points_emit_deprecation_warning() -> None:
+    with pytest.warns(DeprecationWarning, match="legacy-v1 delay semantics"):
+        kkt_alpha(1_000.0, 2_000.0, 5_000.0, 10_000.0, 4_000.0)
+    with pytest.warns(DeprecationWarning, match="legacy-v1 delay semantics"):
+        offload_delay(1_000.0, 2_000.0, 5_000.0, 10_000.0)
+    with pytest.warns(DeprecationWarning, match="legacy-v1 delay semantics"):
+        result = evaluate_pairing(
+            {},
+            np.empty((0, 1)),
+            NOMAChannel(ChannelConfig(), 100.0),
+            np.empty(0),
+            np.empty(0),
+            np.empty(0, dtype=bool),
+            np.empty(0, dtype=int),
+            1,
+            4e9,
+            1e9,
+            0.8,
+        )
+    assert result[:2] == (0, 0)

@@ -2,10 +2,13 @@ PYTHON ?= python
 TECTONIC ?= tectonic
 CANONICAL ?= artifacts/canonical/v1
 
-.PHONY: test assets paper thesis verify
+.PHONY: test semantic-gate assets paper thesis verify
 
 test:
 	$(PYTHON) -m pytest -q
+
+semantic-gate:
+	$(PYTHON) -m pytest tests/test_latency.py tests/test_domain.py tests/test_trace.py tests/test_schedule.py tests/test_schedule_closure.py tests/test_resource_requirements.py tests/test_resource_allocator.py tests/test_resource_policies.py tests/test_evaluation.py tests/test_search.py tests/test_project_metadata.py -q
 
 assets:
 	$(PYTHON) -m uav_mec.generate_figures_v2 \

@@ -1,3 +1,4 @@
+import dataclasses
 import inspect
 
 import numpy as np
@@ -12,9 +13,11 @@ from uav_mec.evaluation import (
     compute_rate_records,
     evaluate_frozen_plan,
     evaluate_schedule,
+    semantic_fingerprint,
 )
 from uav_mec.externality import aggregate_victim_link_exposure
 from uav_mec.model import ChannelConfig, NOMAChannel
+from uav_mec.resource_allocation import AllocationPolicy
 
 
 def config(
@@ -80,6 +83,95 @@ def _basis_case() -> tuple[SlotSnapshot, Schedule, NOMAChannel, EvaluationConfig
         cpu_per_uav_hz=4e9,
     )
     return snapshot, schedule, NOMAChannel(ChannelConfig(), 100.0), evaluation
+
+
+def test_semantic_cache_key_separates_basis_policy_gain_and_task_rho() -> None:
+    snapshot, _schedule, channel, evaluation = _basis_case()
+    planning = semantic_fingerprint(
+        snapshot,
+        channel,
+        evaluation,
+        ChannelBasis.PLANNING,
+    )
+    realized = semantic_fingerprint(
+        snapshot,
+        channel,
+        evaluation,
+        ChannelBasis.REALIZED,
+    )
+    changed_policy = dataclasses.replace(
+        evaluation,
+        allocation_policy=AllocationPolicy.CROSSING_EQUAL,
+    )
+    policy_key = semantic_fingerprint(
+        snapshot,
+        channel,
+        changed_policy,
+        ChannelBasis.PLANNING,
+    )
+    changed_task = dataclasses.replace(snapshot.tasks[0], result_ratio=0.2)
+    rho_snapshot = SlotSnapshot(
+        snapshot.slot_index,
+        (changed_task, snapshot.tasks[1]),
+        snapshot.channel_gains,
+        snapshot.num_uavs,
+        snapshot.estimated_channel_gains,
+    )
+    rho_key = semantic_fingerprint(
+        rho_snapshot,
+        channel,
+        evaluation,
+        ChannelBasis.PLANNING,
+        downlink_rates_bps={1: 500_000.0, 2: 1_000_000.0},
+    )
+    downlink_a = semantic_fingerprint(
+        rho_snapshot,
+        channel,
+        evaluation,
+        ChannelBasis.PLANNING,
+        downlink_rates_bps={1: 1_000_000.0, 2: 1_000_000.0},
+    )
+    downlink_b = semantic_fingerprint(
+        rho_snapshot,
+        channel,
+        evaluation,
+        ChannelBasis.PLANNING,
+        downlink_rates_bps={1: 2_000_000.0, 2: 1_000_000.0},
+    )
+    assert len({planning, realized, policy_key, rho_key, downlink_a, downlink_b}) == 6
+
+
+def test_semantic_cache_key_is_stable_across_fresh_equivalent_objects() -> None:
+    snapshot, _schedule, channel, evaluation = _basis_case()
+    fresh_snapshot = SlotSnapshot(
+        slot_index=snapshot.slot_index,
+        tasks=tuple(dataclasses.replace(task) for task in snapshot.tasks),
+        channel_gains=np.array(snapshot.channel_gains, copy=True),
+        num_uavs=snapshot.num_uavs,
+        estimated_channel_gains=np.array(
+            snapshot.estimated_channel_gains,
+            copy=True,
+        ),
+    )
+    fresh_channel = NOMAChannel(dataclasses.replace(channel.cfg), channel.H)
+    fresh_evaluation = dataclasses.replace(evaluation)
+
+    expected = semantic_fingerprint(
+        snapshot,
+        channel,
+        evaluation,
+        ChannelBasis.PLANNING,
+        downlink_rates_bps={2: 1_000_000.0, 1: 500_000.0},
+    )
+    actual = semantic_fingerprint(
+        fresh_snapshot,
+        fresh_channel,
+        fresh_evaluation,
+        ChannelBasis.PLANNING,
+        downlink_rates_bps={1: 500_000.0, 2: 1_000_000.0},
+    )
+
+    assert actual == expected
 
 
 def test_realized_replay_never_reallocates_or_recloses() -> None:

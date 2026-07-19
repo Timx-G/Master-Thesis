@@ -6,6 +6,13 @@
 
 ---
 
+### Canonical thesis-v2 semantics
+
+- Formal code must use `uav_mec.latency`, explicit `ChannelBasis`, and `uav_mec.closure`.
+- A realized evaluation replays a `FrozenSlotPlan`; it never reallocates CPU or changes radio decisions.
+- `uav_mec.pairing.kkt_alpha`, `uav_mec.pairing.evaluate_pairing`, and `uav_mec.model.offload_delay` are legacy-v1 only and must not be imported or called by the thesis-v2 pipeline.
+- Pilot and confirmatory jobs are forbidden until the semantic gate in the approved implementation plan is green.
+
 ## 0. Environment Setup (IMPORTANT)
 
 ### Python 环境
@@ -72,6 +79,12 @@ env -u http_proxy -u https_proxy /home/link/.local/bin/tectonic -o . main_v2.tex
 
 ## 2. 代码架构
 
+Thesis-v2 正式语义映射为：任务/时延使用 `domain.py` + `latency.py`，
+无线/SIC 使用 `evaluation.py`，可执行性使用 `closure.py`，调度使用
+`scheduler.py`。
+
+### Legacy-v1 历史布局
+
 ```
 Master-Thesis/
 ├── CLAUDE.md                        # 本文件（项目总览）
@@ -130,7 +143,7 @@ Master-Thesis/
 | 截止时间 t_max | 0.8 s | 软实时校准值 |
 | 到达概率 | 0.8（burst cluster） | 密集 IoT |
 | 用户速度 | 2 m/s | ITU 行人 |
-| 结果数据比 ρ | 0.1 | 文献 |
+| 结果数据比 ρ | 0.0（正式主族） | 正值必须配置独立下行速率 |
 
 ---
 
@@ -200,18 +213,17 @@ Master-Thesis/
 
 | 论文内容 | 代码文件 | 关键函数 |
 |----------|---------|---------|
-| SINR 公式 (eq.3–6) | `pairing.py` | `compute_rates_for_pairing()` |
-| 最优卸载比 (eq.8, Lemma 1) | `pairing.py` | `kkt_alpha()` |
-| SIC 可行性过滤 | `baselines_pairing.py` | `ilp_optimal_pairing(..., sic_gamma_min)` |
-| Stage 1 ILP | `baselines_pairing.py` | `ilp_optimal_pairing()` |
-| Stage 2 Swap | `pairing.py` | `swap_optimize()` |
-| 全部基线实现 | `baselines_pairing.py` | 见文件顶部 docstring |
-| 主实验 + 统计检验 | `run_main_experiment.py` | `main()` |
-| DRL 基线 | `run_drl_convergence_and_mappo.py` | `agents/ppo.py`, `agents/mappo.py` |
+| 任务、时限、rho | `domain.py` + `latency.py` | `Task`, `completion_delay_s()` |
+| 无线速率与每层 SIC | `evaluation.py` | `compute_rate_records()` |
+| 原始分配到可执行计划 | `closure.py` | `rate_raw_assignment()`, `close_assignment()` |
+| 调度与邻域搜索 | `scheduler.py` | `build_initial_schedule()`, `optimize_schedule()` |
+
+`pairing.py`、`baselines_pairing.py`、`run_main_experiment.py` 和
+`model.offload_delay` 仅属 legacy-v1 历史路径。
 
 ---
 
-## 7. 关键设计陷阱（勿犯）
+## 7. Legacy-v1 历史设计记录
 
 1. **`kkt_alpha` 不是标准 KKT**：`τ = max(τ_loc, τ_off)` 不可微，用的是 crossing-point 条件。论文 Lemma 1 已注明，但函数名保留历史命名，**不要在论文中写"standard KKT"**。
 
@@ -236,6 +248,10 @@ Master-Thesis/
 conda activate llm-ops-torch26
 PY=/home/link/miniconda/envs/llm-ops-torch26/bin/python
 
+# thesis-v2 任何 pilot/confirmatory 之前的语义门
+make semantic-gate PYTHON=$PY
+
+# 以下 run_* 命令仅属 legacy-v1 历史复现
 # 主实验（~30s）
 $PY -m uav_mec.run_main_experiment
 

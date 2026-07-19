@@ -10,6 +10,7 @@ Models:
 from __future__ import annotations
 
 import math
+import warnings
 from dataclasses import dataclass, field
 from typing import Optional
 
@@ -94,16 +95,42 @@ class ChannelConfig:
 class TaskConfig:
     """Computation task parameters."""
     arrival_prob: float = 0.8       # per-slot task arrival probability (dense IoT)
+    arrival_mode: str = "bernoulli"
+    period_choices: tuple[int, ...] = (1,)
+    period_jitter_slots: int = 0
     data_min: float = 400e3         # min data size (bits) = 50 KB
     data_max: float = 2000e3        # max data size (bits) = 250 KB
     comp_min: float = 500.0         # min computation density (cycles/bit)
     comp_max: float = 1000.0        # max computation density (cycles/bit)
+    t_min: float | None = None
     t_max: float = 0.8              # deadline (s) — Phase 0 calibrated (Greedy=70%, gap=8.9pp)
     f_local: float = 1e9            # local CPU frequency (cycles/s, 1 GHz)
     kappa: float = 1e-27            # energy coefficient for local computing
     result_ratio: float = 0.0       # no result return unless an independent downlink is configured
 
     def __post_init__(self) -> None:
+        if self.arrival_mode not in {"bernoulli", "periodic"}:
+            raise ValueError("arrival_mode must be bernoulli or periodic")
+        self.period_choices = tuple(self.period_choices)
+        if not self.period_choices or any(
+            not isinstance(period, int)
+            or isinstance(period, bool)
+            or period <= 0
+            for period in self.period_choices
+        ):
+            raise ValueError("period_choices must contain positive integers")
+        if (
+            not isinstance(self.period_jitter_slots, int)
+            or isinstance(self.period_jitter_slots, bool)
+            or self.period_jitter_slots < 0
+        ):
+            raise ValueError("period_jitter_slots must be a non-negative integer")
+        if self.t_min is not None and (
+            not math.isfinite(self.t_min)
+            or self.t_min <= 0.0
+            or self.t_min > self.t_max
+        ):
+            raise ValueError("t_min must be positive and no larger than t_max")
         if not math.isfinite(self.result_ratio) or not 0.0 <= self.result_ratio <= 1.0:
             raise ValueError("result_ratio must be finite in [0, 1]")
 
@@ -147,6 +174,14 @@ class ScenarioConfig:
     uav: UAVConfig = field(default_factory=UAVConfig)
     channel: ChannelConfig = field(default_factory=ChannelConfig)
     task: TaskConfig = field(default_factory=TaskConfig)
+
+    def __post_init__(self) -> None:
+        if isinstance(self.uav, dict):
+            self.uav = UAVConfig(**self.uav)
+        if isinstance(self.channel, dict):
+            self.channel = ChannelConfig(**self.channel)
+        if isinstance(self.task, dict):
+            self.task = TaskConfig(**self.task)
 
 
 # Fixed cluster layouts for reproducible experiments.
@@ -659,10 +694,17 @@ def offload_delay(
     f_alloc: float,
     max_delay: float = 10.0,
 ) -> float:
-    """Offloading delay = transmission + MEC execution (s).
+    """Return a legacy-v1 upload-plus-MEC delay for historical scripts.
 
-    Clamped to max_delay to prevent numerical explosion when rate is tiny.
+    This array/scalar API predates task-level rho and independent downlink
+    rates.  It is forbidden in the thesis-v2 formal pipeline.  The value is
+    clamped to ``max_delay`` to preserve the historical behavior.
     """
+    warnings.warn(
+        "legacy-v1 delay semantics; forbidden in thesis-v2 formal pipeline",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     if data_bits <= 0 or comp_cycles <= 0:
         return 0.0
     if rate <= 0 or f_alloc <= 0:

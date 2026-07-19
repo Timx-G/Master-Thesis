@@ -1,11 +1,24 @@
-# Code Architecture — UAV NOMA MEC Paper
+# Code Architecture — thesis-v2 semantic boundary
 
 > 本文件用于辅助 agent 在阅读 `paper/main_v2.tex` 某一章节后，**快速定位对应代码**。
 > 项目根目录：`/home/link/my_workspace/Master-Thesis/`
 
 ---
 
-## 一、论文章节 → 代码文件 速查表
+## 一、thesis-v2 正式语义速查
+
+| 语义 | 对应代码文件 | 关键函数 / 类 |
+|----------|-------------|--------------|
+| 任务身份、时限、时隙、rho | `uav_mec/domain.py` + `uav_mec/latency.py` | `Task`, `completion_delay_s()` |
+| 无线速率、交叉干扰、每层 SIC | `uav_mec/evaluation.py` | `compute_rate_records()` |
+| 原始分配到可执行计划 | `uav_mec/closure.py` | `rate_raw_assignment()`, `close_assignment()` |
+| 调度与邻域搜索 | `uav_mec/scheduler.py` | `build_initial_schedule()`, `optimize_schedule()` |
+| 实现信道固定计划回放 | `uav_mec/closure.py` + `uav_mec/evaluation.py` | `freeze_plan()`, `evaluate_frozen_plan()` |
+
+## Legacy-v1 历史映射（非 thesis-v2）
+
+`pairing.py`、`baselines_pairing.py`、`run_main_experiment.py` 与
+`model.offload_delay` 只供历史脚本，不得导入正式流水线。
 
 | 论文章节 | 对应代码文件 | 关键函数 / 类 |
 |----------|-------------|--------------|
@@ -36,7 +49,7 @@
 
 ---
 
-## 二、核心文件职责
+## 二、Legacy-v1 历史文件职责
 
 ### `uav_mec/model.py`
 物理层模型，**不含算法逻辑**。

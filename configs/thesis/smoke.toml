@@ -11,6 +11,12 @@ n_subcarriers = 2
 random_burst = true
 user_mobility = true
 
+[scenario.task]
+result_ratio = 0.0
+
+[scenario.uav]
+dt = 1.0
+
 [evaluation]
 gamma_sic_min = 1.0
 sic_residual = 0.02

@@ -1,5 +1,8 @@
-"""
-NOMA User Pairing Strategies for Multi-UAV MEC.
+"""Legacy-v1 array-based NOMA pairing strategies.
+
+This module is retained for historical scripts only.  Its delay helpers use
+the legacy-v1 shared-rate return-delay approximation and are forbidden in the
+thesis-v2 formal pipeline.
 
 Three-layer optimization:
   Layer 1: User selection + subcarrier-pair assignment (Per-UAV ILP or Greedy)
@@ -15,6 +18,7 @@ All strategies produce the same output format:
 """
 from __future__ import annotations
 import math
+import warnings
 import numpy as np
 # Note: scipy.linear_sum_assignment is NOT used.
 # The "benefit_greedy" function below is a greedy heuristic, not optimal matching.
@@ -27,7 +31,7 @@ import numpy as np
 def kkt_alpha(D: float, C: float, R: float, f_alloc: float,
               f_local: float, alpha_scale: float = 0.95,
               result_ratio: float = 0.1) -> float:
-    """Delay-equalization optimal offloading ratio: set τ_local = τ_offload.
+    """Legacy-v1 delay-equalization ratio using one rate for UL and DL.
 
     Since τ = max(τ_loc, τ_off), and τ_loc is decreasing while τ_off is
     increasing in α, the minimum is at the unique crossing point:
@@ -47,6 +51,11 @@ def kkt_alpha(D: float, C: float, R: float, f_alloc: float,
     Returns:
         alpha in [0, alpha_scale]
     """
+    warnings.warn(
+        "legacy-v1 delay semantics; forbidden in thesis-v2 formal pipeline",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     if D < 1e-3 or C < 1e-3 or R < 1.0:
         return 0.0
     t_local_full = C / f_local
@@ -122,10 +131,16 @@ def compute_rates_for_pairing(pairs_per_uav, h_gains, channel, n_sub,
 def evaluate_pairing(pairs_per_uav, h_gains, channel, task_data, task_comp,
                       active_mask, assignment, n_sub, f_per_uav, f_local,
                       t_max, sic_eps=0.02, alpha_scale=0.95, result_ratio=0.1):
-    """Evaluate a pairing: returns (met_count, total_count, rates, alphas).
+    """Evaluate a pairing with legacy-v1 shared-rate delay semantics.
 
-    This is the unified evaluation function used by all strategies.
+    Retained only for named historical scripts.  Thesis-v2 evaluation uses
+    :mod:`uav_mec.evaluation` and :mod:`uav_mec.latency`.
     """
+    warnings.warn(
+        "legacy-v1 delay semantics; forbidden in thesis-v2 formal pipeline",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     N = len(active_mask)
     K = h_gains.shape[1]
 
