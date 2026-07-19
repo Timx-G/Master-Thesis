@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from uav_mec.domain import SlotSnapshot, Task
+from uav_mec.domain import ChannelBasis, SlotSnapshot, Task
 from uav_mec.evaluation import EvaluationConfig
 from uav_mec.experiment import _slot_method
 from uav_mec.model import ChannelConfig, NOMAChannel, ScenarioConfig
@@ -66,7 +66,7 @@ def test_estimated_csi_is_immutable_and_changes_snapshot_equality():
         first.estimated_channel_gains.setflags(write=True)
 
 
-def test_planning_snapshot_promotes_estimates_without_mutating_truth():
+def test_explicit_channel_basis_selects_estimates_without_mutating_truth():
     task = Task(1, 0, 0, 1e6, 1.4e9, 0.8, 1e9)
     snapshot = SlotSnapshot(
         0,
@@ -76,13 +76,14 @@ def test_planning_snapshot_promotes_estimates_without_mutating_truth():
         estimated_channel_gains=np.array([[1e-8, 9e-8]]),
     )
 
-    planning = snapshot.as_planning_snapshot()
+    planning_gains = snapshot.channel_gains_for(ChannelBasis.PLANNING)
+    realized_gains = snapshot.channel_gains_for(ChannelBasis.REALIZED)
 
     np.testing.assert_array_equal(
-        planning.channel_gains,
+        planning_gains,
         snapshot.estimated_channel_gains,
     )
-    assert planning.estimated_channel_gains is None
+    np.testing.assert_array_equal(realized_gains, snapshot.channel_gains)
     np.testing.assert_array_equal(
         snapshot.channel_gains,
         np.array([[9e-8, 1e-8]]),
