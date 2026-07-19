@@ -110,14 +110,22 @@ def test_nonlocal_task_rejects_invalid_downlink_rate(invalid_rate: float):
 
 def test_analytical_requirement_matches_independent_full_alpha_grid():
     task = make_task(1_600_000_000.0)
-    rate_bps = 4_000_000.0
-    result_ratio = 0.1
+    uplink_rate_bps = 4_000_000.0
+    downlink_rate_bps = 2_000_000.0
 
-    req = required_resources(task, rate_bps, downlink_rate_bps=rate_bps)
+    req = required_resources(
+        task,
+        uplink_rate_bps,
+        downlink_rate_bps=downlink_rate_bps,
+    )
 
     alphas = np.linspace(0.0, 1.0, 20_001)
     local_delays = (1.0 - alphas) * task.comp_cycles / task.local_cpu_hz
-    edge_windows = task.deadline_s - alphas * (1.0 + result_ratio) * task.data_bits / rate_bps
+    transfer_per_alpha_s = (
+        task.data_bits / uplink_rate_bps
+        + task.result_ratio * task.data_bits / downlink_rate_bps
+    )
+    edge_windows = task.deadline_s - alphas * transfer_per_alpha_s
     feasible_mask = (local_delays <= task.deadline_s) & (edge_windows > 0.0)
     feasible_alphas = alphas[feasible_mask]
     feasible_cpu = feasible_alphas * task.comp_cycles / edge_windows[feasible_mask]
@@ -129,24 +137,33 @@ def test_analytical_requirement_matches_independent_full_alpha_grid():
 
 def test_ordinary_scale_requirement_is_minimal_and_meets_both_branches():
     task = make_task(1_600_000_000.0)
-    rate_bps = 4_000_000.0
-    result_ratio = 0.1
+    uplink_rate_bps = 4_000_000.0
+    downlink_rate_bps = 2_000_000.0
     epsilon = 1e-9
 
-    req = required_resources(task, rate_bps, downlink_rate_bps=rate_bps)
+    req = required_resources(
+        task,
+        uplink_rate_bps,
+        downlink_rate_bps=downlink_rate_bps,
+    )
 
     returned_local_delay = (1.0 - req.alpha) * task.comp_cycles / task.local_cpu_hz
     returned_edge_delay = req.alpha * (
-        (1.0 + result_ratio) * (task.data_bits / rate_bps) + task.comp_cycles / req.cpu_hz
+        task.data_bits / uplink_rate_bps
+        + task.comp_cycles / req.cpu_hz
+        + task.result_ratio * task.data_bits / downlink_rate_bps
     )
     smaller_alpha_local_delay = (1.0 - (req.alpha - epsilon)) * task.comp_cycles / task.local_cpu_hz
     smaller_cpu_edge_delay = req.alpha * (
-        (1.0 + result_ratio) * (task.data_bits / rate_bps)
+        task.data_bits / uplink_rate_bps
         + task.comp_cycles / (req.cpu_hz * (1.0 - epsilon))
+        + task.result_ratio * task.data_bits / downlink_rate_bps
     )
     predecessor_cpu = math.nextafter(req.cpu_hz, 0.0)
     predecessor_cpu_edge_delay = req.alpha * (
-        (1.0 + result_ratio) * (task.data_bits / rate_bps) + task.comp_cycles / predecessor_cpu
+        task.data_bits / uplink_rate_bps
+        + task.comp_cycles / predecessor_cpu
+        + task.result_ratio * task.data_bits / downlink_rate_bps
     )
 
     assert returned_local_delay <= task.deadline_s + 1e-12
@@ -198,13 +215,17 @@ def test_cpu_is_adjusted_when_independent_delay_is_one_ulp_late():
         result_ratio=0.1,
     )
 
+    uplink_rate_bps = 100_000.0
+    downlink_rate_bps = 80_000.0
     req = required_resources(
         task,
-        rate_bps=100_000.0,
-        downlink_rate_bps=100_000.0,
+        rate_bps=uplink_rate_bps,
+        downlink_rate_bps=downlink_rate_bps,
     )
     independently_recomputed_delay = req.alpha * (
-        1.1 * (task.data_bits / 100_000.0) + task.comp_cycles / req.cpu_hz
+        task.data_bits / uplink_rate_bps
+        + task.comp_cycles / req.cpu_hz
+        + task.result_ratio * task.data_bits / downlink_rate_bps
     )
 
     assert req.feasible
@@ -315,7 +336,11 @@ def test_feasible_mec_requirement_has_finite_positive_resources(
     rate_bps: float,
     downlink_rate_bps: float,
 ):
-    req = required_resources(task, rate_bps, downlink_rate_bps)
+    req = required_resources(
+        task,
+        rate_bps,
+        downlink_rate_bps=downlink_rate_bps,
+    )
 
     assert req.feasible
     assert not req.local_only
@@ -329,7 +354,7 @@ def test_resource_requirement_is_immutable():
     req = required_resources(
         make_task(1_200_000_000.0),
         4_000_000.0,
-        4_000_000.0,
+        downlink_rate_bps=4_000_000.0,
     )
 
     with pytest.raises(FrozenInstanceError):

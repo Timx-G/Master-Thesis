@@ -81,6 +81,16 @@ def _cpu_sum(cpu_costs: Sequence[float]) -> float:
         return math.inf
 
 
+def _validate_downlink_rates_bps(
+    downlink_rates_bps: Mapping[int, float] | None,
+) -> None:
+    if (
+        downlink_rates_bps is not None
+        and not isinstance(downlink_rates_bps, Mapping)
+    ):
+        raise TypeError("downlink_rates_bps must be a mapping or None")
+
+
 def _link_infeasible(task: Task, alpha: float) -> ResourceRequirement:
     return ResourceRequirement(
         task.task_id,
@@ -301,6 +311,7 @@ def allocate_deadline_tasks(
     """
     if not math.isfinite(cpu_budget_hz) or cpu_budget_hz < 0.0:
         raise ValueError("cpu_budget_hz must be finite and non-negative")
+    _validate_downlink_rates_bps(downlink_rates_bps)
 
     task_list = tuple(tasks)
     seen_task_ids: set[int] = set()
@@ -620,6 +631,7 @@ def allocate_with_policy(
     """Route a fixed task/rate set through one controlled allocation policy."""
     if not isinstance(policy, AllocationPolicy):
         raise ValueError("policy must be an AllocationPolicy value")
+    _validate_downlink_rates_bps(downlink_rates_bps)
     if policy is AllocationPolicy.DEADLINE:
         return allocate_deadline_tasks(
             tasks,

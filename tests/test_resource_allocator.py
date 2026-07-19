@@ -6,30 +6,43 @@ import pytest
 
 import uav_mec.resource_allocation as resource_allocation
 from uav_mec.domain import Task
+from uav_mec.latency import completion_delay_s
 from uav_mec.resource_allocation import (
     AllocationResult,
     RequirementReason,
     ResourceRequirement,
     allocate_deadline_tasks,
-    completion_delay_s,
     required_resources,
 )
 
 
 def tasks() -> tuple[Task, ...]:
     return (
-        Task(10, 0, 0, 1e6, 1.1e9, 0.8, 1e9),
-        Task(11, 1, 0, 1e6, 1.4e9, 0.8, 1e9),
-        Task(12, 2, 0, 1e6, 1.9e9, 0.8, 1e9),
+        Task(10, 0, 0, 1e6, 1.1e9, 0.8, 1e9, result_ratio=0.1),
+        Task(11, 1, 0, 1e6, 1.4e9, 0.8, 1e9, result_ratio=0.1),
+        Task(12, 2, 0, 1e6, 1.9e9, 0.8, 1e9, result_ratio=0.1),
     )
 
 
 def test_allocator_selects_smallest_cpu_costs_within_budget():
     rates = {10: 4e6, 11: 4e6, 12: 4e6}
-    reqs = [required_resources(task, rates[task.task_id], 0.1) for task in tasks()]
+    downlink_rates = {10: 8e6, 11: 8e6, 12: 8e6}
+    reqs = [
+        required_resources(
+            task,
+            rates[task.task_id],
+            downlink_rate_bps=downlink_rates[task.task_id],
+        )
+        for task in tasks()
+    ]
     budget = reqs[0].cpu_hz + reqs[1].cpu_hz + 1.0
 
-    result = allocate_deadline_tasks(tasks(), rates, budget, 0.1)
+    result = allocate_deadline_tasks(
+        tasks(),
+        rates,
+        budget,
+        downlink_rates_bps=downlink_rates,
+    )
 
     assert result.completed_task_ids == (10, 11)
     assert result.total_cpu_hz <= budget
@@ -37,9 +50,15 @@ def test_allocator_selects_smallest_cpu_costs_within_budget():
 
 def test_allocator_cardinality_matches_brute_force():
     rates = {10: 3e6, 11: 2e6, 12: 5e6}
+    downlink_rates = {10: 6e6, 11: 4e6, 12: 10e6}
     task_list = tasks()
     requirements = {
-        task.task_id: required_resources(task, rates[task.task_id], 0.1) for task in task_list
+        task.task_id: required_resources(
+            task,
+            rates[task.task_id],
+            downlink_rate_bps=downlink_rates[task.task_id],
+        )
+        for task in task_list
     }
     budget = 2.0e9
     brute_best = 0
@@ -48,7 +67,12 @@ def test_allocator_cardinality_matches_brute_force():
             if sum(requirements[task.task_id].cpu_hz for task in subset) <= budget:
                 brute_best = max(brute_best, size)
 
-    result = allocate_deadline_tasks(task_list, rates, budget, 0.1)
+    result = allocate_deadline_tasks(
+        task_list,
+        rates,
+        budget,
+        downlink_rates_bps=downlink_rates,
+    )
 
     assert len(result.completed_task_ids) == brute_best
 
@@ -64,20 +88,26 @@ def test_completion_delay_matches_normalized_parallel_branch_model():
         1e9,
         result_ratio=0.1,
     )
-    rate_bps = 4e6
-    result_ratio = 0.1
-    requirement = required_resources(task, rate_bps, rate_bps)
+    uplink_rate_bps = 4e6
+    downlink_rate_bps = 2e6
+    requirement = required_resources(
+        task,
+        uplink_rate_bps,
+        downlink_rate_bps=downlink_rate_bps,
+    )
     local_delay_s = (1.0 - requirement.alpha) * task.comp_cycles / task.local_cpu_hz
     edge_delay_s = requirement.alpha * (
-        (1.0 + result_ratio) * task.data_bits / rate_bps + task.comp_cycles / requirement.cpu_hz
+        task.data_bits / uplink_rate_bps
+        + task.comp_cycles / requirement.cpu_hz
+        + task.result_ratio * task.data_bits / downlink_rate_bps
     )
 
     delay_s = completion_delay_s(
         task,
         requirement.alpha,
-        rate_bps,
+        uplink_rate_bps,
         requirement.cpu_hz,
-        rate_bps,
+        downlink_rate_bps,
     )
 
     assert delay_s == pytest.approx(max(local_delay_s, edge_delay_s))
@@ -86,7 +116,15 @@ def test_completion_delay_matches_normalized_parallel_branch_model():
 @pytest.mark.parametrize("invalid_budget", [-1.0, math.nan, math.inf])
 def test_allocator_validates_cpu_budget_even_without_tasks(invalid_budget: float):
     with pytest.raises(ValueError, match="cpu_budget_hz"):
-        allocate_deadline_tasks((), {}, invalid_budget, 0.1)
+        allocate_deadline_tasks((), {}, invalid_budget)
+
+
+@pytest.mark.parametrize("legacy_result_ratio", [0.0, 0.1])
+def test_allocator_rejects_legacy_scalar_ratio_even_without_tasks(
+    legacy_result_ratio: float,
+):
+    with pytest.raises(TypeError, match="downlink_rates_bps"):
+        allocate_deadline_tasks((), {}, 0.0, legacy_result_ratio)
 
 
 def test_allocator_requires_downlink_map_for_positive_task_ratio():
@@ -112,13 +150,13 @@ def test_allocator_rejects_duplicate_task_ids():
     )
 
     with pytest.raises(ValueError, match="duplicate"):
-        allocate_deadline_tasks(duplicate_tasks, {}, 0.0, 0.1)
+        allocate_deadline_tasks(duplicate_tasks, {}, 0.0)
 
 
 def test_local_task_allows_missing_rate_entry():
     task = Task(40, 0, 0, 1e6, 600e6, 0.8, 1e9)
 
-    result = allocate_deadline_tasks((task,), {}, 0.0, 0.1)
+    result = allocate_deadline_tasks((task,), {}, 0.0)
 
     assert result.completed_task_ids == (task.task_id,)
     assert result.decisions[0].reason == RequirementReason.LOCAL.value
@@ -128,7 +166,7 @@ def test_offloaded_task_rejects_missing_rate_entry():
     task = Task(41, 0, 0, 1e6, 1.2e9, 0.8, 1e9)
 
     with pytest.raises(KeyError, match="rate"):
-        allocate_deadline_tasks((task,), {}, 2e9, 0.1)
+        allocate_deadline_tasks((task,), {}, 2e9)
 
 
 def test_missing_rate_is_rejected_before_any_resource_derivation(
@@ -147,7 +185,6 @@ def test_missing_rate_is_rejected_before_any_resource_derivation(
             (first_task, missing_task),
             {first_task.task_id: 4e6},
             2e9,
-            0.1,
         )
 
 
@@ -173,7 +210,7 @@ def test_allocator_enforces_hard_budget_at_prefix_sum_boundaries(
     task_list = equal_tenth_cost_tasks()
     rates = {task.task_id: 1.0 for task in task_list}
 
-    result = allocate_deadline_tasks(task_list, rates, budget, 0.0)
+    result = allocate_deadline_tasks(task_list, rates, budget)
     completed_mec_cpu = math.fsum(
         decision.cpu_hz for decision in result.decisions if decision.completed
     )
@@ -186,10 +223,10 @@ def test_allocator_enforces_hard_budget_at_prefix_sum_boundaries(
 def test_allocator_has_no_absolute_budget_tolerance_at_low_scale():
     smallest_positive = math.nextafter(0.0, math.inf)
     task = Task(120, 0, 0, smallest_positive, 2e-10, 1.0, 1e-10)
-    requirement = required_resources(task, 1.0, 0.0)
+    requirement = required_resources(task, 1.0)
     assert 0.0 < requirement.cpu_hz < 1e-9
 
-    result = allocate_deadline_tasks((task,), {task.task_id: 1.0}, 0.0, 0.0)
+    result = allocate_deadline_tasks((task,), {task.task_id: 1.0}, 0.0)
 
     assert result.completed_task_ids == ()
     assert result.total_cpu_hz == 0.0
@@ -214,7 +251,7 @@ def test_allocator_breaks_a_real_equal_cost_tie_by_smallest_task_id():
     )
     rates = {task.task_id: 1.0 for task in task_list}
 
-    result = allocate_deadline_tasks(task_list, rates, 0.1, 0.0)
+    result = allocate_deadline_tasks(task_list, rates, 0.1)
 
     assert result.completed_task_ids == (200,)
 
@@ -228,7 +265,7 @@ def test_allocator_prioritizes_cpu_cost_when_cost_and_id_orders_are_opposite():
     rates = {task.task_id: 1.0 for task in task_list}
     budget = math.fsum((0.1, 0.2))
 
-    result = allocate_deadline_tasks(task_list, rates, budget, 0.0)
+    result = allocate_deadline_tasks(task_list, rates, budget)
 
     assert result.completed_task_ids == (220, 230)
 
@@ -241,14 +278,14 @@ def test_allocator_result_is_invariant_under_all_input_permutations():
     )
     rates = {task.task_id: 1.0 for task in task_list}
     budget = math.fsum((0.1, 0.2))
-    expected = allocate_deadline_tasks(task_list, rates, budget, 0.0)
+    expected = allocate_deadline_tasks(task_list, rates, budget)
 
     for permutation in permutations(task_list):
-        assert allocate_deadline_tasks(permutation, rates, budget, 0.0) == expected
+        assert allocate_deadline_tasks(permutation, rates, budget) == expected
 
 
 def test_empty_allocation_has_empty_ordered_outputs():
-    assert allocate_deadline_tasks((), {}, 0.0, 0.0) == AllocationResult((), (), 0.0)
+    assert allocate_deadline_tasks((), {}, 0.0) == AllocationResult((), (), 0.0)
 
 
 def test_all_local_tasks_complete_without_rates_or_mec_cpu():
@@ -257,7 +294,7 @@ def test_all_local_tasks_complete_without_rates_or_mec_cpu():
         Task(300, 0, 0, 1e6, 600e6, 0.8, 1e9),
     )
 
-    result = allocate_deadline_tasks(task_list, {}, 0.0, 0.1)
+    result = allocate_deadline_tasks(task_list, {}, 0.0)
 
     assert result.completed_task_ids == (300, 301)
     assert tuple(decision.task_id for decision in result.decisions) == (300, 301)
@@ -273,7 +310,6 @@ def test_present_invalid_rate_is_an_invalid_rate_decision(invalid_rate: float):
         (task,),
         {task.task_id: invalid_rate},
         2e9,
-        0.1,
     )
 
     assert result.completed_task_ids == ()
@@ -288,7 +324,6 @@ def test_allocator_preserves_link_and_invalid_rate_rejection_reasons():
         (link_infeasible_task, invalid_rate_task),
         {invalid_rate_task.task_id: 0.0, link_infeasible_task.task_id: 100e3},
         10e9,
-        0.1,
     )
 
     assert result.completed_task_ids == ()
@@ -305,7 +340,6 @@ def test_single_feasible_cost_over_budget_is_rejected_for_cpu_budget():
         (task,),
         {task.task_id: 1.0},
         math.nextafter(0.1, 0.0),
-        0.0,
     )
 
     assert result.completed_task_ids == ()
@@ -324,7 +358,7 @@ def test_mixed_allocation_has_one_ordered_consistent_decision_per_task():
         invalid_task.task_id: 0.0,
     }
 
-    result = allocate_deadline_tasks(task_list, rates, 0.1, 0.0)
+    result = allocate_deadline_tasks(task_list, rates, 0.1)
     decisions_by_id = {decision.task_id: decision for decision in result.decisions}
     completed_from_decisions = tuple(
         decision.task_id for decision in result.decisions if decision.completed
@@ -356,23 +390,27 @@ def test_completed_mec_decision_uses_task4_requirement_and_canonical_delay():
         1e9,
         result_ratio=0.1,
     )
-    rate_bps = 4e6
-    result_ratio = 0.1
-    requirement = required_resources(task, rate_bps, rate_bps)
+    uplink_rate_bps = 4e6
+    downlink_rate_bps = 2e6
+    requirement = required_resources(
+        task,
+        uplink_rate_bps,
+        downlink_rate_bps=downlink_rate_bps,
+    )
 
     result = allocate_deadline_tasks(
         (task,),
-        {task.task_id: rate_bps},
+        {task.task_id: uplink_rate_bps},
         requirement.cpu_hz,
-        {task.task_id: rate_bps},
+        downlink_rates_bps={task.task_id: downlink_rate_bps},
     )
     decision = result.decisions[0]
     expected_delay_s = completion_delay_s(
         task,
         requirement.alpha,
-        rate_bps,
+        uplink_rate_bps,
         requirement.cpu_hz,
-        rate_bps,
+        downlink_rate_bps,
     )
 
     assert decision.alpha == requirement.alpha
@@ -396,7 +434,7 @@ def test_local_deadline_equality_uses_same_ieee_path_for_classification_and_deci
     task = Task(361, 0, 0, 1.0, comp_cycles, deadline_s, local_cpu_hz)
     assert task.local_delay_s == task.deadline_s
 
-    result = allocate_deadline_tasks((task,), {}, 0.0, 0.0)
+    result = allocate_deadline_tasks((task,), {}, 0.0)
 
     assert result.completed_task_ids == (task.task_id,)
     assert result.decisions[0].delay_s == task.deadline_s
@@ -414,19 +452,25 @@ def test_canonical_delay_preserves_task4_grouped_ieee_feasibility_check():
         float.fromhex("0x1.22499787aab76p-24"),
         result_ratio=float.fromhex("0x1.999999999999ap-4"),
     )
-    rate_bps = float.fromhex("0x1.8a0269110889ap+283")
-    result_ratio = float.fromhex("0x1.999999999999ap-4")
+    uplink_rate_bps = float.fromhex("0x1.8a0269110889ap+283")
+    downlink_rate_bps = math.nextafter(uplink_rate_bps, math.inf)
 
-    requirement = required_resources(task, rate_bps, rate_bps)
+    requirement = required_resources(
+        task,
+        uplink_rate_bps,
+        downlink_rate_bps=downlink_rate_bps,
+    )
     grouped_delay_s = requirement.alpha * (
-        (1.0 + result_ratio) * (task.data_bits / rate_bps) + task.comp_cycles / requirement.cpu_hz
+        task.data_bits / uplink_rate_bps
+        + task.comp_cycles / requirement.cpu_hz
+        + task.result_ratio * task.data_bits / downlink_rate_bps
     )
     delay_s = completion_delay_s(
         task,
         requirement.alpha,
-        rate_bps,
+        uplink_rate_bps,
         requirement.cpu_hz,
-        rate_bps,
+        downlink_rate_bps,
     )
 
     assert grouped_delay_s <= task.deadline_s
@@ -448,7 +492,7 @@ def test_allocator_fails_fast_if_a_selected_requirement_is_not_deadline_feasible
     monkeypatch.setattr(resource_allocation, "required_resources", lambda *_: corrupted)
 
     with pytest.raises(RuntimeError, match="deadline"):
-        allocate_deadline_tasks((task,), {task.task_id: 1.0}, 1.0, 0.0)
+        allocate_deadline_tasks((task,), {task.task_id: 1.0}, 1.0)
 
 
 def test_allocation_result_is_frozen_and_slotted():
@@ -463,13 +507,17 @@ def brute_force_completed_count(
     task_list: tuple[Task, ...],
     rates: dict[int, float],
     budget: float,
-    result_ratio: float,
+    downlink_rates: dict[int, float] | None,
 ) -> int:
     requirements = {
         task.task_id: required_resources(
             task,
             rates.get(task.task_id, math.nan),
-            result_ratio,
+            downlink_rate_bps=(
+                None
+                if task.result_ratio == 0.0
+                else downlink_rates[task.task_id]
+            ),
         )
         for task in task_list
     }
@@ -493,12 +541,12 @@ def test_allocator_cardinality_matches_brute_force_across_instances_and_budgets(
                 for index, cost in enumerate((0.05, 0.1, 0.2, 0.4))
             ),
             {400 + index: 1.0 for index in range(4)},
-            0.0,
+            None,
         ),
         (
             ordinary_tasks,
             {10: 3e6, 11: 2e6, 12: 5e6},
-            0.1,
+            {10: 6e6, 11: 4e6, 12: 10e6},
         ),
         (
             (
@@ -508,16 +556,20 @@ def test_allocator_cardinality_matches_brute_force_across_instances_and_budgets(
                 Task(423, 3, 0, 1e6, 1.2e9, 0.8, 1e9),
             ),
             {421: 1.0, 422: 1.0, 423: 0.0},
-            0.0,
+            None,
         ),
     )
 
-    for task_list, rates, result_ratio in instances:
+    for task_list, rates, downlink_rates in instances:
         requirements = [
             required_resources(
                 task,
                 rates.get(task.task_id, math.nan),
-                result_ratio,
+                downlink_rate_bps=(
+                    None
+                    if task.result_ratio == 0.0
+                    else downlink_rates[task.task_id]
+                ),
             )
             for task in task_list
         ]
@@ -538,10 +590,15 @@ def test_allocator_cardinality_matches_brute_force_across_instances_and_budgets(
         )
 
         for budget in budgets:
-            result = allocate_deadline_tasks(task_list, rates, budget, result_ratio)
+            result = allocate_deadline_tasks(
+                task_list,
+                rates,
+                budget,
+                downlink_rates_bps=downlink_rates,
+            )
             assert len(result.completed_task_ids) == brute_force_completed_count(
                 task_list,
                 rates,
                 budget,
-                result_ratio,
+                downlink_rates,
             )

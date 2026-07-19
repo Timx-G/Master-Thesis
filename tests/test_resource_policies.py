@@ -23,7 +23,6 @@ def test_equal_cpu_policy_assigns_identical_cpu_to_all_scheduled_tasks():
         tasks,
         {1: 4e6, 2: 4e6},
         4e9,
-        0.1,
     )
 
     assert {decision.cpu_hz for decision in result.decisions} == {2e9}
@@ -38,7 +37,6 @@ def test_fixed_half_policy_really_uses_alpha_half():
         (task,),
         {1: 5e6},
         4e9,
-        0.1,
     )
 
     assert result.decisions[0].alpha == 0.5
@@ -55,7 +53,6 @@ def test_deadline_policy_matches_the_proven_allocator():
         tasks,
         {1: 3e6, 2: 3e6},
         2e9,
-        0.1,
     )
 
     assert result.total_cpu_hz <= 2e9
@@ -74,7 +71,6 @@ def test_equal_policy_rejects_invalid_rates_without_nan_decisions(invalid_rate):
         (task,),
         {1: invalid_rate},
         4e9,
-        0.1,
     )
 
     (decision,) = result.decisions
@@ -93,12 +89,19 @@ def test_equal_policy_handles_zero_cpu_budget_as_a_miss():
         (task,),
         {1: 5e6},
         0.0,
-        0.1,
     )
 
     assert not result.decisions[0].completed
     assert result.decisions[0].reason == "cpu_budget"
     assert result.total_cpu_hz == 0.0
+
+
+@pytest.mark.parametrize("policy", tuple(AllocationPolicy))
+def test_policy_allocator_rejects_removed_scalar_result_ratio(
+    policy: AllocationPolicy,
+):
+    with pytest.raises(TypeError, match="downlink_rates_bps"):
+        allocate_with_policy(policy, (), {}, 0.0, 0.1)
 
 
 def test_evaluator_routes_tasks_through_selected_policy():
