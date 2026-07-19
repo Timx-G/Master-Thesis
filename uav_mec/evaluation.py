@@ -15,6 +15,8 @@ from .domain import (
     ScheduleEntry,
     SlotOutcome,
     SlotSnapshot,
+    ChannelBasis,
+    SicLayerCheck,
 )
 from .model import NOMAChannel
 from .resource_allocation import AllocationPolicy, allocate_with_policy
@@ -76,9 +78,10 @@ def _cross_interference_w(
     row_by_task: dict[int, int],
     snapshot: SlotSnapshot,
     transmit_power_w: float,
+    gains,
 ) -> float:
     powers = (
-        transmit_power_w * snapshot.channel_gains[row_by_task[entry.task_id], target_uav]
+        transmit_power_w * gains[row_by_task[entry.task_id], target_uav]
         for (other_uav, other_subcarrier), entries in groups.items()
         if other_uav != target_uav and other_subcarrier == subcarrier
         for entry in entries
@@ -98,9 +101,14 @@ def compute_rate_records(
     schedule: Schedule,
     channel: NOMAChannel,
     cfg: EvaluationConfig,
+    *,
+    channel_basis: ChannelBasis = ChannelBasis.PLANNING,
 ) -> tuple[RateRecord, ...]:
     """Evaluate uplink rates on each entry's actual serving UAV."""
+    if not isinstance(channel_basis, ChannelBasis):
+        raise ValueError("channel_basis must be a ChannelBasis value")
     validate_schedule(schedule, snapshot, cfg.n_subcarriers)
+    gains = snapshot.channel_gains_for(channel_basis)
     row_by_task = {task.task_id: row for row, task in enumerate(snapshot.tasks)}
     groups: dict[tuple[int, int], list[ScheduleEntry]] = defaultdict(list)
     for entry in schedule.entries:
@@ -117,13 +125,14 @@ def compute_rate_records(
             row_by_task,
             snapshot,
             cfg.transmit_power_w,
+            gains,
         )
         cross_w *= cfg.cross_interference_scale
         if len(own_entries) == 1:
             entry = own_entries[0]
             received_w = (
                 cfg.transmit_power_w
-                * snapshot.channel_gains[row_by_task[entry.task_id], uav]
+                * gains[row_by_task[entry.task_id], uav]
             )
             sinr = received_w / (cross_w + noise_w)
             records.append(
@@ -135,6 +144,8 @@ def compute_rate_records(
                     cross_w,
                     uav,
                     subcarrier,
+                    channel_basis,
+                    (SicLayerCheck(entry.task_id, uav, subcarrier, 0, sinr, cfg.gamma_sic_min, sinr >= cfg.gamma_sic_min),),
                 )
             )
             continue
@@ -144,22 +155,29 @@ def compute_rate_records(
         weak = by_role["weak"]
         received_strong_w = (
             cfg.transmit_power_w
-            * snapshot.channel_gains[row_by_task[strong.task_id], uav]
+            * gains[row_by_task[strong.task_id], uav]
         )
         received_weak_w = (
             cfg.transmit_power_w
-            * snapshot.channel_gains[row_by_task[weak.task_id], uav]
+            * gains[row_by_task[weak.task_id], uav]
         )
-        if received_strong_w < received_weak_w:
+        if channel_basis is ChannelBasis.PLANNING and received_strong_w < received_weak_w:
             raise InfeasibleScheduleError(
                 "strong/weak order does not match the serving-UAV channel"
             )
 
-        sinr_strong = received_strong_w / (received_weak_w + cross_w + noise_w)
-        sinr_weak = received_weak_w / (
-            cfg.sic_residual * received_strong_w + cross_w + noise_w
+        received_w = (received_strong_w, received_weak_w)
+        layers = tuple(
+            SicLayerCheck(
+                entry.task_id, uav, subcarrier, q,
+                received_w[q] / math.fsum((noise_w, cross_w, math.fsum(received_w[q + 1:]), cfg.sic_residual * math.fsum(received_w[:q]))),
+                cfg.gamma_sic_min,
+                received_w[q] / math.fsum((noise_w, cross_w, math.fsum(received_w[q + 1:]), cfg.sic_residual * math.fsum(received_w[:q]))) >= cfg.gamma_sic_min,
+            )
+            for q, entry in enumerate((strong, weak))
         )
-        sic_feasible = sinr_strong >= cfg.gamma_sic_min
+        sinr_strong, sinr_weak = (layer.sinr for layer in layers)
+        sic_feasible = all(layer.feasible for layer in layers)
         records.extend(
             (
                 RateRecord(
@@ -170,6 +188,8 @@ def compute_rate_records(
                     cross_w,
                     uav,
                     subcarrier,
+                    channel_basis,
+                    (layers[0],),
                 ),
                 RateRecord(
                     weak.task_id,
@@ -179,6 +199,8 @@ def compute_rate_records(
                     cross_w,
                     uav,
                     subcarrier,
+                    channel_basis,
+                    (layers[1],),
                 ),
             )
         )

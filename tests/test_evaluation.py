@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from uav_mec.domain import Schedule, ScheduleEntry, SlotSnapshot, Task
+from uav_mec.domain import ChannelBasis, Schedule, ScheduleEntry, SlotSnapshot, Task
 from uav_mec.evaluation import (
     EvaluationConfig,
     InfeasibleScheduleError,
@@ -47,6 +47,29 @@ def test_cross_uav_user_uses_schedule_serving_channel_and_cpu_pool():
     assert rate.rate_bps > 1e6
     assert decision.completed
     assert decision.cpu_hz <= config().cpu_per_uav_hz
+
+
+def test_realized_basis_preserves_schedule_order_and_records_sic_layer() -> None:
+    tasks = (
+        Task(1, 0, 0, 1e6, 1.4e9, 0.8, 1e9),
+        Task(2, 1, 0, 1e6, 1.4e9, 0.8, 1e9),
+    )
+    snapshot = SlotSnapshot(
+        0, tasks, np.array([[1e-9], [8e-9]]), 1,
+        estimated_channel_gains=np.array([[9e-9], [2e-9]]),
+    )
+    schedule = Schedule((
+        ScheduleEntry(1, 0, 0, 0, "strong"),
+        ScheduleEntry(2, 1, 0, 0, "weak"),
+    ))
+    records = compute_rate_records(
+        snapshot, schedule, NOMAChannel(ChannelConfig(), 100.0), config(),
+        channel_basis=ChannelBasis.REALIZED,
+    )
+    assert [row.task_id for row in records] == [1, 2]
+    assert all(row.channel_basis is ChannelBasis.REALIZED for row in records)
+    assert {(layer.task_id, layer.decode_rank)
+            for row in records for layer in row.sic_layers} == {(1, 0), (2, 1)}
 
 
 def test_cross_interference_uses_interferer_gain_at_target_uav():

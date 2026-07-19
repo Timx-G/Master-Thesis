@@ -250,6 +250,12 @@ class SlotSnapshot:
             return self.channel_gains
         return self.estimated_channel_gains
 
+    def channel_gains_for(self, channel_basis: ChannelBasis) -> np.ndarray:
+        """Return the immutable gain matrix for an explicit evaluation basis."""
+        if not isinstance(channel_basis, ChannelBasis):
+            raise ValueError("channel_basis must be a ChannelBasis value")
+        return self.planning_channel_gains if channel_basis is ChannelBasis.PLANNING else self.channel_gains
+
     def as_planning_snapshot(self) -> SlotSnapshot:
         return SlotSnapshot(
             self.slot_index,

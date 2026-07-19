@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 
-from .domain import Schedule, ScheduleEntry, SlotSnapshot
+from .domain import ChannelBasis, Schedule, ScheduleEntry, SlotSnapshot
 
 
 class ScheduleValidationError(ValueError):
@@ -58,7 +58,14 @@ def validate_schedule(
             )
 
 
-def normalize_roles(schedule: Schedule, snapshot: SlotSnapshot) -> Schedule:
+def normalize_roles(
+    schedule: Schedule,
+    snapshot: SlotSnapshot,
+    *,
+    channel_basis: ChannelBasis = ChannelBasis.PLANNING,
+) -> Schedule:
+    if channel_basis is not ChannelBasis.PLANNING:
+        raise ValueError("role normalization is only valid on the planning basis")
     task_by_id = {task.task_id: task for task in snapshot.tasks}
     row_by_task = {task.task_id: row for row, task in enumerate(snapshot.tasks)}
     groups: dict[tuple[int, int], list[ScheduleEntry]] = defaultdict(list)
@@ -87,7 +94,7 @@ def normalize_roles(schedule: Schedule, snapshot: SlotSnapshot) -> Schedule:
             ordered = sorted(
                 entries,
                 key=lambda entry: (
-                    -snapshot.channel_gains[row_by_task[entry.task_id], uav],
+                    -snapshot.channel_gains_for(channel_basis)[row_by_task[entry.task_id], uav],
                     entry.task_id,
                 ),
             )
