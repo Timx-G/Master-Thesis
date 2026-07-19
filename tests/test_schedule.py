@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from uav_mec.domain import Schedule, ScheduleEntry, SlotSnapshot, Task
+from uav_mec.domain import ChannelBasis, Schedule, ScheduleEntry, SlotSnapshot, Task
 from uav_mec.schedule import (
     ScheduleValidationError,
     normalize_roles,
@@ -74,7 +74,7 @@ def test_roles_are_normalized_on_actual_serving_channel():
         )
     )
 
-    normalized = normalize_roles(raw, snapshot())
+    normalized = normalize_roles(raw, snapshot(), channel_basis=ChannelBasis.PLANNING)
 
     assert normalized.entries == (
         ScheduleEntry(1, 0, 1, 0, "strong"),
@@ -87,7 +87,7 @@ def test_role_normalization_rejects_an_invalid_serving_uav():
     raw = Schedule((ScheduleEntry(1, 0, -1, 0, "solo"),))
 
     with pytest.raises(ScheduleValidationError, match="invalid UAV"):
-        normalize_roles(raw, snapshot())
+        normalize_roles(raw, snapshot(), channel_basis=ChannelBasis.PLANNING)
 
 
 def test_equal_channel_gain_uses_task_id_as_the_role_tie_breaker():
@@ -105,7 +105,7 @@ def test_equal_channel_gain_uses_task_id_as_the_role_tie_breaker():
         )
     )
 
-    assert normalize_roles(raw, tied).entries == (
+    assert normalize_roles(raw, tied, channel_basis=ChannelBasis.PLANNING).entries == (
         ScheduleEntry(1, 0, 0, 0, "strong"),
         ScheduleEntry(2, 1, 0, 0, "weak"),
     )

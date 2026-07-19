@@ -3,7 +3,7 @@ from dataclasses import replace
 import numpy as np
 import pytest
 
-from uav_mec.domain import Schedule, ScheduleEntry, SlotSnapshot, Task
+from uav_mec.domain import ChannelBasis, Schedule, ScheduleEntry, SlotSnapshot, Task
 from uav_mec.evaluation import EvaluationConfig, compute_rate_records
 from uav_mec.model import ChannelConfig, NOMAChannel
 
@@ -35,18 +35,21 @@ def test_zero_cross_scale_removes_only_cross_uav_interference():
         schedule,
         channel,
         replace(base_config(), cross_interference_scale=0.0),
+        channel_basis=ChannelBasis.PLANNING,
     )
     half = compute_rate_records(
         snapshot,
         schedule,
         channel,
         replace(base_config(), cross_interference_scale=0.5),
+        channel_basis=ChannelBasis.PLANNING,
     )
     coupled = compute_rate_records(
         snapshot,
         schedule,
         channel,
         base_config(),
+        channel_basis=ChannelBasis.PLANNING,
     )
 
     assert all(record.cross_interference_w == 0.0 for record in isolated)

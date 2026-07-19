@@ -100,6 +100,7 @@ def test_cross_interference_uses_interferer_gain_at_target_uav():
         schedule,
         NOMAChannel(ChannelConfig(), 100.0),
         config(),
+        channel_basis=ChannelBasis.PLANNING,
     )
 
     by_task = {record.task_id: record for record in rates}
@@ -117,6 +118,7 @@ def test_positive_tiny_sinr_keeps_a_positive_rate():
         schedule,
         NOMAChannel(ChannelConfig(), 100.0),
         config(),
+        channel_basis=ChannelBasis.PLANNING,
     )
 
     assert 0.0 < rate.rate_bps < 1e-6
