@@ -1,0 +1,107 @@
+schema_version = 2
+formal_family = "externality"
+run_id = "externality-stress-v2"
+seed_start = 23000
+seed_count = 200
+methods = ["full", "cross_bilateral", "intra_global"]
+sample_size_policy = "primary_power_selected_supporting_fixed"
+
+[scenario]
+num_users = 45
+num_slots = 100
+num_uavs = 3
+num_clusters = 3
+n_subcarriers = 3
+f_per_uav = 4e9
+fixed_cluster_centers = true
+cluster_layout = "pairwise_overlap"
+cluster_std = 5.0
+random_burst = false
+user_mobility = true
+
+[scenario.task]
+arrival_mode = "periodic"
+period_choices = [2]
+period_jitter_slots = 0
+t_min = 0.6
+t_max = 1.0
+result_ratio = 0.0
+
+[scenario.uav]
+dt = 1.0
+
+[evaluation]
+gamma_sic_min = 1.0
+sic_residual = 0.02
+allocation_policy = "deadline"
+cross_interference_scale = 1.0
+
+[trace]
+csi_error_std = 0.0
+
+[search]
+max_iterations = 50
+multistart_workers = 3
+
+[[cases]]
+case_id = "overlap_low_coupling0_load08"
+role = "supporting"
+fixed_sample_size = 30
+overlap = "low"
+coupling = 0.0
+load = 0.8
+[[cases]]
+case_id = "overlap_low_coupling0_load12"
+role = "supporting"
+fixed_sample_size = 30
+overlap = "low"
+coupling = 0.0
+load = 1.2
+[[cases]]
+case_id = "overlap_low_coupling1_load08"
+role = "supporting"
+fixed_sample_size = 30
+overlap = "low"
+coupling = 1.0
+load = 0.8
+[[cases]]
+case_id = "overlap_low_coupling1_load12"
+role = "supporting"
+fixed_sample_size = 30
+overlap = "low"
+coupling = 1.0
+load = 1.2
+[[cases]]
+case_id = "overlap_high_coupling0_load08"
+role = "supporting"
+fixed_sample_size = 30
+overlap = "high"
+coupling = 0.0
+load = 0.8
+[[cases]]
+case_id = "overlap_high_coupling0_load12"
+role = "supporting"
+fixed_sample_size = 30
+overlap = "high"
+coupling = 0.0
+load = 1.2
+[[cases]]
+case_id = "overlap_high_coupling1_load08"
+role = "supporting"
+fixed_sample_size = 30
+overlap = "high"
+coupling = 1.0
+load = 0.8
+[[cases]]
+case_id = "overlap_high_coupling1_load12"
+role = "primary"
+overlap = "high"
+coupling = 1.0
+load = 1.2
+[[cases]]
+case_id = "overlap_medium_coupling05_load10"
+role = "supporting"
+fixed_sample_size = 30
+overlap = "medium"
+coupling = 0.5
+load = 1.0

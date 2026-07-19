@@ -1,0 +1,36 @@
+schema_version = 2
+formal_family = "trace_driven"
+run_id = "confirmatory-trace-v2"
+seed_start = 29000
+seed_count = 30
+methods = ["full", "exchange_stable"]
+sample_size_policy = "fixed"
+
+[scenario]
+num_users = 45
+num_slots = 50
+num_uavs = 3
+num_clusters = 3
+n_subcarriers = 3
+fixed_cluster_centers = false
+user_mobility = true
+[scenario.task]
+result_ratio = 0.0
+t_max = 0.8
+[scenario.uav]
+dt = 1.0
+[evaluation]
+gamma_sic_min = 1.0
+sic_residual = 0.02
+allocation_policy = "deadline"
+cross_interference_scale = 1.0
+[trace]
+source = "verified_geolife_trace_lock"
+split = "final"
+[search]
+max_iterations = 50
+
+[[cases]]
+case_id = "geolife_final"
+role = "supporting"
+fixed_sample_size = 30

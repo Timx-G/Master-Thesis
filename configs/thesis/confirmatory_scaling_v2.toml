@@ -1,0 +1,71 @@
+schema_version = 2
+formal_family = "scaling"
+run_id = "confirmatory-scaling-v2"
+seed_start = 28000
+seed_count = 30
+methods = ["full", "exchange_stable"]
+sample_size_policy = "fixed"
+
+[scenario]
+num_users = 45
+num_slots = 50
+num_uavs = 3
+num_clusters = 3
+n_subcarriers = 3
+fixed_cluster_centers = true
+user_mobility = true
+[scenario.task]
+result_ratio = 0.0
+t_max = 0.8
+[scenario.uav]
+dt = 1.0
+[evaluation]
+gamma_sic_min = 1.0
+sic_residual = 0.02
+allocation_policy = "deadline"
+cross_interference_scale = 1.0
+[search]
+max_iterations = 50
+
+[[cases]]
+case_id = "load_k3_n30"
+role = "supporting"
+fixed_sample_size = 30
+num_uavs = 3
+num_users = 30
+[[cases]]
+case_id = "load_k3_n45"
+role = "supporting"
+fixed_sample_size = 30
+num_uavs = 3
+num_users = 45
+[[cases]]
+case_id = "load_k3_n60"
+role = "supporting"
+fixed_sample_size = 30
+num_uavs = 3
+num_users = 60
+[[cases]]
+case_id = "equal_k2_n30"
+role = "supporting"
+fixed_sample_size = 30
+num_uavs = 2
+num_users = 30
+[[cases]]
+case_id = "equal_k3_n45"
+role = "supporting"
+fixed_sample_size = 30
+num_uavs = 3
+num_users = 45
+[[cases]]
+case_id = "equal_k4_n60"
+role = "supporting"
+fixed_sample_size = 30
+num_uavs = 4
+num_users = 60
+[[cases]]
+case_id = "equal_k5_n75"
+role = "supporting"
+fixed_sample_size = 30
+num_uavs = 5
+num_users = 75

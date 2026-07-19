@@ -1,0 +1,313 @@
+schema_version = 2
+development_seed_start = 0
+development_seed_count = 1000
+pilot_seed_start = 1000
+pilot_seed_count = 100
+candidate_sample_sizes = [50, 100, 200]
+descriptive_externality_n = 30
+
+[[families]]
+name = "resource"
+config_path = "configs/thesis/confirmatory_resource_fixed_v2.toml"
+seed_start = 22000
+seed_count = 200
+num_slots = 100
+methods = ["fixed_radio_dd", "fixed_radio_edf", "fixed_radio_dd_radio_neutral", "fixed_radio_edf_radio_neutral", "fixed_radio_dd_deadline_generated", "fixed_radio_edf_deadline_generated", "exact_admission"]
+sample_size_policy = "power_selected"
+formal_order = 1
+[[families.cases]]
+case_id = "dd_generated"
+role = "primary"
+[[families.cases]]
+case_id = "radio_neutral"
+role = "supporting"
+[[families.cases]]
+case_id = "deadline_first_generated"
+role = "supporting"
+
+[[families]]
+name = "exact"
+config_path = "configs/thesis/confirmatory_exact.toml"
+seed_start = 26000
+seed_count = 50
+num_slots = 20
+methods = ["full", "exact"]
+sample_size_policy = "fixed"
+formal_order = 2
+[[families.cases]]
+case_id = "exact_schedule"
+role = "correctness"
+fixed_sample_size = 50
+
+[[families]]
+name = "externality"
+config_path = "configs/thesis/externality_stress.toml"
+seed_start = 23000
+seed_count = 200
+num_slots = 100
+methods = ["full", "cross_bilateral", "intra_global"]
+sample_size_policy = "primary_power_selected_supporting_fixed"
+formal_order = 3
+[[families.cases]]
+case_id = "overlap_low_coupling0_load08"
+role = "supporting"
+fixed_sample_size = 30
+[[families.cases]]
+case_id = "overlap_low_coupling0_load12"
+role = "supporting"
+fixed_sample_size = 30
+[[families.cases]]
+case_id = "overlap_low_coupling1_load08"
+role = "supporting"
+fixed_sample_size = 30
+[[families.cases]]
+case_id = "overlap_low_coupling1_load12"
+role = "supporting"
+fixed_sample_size = 30
+[[families.cases]]
+case_id = "overlap_high_coupling0_load08"
+role = "supporting"
+fixed_sample_size = 30
+[[families.cases]]
+case_id = "overlap_high_coupling0_load12"
+role = "supporting"
+fixed_sample_size = 30
+[[families.cases]]
+case_id = "overlap_high_coupling1_load08"
+role = "supporting"
+fixed_sample_size = 30
+[[families.cases]]
+case_id = "overlap_high_coupling1_load12"
+role = "primary"
+[[families.cases]]
+case_id = "overlap_medium_coupling05_load10"
+role = "supporting"
+fixed_sample_size = 30
+
+[[families]]
+name = "main"
+config_path = "configs/thesis/confirmatory_main_v2.toml"
+seed_start = 24000
+seed_count = 200
+num_slots = 100
+methods = ["local_only", "fair_ofdma", "greedy", "ia_greedy", "per_uav_ilp", "exchange_stable", "intra_global", "cross_bilateral", "single_start_first", "full", "guo_jagp_adapted"]
+sample_size_policy = "power_selected"
+formal_order = 4
+[[families.cases]]
+case_id = "main_k3_n45"
+role = "primary"
+
+[[families]]
+name = "joint"
+config_path = "configs/thesis/confirmatory_joint_v2.toml"
+seed_start = 27000
+seed_count = 200
+num_slots = 100
+methods = ["iea_dd", "iea_edf", "exchange_dd", "exchange_edf"]
+sample_size_policy = "power_selected"
+formal_order = 5
+[[families.cases]]
+case_id = "joint_k3_n45"
+role = "primary"
+
+[[families]]
+name = "scaling"
+config_path = "configs/thesis/confirmatory_scaling_v2.toml"
+seed_start = 28000
+seed_count = 30
+num_slots = 50
+methods = ["full", "exchange_stable"]
+sample_size_policy = "fixed"
+formal_order = 6
+[[families.cases]]
+case_id = "load_k3_n30"
+role = "supporting"
+fixed_sample_size = 30
+[[families.cases]]
+case_id = "load_k3_n45"
+role = "supporting"
+fixed_sample_size = 30
+[[families.cases]]
+case_id = "load_k3_n60"
+role = "supporting"
+fixed_sample_size = 30
+[[families.cases]]
+case_id = "equal_k2_n30"
+role = "supporting"
+fixed_sample_size = 30
+[[families.cases]]
+case_id = "equal_k3_n45"
+role = "supporting"
+fixed_sample_size = 30
+[[families.cases]]
+case_id = "equal_k4_n60"
+role = "supporting"
+fixed_sample_size = 30
+[[families.cases]]
+case_id = "equal_k5_n75"
+role = "supporting"
+fixed_sample_size = 30
+
+[[families]]
+name = "robustness"
+config_path = "configs/thesis/confirmatory_robustness_v2.toml"
+seed_start = 25000
+seed_count = 30
+num_slots = 50
+methods = ["full", "exchange_stable"]
+sample_size_policy = "fixed"
+formal_order = 7
+[[families.cases]]
+case_id = "csi0"
+role = "supporting"
+fixed_sample_size = 30
+[[families.cases]]
+case_id = "csi05"
+role = "supporting"
+fixed_sample_size = 30
+[[families.cases]]
+case_id = "csi10"
+role = "supporting"
+fixed_sample_size = 30
+[[families.cases]]
+case_id = "csi20"
+role = "supporting"
+fixed_sample_size = 30
+[[families.cases]]
+case_id = "sic_residual0"
+role = "supporting"
+fixed_sample_size = 30
+[[families.cases]]
+case_id = "sic_residual02"
+role = "supporting"
+fixed_sample_size = 30
+[[families.cases]]
+case_id = "sic_residual05"
+role = "supporting"
+fixed_sample_size = 30
+[[families.cases]]
+case_id = "sic_residual10"
+role = "supporting"
+fixed_sample_size = 30
+[[families.cases]]
+case_id = "sic_threshold_m3"
+role = "supporting"
+fixed_sample_size = 30
+[[families.cases]]
+case_id = "sic_threshold0"
+role = "supporting"
+fixed_sample_size = 30
+[[families.cases]]
+case_id = "sic_threshold3"
+role = "supporting"
+fixed_sample_size = 30
+[[families.cases]]
+case_id = "sic_threshold5"
+role = "supporting"
+fixed_sample_size = 30
+[[families.cases]]
+case_id = "cpu_homogeneous"
+role = "supporting"
+fixed_sample_size = 30
+[[families.cases]]
+case_id = "cpu_heterogeneous"
+role = "supporting"
+fixed_sample_size = 30
+[[families.cases]]
+case_id = "deadline_light"
+role = "supporting"
+fixed_sample_size = 30
+[[families.cases]]
+case_id = "deadline_default"
+role = "supporting"
+fixed_sample_size = 30
+[[families.cases]]
+case_id = "deadline_heavy"
+role = "supporting"
+fixed_sample_size = 30
+[[families.cases]]
+case_id = "arrival_periodic"
+role = "supporting"
+fixed_sample_size = 30
+[[families.cases]]
+case_id = "arrival_jitter"
+role = "supporting"
+fixed_sample_size = 30
+[[families.cases]]
+case_id = "arrival_burst"
+role = "supporting"
+fixed_sample_size = 30
+[[families.cases]]
+case_id = "pathloss_al_hourani"
+role = "supporting"
+fixed_sample_size = 30
+[[families.cases]]
+case_id = "pathloss_3gpp_uma_av_audited"
+role = "supporting"
+fixed_sample_size = 30
+
+[[families]]
+name = "trace_driven"
+config_path = "configs/thesis/confirmatory_trace_v2.toml"
+seed_start = 29000
+seed_count = 30
+num_slots = 50
+methods = ["full", "exchange_stable"]
+sample_size_policy = "fixed"
+formal_order = 8
+[[families.cases]]
+case_id = "geolife_final"
+role = "supporting"
+fixed_sample_size = 30
+
+[[hypotheses]]
+hypothesis_id = "H1"
+family = "main"
+case_id = "main_k3_n45"
+treatment = "full"
+control = "intra_global"
+outcome = "seed_episode_on_time_completion_rate"
+estimand = "mean_paired_difference_pp"
+primary_test = "paired_t"
+sensitivity_test = "two_sided_wilcoxon"
+multiplicity_family = "primary_h1_h4"
+mde_pp = 0.5
+
+[[hypotheses]]
+hypothesis_id = "H2"
+family = "externality"
+case_id = "overlap_high_coupling1_load12"
+treatment = "full"
+control = "cross_bilateral"
+outcome = "seed_episode_on_time_completion_rate"
+estimand = "mean_paired_difference_pp"
+primary_test = "paired_t"
+sensitivity_test = "two_sided_wilcoxon"
+multiplicity_family = "primary_h1_h4"
+mde_pp = 0.5
+
+[[hypotheses]]
+hypothesis_id = "H3"
+family = "resource"
+case_id = "dd_generated"
+treatment = "fixed_radio_dd"
+control = "fixed_radio_edf"
+outcome = "seed_episode_on_time_completion_rate"
+estimand = "mean_paired_difference_pp"
+primary_test = "paired_t"
+sensitivity_test = "two_sided_wilcoxon"
+multiplicity_family = "primary_h1_h4"
+mde_pp = 2.0
+
+[[hypotheses]]
+hypothesis_id = "H4"
+family = "joint"
+case_id = "joint_k3_n45"
+treatment = "iea_dd"
+control = "exchange_edf"
+outcome = "seed_episode_on_time_completion_rate"
+estimand = "mean_paired_difference_pp"
+primary_test = "paired_t"
+sensitivity_test = "two_sided_wilcoxon"
+multiplicity_family = "primary_h1_h4"
+mde_pp = 2.0

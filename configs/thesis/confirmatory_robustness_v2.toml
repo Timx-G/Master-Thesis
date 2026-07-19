@@ -1,0 +1,161 @@
+schema_version = 2
+formal_family = "robustness"
+run_id = "confirmatory-robustness-v2"
+seed_start = 25000
+seed_count = 30
+methods = ["full", "exchange_stable"]
+sample_size_policy = "fixed"
+
+[scenario]
+num_users = 45
+num_slots = 50
+num_uavs = 3
+num_clusters = 3
+n_subcarriers = 3
+fixed_cluster_centers = true
+user_mobility = true
+[scenario.task]
+result_ratio = 0.0
+t_max = 0.8
+[scenario.uav]
+dt = 1.0
+[evaluation]
+gamma_sic_min = 1.0
+sic_residual = 0.02
+allocation_policy = "deadline"
+cross_interference_scale = 1.0
+[search]
+max_iterations = 50
+
+[[cases]]
+case_id = "csi0"
+role = "supporting"
+fixed_sample_size = 30
+factor = "csi_error_std"
+value = 0.0
+[[cases]]
+case_id = "csi05"
+role = "supporting"
+fixed_sample_size = 30
+factor = "csi_error_std"
+value = 0.05
+[[cases]]
+case_id = "csi10"
+role = "supporting"
+fixed_sample_size = 30
+factor = "csi_error_std"
+value = 0.10
+[[cases]]
+case_id = "csi20"
+role = "supporting"
+fixed_sample_size = 30
+factor = "csi_error_std"
+value = 0.20
+[[cases]]
+case_id = "sic_residual0"
+role = "supporting"
+fixed_sample_size = 30
+factor = "sic_residual"
+value = 0.0
+[[cases]]
+case_id = "sic_residual02"
+role = "supporting"
+fixed_sample_size = 30
+factor = "sic_residual"
+value = 0.02
+[[cases]]
+case_id = "sic_residual05"
+role = "supporting"
+fixed_sample_size = 30
+factor = "sic_residual"
+value = 0.05
+[[cases]]
+case_id = "sic_residual10"
+role = "supporting"
+fixed_sample_size = 30
+factor = "sic_residual"
+value = 0.10
+[[cases]]
+case_id = "sic_threshold_m3"
+role = "supporting"
+fixed_sample_size = 30
+factor = "sic_threshold_db"
+value = -3.0
+[[cases]]
+case_id = "sic_threshold0"
+role = "supporting"
+fixed_sample_size = 30
+factor = "sic_threshold_db"
+value = 0.0
+[[cases]]
+case_id = "sic_threshold3"
+role = "supporting"
+fixed_sample_size = 30
+factor = "sic_threshold_db"
+value = 3.0
+[[cases]]
+case_id = "sic_threshold5"
+role = "supporting"
+fixed_sample_size = 30
+factor = "sic_threshold_db"
+value = 5.0
+[[cases]]
+case_id = "cpu_homogeneous"
+role = "supporting"
+fixed_sample_size = 30
+factor = "cpu_layout"
+value = "homogeneous"
+[[cases]]
+case_id = "cpu_heterogeneous"
+role = "supporting"
+fixed_sample_size = 30
+factor = "cpu_layout"
+value = "heterogeneous"
+[[cases]]
+case_id = "deadline_light"
+role = "supporting"
+fixed_sample_size = 30
+factor = "deadline_pressure"
+value = "light"
+[[cases]]
+case_id = "deadline_default"
+role = "supporting"
+fixed_sample_size = 30
+factor = "deadline_pressure"
+value = "default"
+[[cases]]
+case_id = "deadline_heavy"
+role = "supporting"
+fixed_sample_size = 30
+factor = "deadline_pressure"
+value = "heavy"
+[[cases]]
+case_id = "arrival_periodic"
+role = "supporting"
+fixed_sample_size = 30
+factor = "arrival_mode"
+value = "periodic"
+[[cases]]
+case_id = "arrival_jitter"
+role = "supporting"
+fixed_sample_size = 30
+factor = "arrival_mode"
+value = "jitter"
+[[cases]]
+case_id = "arrival_burst"
+role = "supporting"
+fixed_sample_size = 30
+factor = "arrival_mode"
+value = "burst"
+[[cases]]
+case_id = "pathloss_al_hourani"
+role = "supporting"
+fixed_sample_size = 30
+factor = "pathloss_model"
+value = "al_hourani"
+[[cases]]
+case_id = "pathloss_3gpp_uma_av_audited"
+role = "supporting"
+fixed_sample_size = 30
+factor = "pathloss_model"
+value = "3gpp_uma_av_audited"
