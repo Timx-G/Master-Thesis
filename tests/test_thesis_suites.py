@@ -50,7 +50,9 @@ def test_resource_ablation_freezes_schedule_search_policy(
         42,
         seed_access=development_seed_access,
     ).slots[0]
-    signatures = []
+    search_traces = []
+    search_signatures = []
+    executable_signatures = {}
     for method in definition.methods:
         target = definition.evaluation
         if method == "full_fixed_half":
@@ -63,21 +65,51 @@ def test_resource_ablation_freezes_schedule_search_policy(
                 target,
                 allocation_policy=AllocationPolicy.CROSSING_EQUAL,
             )
+        events = []
         outcome = _slot_method(
             method,
             definition.scenario,
             target,
             definition.max_iterations,
-            [],
+            events,
         )(snapshot)
-        signatures.append(
+        search_traces.append(events)
+        termination = [
+            event
+            for event in events
+            if event["move_type"] == "termination"
+        ]
+        assert len(termination) == 1
+        search_signatures.append(termination[0]["schedule_key"])
+        executable_signatures[method] = (
             tuple(
                 (record.task_id, record.serving_uav, record.subcarrier)
                 for record in outcome.rates
             )
         )
 
-    assert len(set(signatures)) == 1
+    assert search_traces[1:] == [search_traces[0]] * (
+        len(search_traces) - 1
+    )
+    assert len(set(search_signatures)) == 1
+
+    searched_assignment = {
+        (task_id, serving_uav, subcarrier)
+        for serving_uav, subcarrier, _user_id, task_id, _role in (
+            search_signatures[0]
+        )
+    }
+    assert all(
+        set(signature) <= searched_assignment
+        for signature in executable_signatures.values()
+    )
+    assert set(executable_signatures["full_fixed_half"]) < set(
+        executable_signatures["full"]
+    )
+    assert (
+        executable_signatures["full_crossing"]
+        == executable_signatures["full"]
+    )
 
 
 def test_scalability_and_robustness_cases_are_complete():
