@@ -49,8 +49,23 @@ def _positive_product_ratio(
     denominators: tuple[float, ...] = (),
 ) -> float:
     """Evaluate a positive product ratio without avoidable intermediate overflow."""
+    significand, exponent = _positive_product_ratio_parts(
+        numerators,
+        denominators,
+    )
+    try:
+        return math.ldexp(significand, exponent)
+    except OverflowError:
+        return math.inf
+
+
+def _positive_product_ratio_parts(
+    numerators: tuple[float, ...],
+    denominators: tuple[float, ...] = (),
+) -> tuple[float, int]:
+    """Keep a positive product ratio scaled when its float value is unrepresentable."""
     if any(value == 0.0 for value in numerators):
-        return 0.0
+        return 0.0, 0
 
     significand = 1.0
     exponent = 0
@@ -67,10 +82,51 @@ def _positive_product_ratio(
         significand, normalization = math.frexp(significand)
         exponent += normalization
 
-    try:
-        return math.ldexp(significand, exponent)
-    except OverflowError:
-        return math.inf
+    return significand, exponent
+
+
+def _crossing_alpha(
+    task: Task,
+    uplink_rate_bps: float,
+    mec_cpu_hz: float,
+    downlink_rate_bps: float | None,
+) -> float:
+    """Return A / sum(A, edge terms) without overflowing positive terms."""
+    terms = [
+        _positive_product_ratio_parts(
+            (task.comp_cycles,),
+            (task.local_cpu_hz,),
+        ),
+        _positive_product_ratio_parts(
+            (task.data_bits,),
+            (uplink_rate_bps,),
+        ),
+        _positive_product_ratio_parts(
+            (task.comp_cycles,),
+            (mec_cpu_hz,),
+        ),
+    ]
+    if task.result_ratio > 0.0:
+        terms.append(
+            _positive_product_ratio_parts(
+                (task.result_ratio, task.data_bits),
+                (float(downlink_rate_bps),),
+            )
+        )
+
+    scale_exponent = max(exponent for _, exponent in terms)
+    scaled_denominator = math.fsum(
+        math.ldexp(significand, exponent - scale_exponent)
+        for significand, exponent in terms
+    )
+    local_significand, local_exponent = terms[0]
+    ratio_significand, ratio_exponent = math.frexp(
+        local_significand / scaled_denominator
+    )
+    return math.ldexp(
+        ratio_significand,
+        local_exponent - scale_exponent + ratio_exponent,
+    )
 
 
 def _cpu_sum(cpu_costs: Sequence[float]) -> float:
@@ -549,27 +605,12 @@ def _equal_cpu_allocation(
             continue
 
         if fixed_alpha is None:
-            local_full_s = task.comp_cycles / task.local_cpu_hz
-            edge_unit_s = _cpu_sum(
-                (
-                    _positive_product_ratio(
-                        (task.data_bits,),
-                        (rate_bps,),
-                    ),
-                    _positive_product_ratio(
-                        (task.comp_cycles,),
-                        (cpu_hz,),
-                    ),
-                    0.0
-                    if task.result_ratio == 0.0
-                    else _positive_product_ratio(
-                        (task.result_ratio, task.data_bits),
-                        (downlink_rate_bps,),
-                    ),
-                )
+            alpha = _crossing_alpha(
+                task,
+                rate_bps,
+                cpu_hz,
+                downlink_rate_bps,
             )
-            denominator = local_full_s + edge_unit_s
-            alpha = local_full_s / denominator if math.isfinite(denominator) else math.nan
         else:
             alpha = fixed_alpha
 

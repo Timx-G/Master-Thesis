@@ -30,6 +30,33 @@ def test_equal_cpu_policy_assigns_identical_cpu_to_all_scheduled_tasks():
     assert result.total_cpu_hz == 4e9
 
 
+def test_crossing_equal_avoids_overflow_when_crossing_terms_are_large():
+    task = Task(
+        1,
+        0,
+        0,
+        math.nextafter(0.0, math.inf),
+        1e308,
+        9e307,
+        1.0,
+    )
+
+    result = allocate_with_policy(
+        AllocationPolicy.CROSSING_EQUAL,
+        (task,),
+        {task.task_id: 1.0},
+        1.0,
+    )
+
+    (decision,) = result.decisions
+    assert decision.alpha == 0.5
+    assert decision.completed
+    assert decision.delay_s == pytest.approx(5e307)
+    assert decision.reason == AllocationPolicy.CROSSING_EQUAL.value
+    assert result.completed_task_ids == (task.task_id,)
+    assert result.total_cpu_hz == 1.0
+
+
 def test_fixed_half_policy_really_uses_alpha_half():
     task = Task(1, 0, 0, 1e6, 1.2e9, 0.8, 1e9)
 
