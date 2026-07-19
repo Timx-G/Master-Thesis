@@ -2,9 +2,13 @@ import json
 from dataclasses import replace
 from pathlib import Path
 
+import numpy as np
 import pytest
 
+from uav_mec.domain import SlotSnapshot, Task
+from uav_mec.evaluation import EvaluationConfig
 from uav_mec.experiment import _slot_method, load_definition, run_definition
+from uav_mec.model import ScenarioConfig
 from uav_mec.resource_allocation import AllocationPolicy
 from uav_mec.run_thesis_suite import BASE_PATH, build_suite
 from uav_mec.trace import generate_trace
@@ -110,6 +114,48 @@ def test_resource_ablation_freezes_schedule_search_policy(
         executable_signatures["full_crossing"]
         == executable_signatures["full"]
     )
+
+
+def test_guo_adaptation_uses_the_common_closure_and_replay_path() -> None:
+    tasks = tuple(
+        Task(index, index, 0, 600_000.0, 1.2e9, 0.8, 0.4e9)
+        for index in range(4)
+    )
+    snapshot = SlotSnapshot(
+        0,
+        tasks,
+        np.array(
+            [
+                [9e-8, 2e-8],
+                [6e-8, 4e-8],
+                [3e-8, 8e-8],
+                [2e-8, 7e-8],
+            ]
+        ),
+        2,
+    )
+    scenario = ScenarioConfig(num_uavs=2, n_subcarriers=1)
+    evaluation = EvaluationConfig(
+        n_subcarriers=1,
+        bandwidth_hz=5e6,
+        transmit_power_w=0.2,
+        sic_residual=0.02,
+        gamma_sic_min=0.1,
+        cpu_per_uav_hz=4e9,
+    )
+    events: list[dict[str, object]] = []
+
+    outcome = _slot_method(
+        "guo_jagp_adapted",
+        scenario,
+        evaluation,
+        20,
+        events,
+    )(snapshot)
+
+    assert outcome.slot_index == snapshot.slot_index
+    assert outcome.plan_key is not None
+    assert events == []
 
 
 def test_scalability_and_robustness_cases_are_complete():

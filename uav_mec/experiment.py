@@ -18,6 +18,10 @@ import numpy as np
 import scipy
 
 from .artifacts import RunArtifactWriter
+from .baselines_adapted import (
+    GUO_DEFAULT_QOS_SPECTRAL_EFFICIENCY,
+    guo_jagp_adapted,
+)
 from .baselines_v2 import (
     evaluate_fair_ofdma,
     greedy_schedule,
@@ -317,6 +321,17 @@ def _slot_method(
                 planning,
                 channel,
                 search_evaluation,
+            )
+            return evaluate_noma(snapshot, schedule)
+        if name == "guo_jagp_adapted":
+            schedule = guo_jagp_adapted(
+                planning,
+                channel,
+                search_evaluation,
+                channel_basis=ChannelBasis.PLANNING,
+                qos_spectral_efficiency=(
+                    GUO_DEFAULT_QOS_SPECTRAL_EFFICIENCY
+                ),
             )
             return evaluate_noma(snapshot, schedule)
 
