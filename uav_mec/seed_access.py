@@ -34,6 +34,10 @@ _PHASES = (
     "before-formal-lock",
     "before-formal-run",
 )
+_REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+_PREREGISTRATION_ROOT = (
+    _REPOSITORY_ROOT / "artifacts" / "preregistration" / "v2"
+)
 _RECORD_KEYS = frozenset(
     {
         "sequence",
@@ -820,9 +824,87 @@ def _verify_formal_boundary(
     return len(prefix_records), len(post_records)
 
 
-def _atomic_write(path: Path, payload: bytes) -> None:
-    destination = Path(path)
+def _absolute_lexical_path(path: Path) -> Path:
+    return Path(os.path.abspath(os.fspath(Path(path))))
+
+
+def _lstat(path: Path) -> os.stat_result | None:
+    try:
+        return os.lstat(path)
+    except FileNotFoundError:
+        return None
+
+
+def _reject_symlinked_ancestors(path: Path) -> None:
+    current = _absolute_lexical_path(path).parent
+    while True:
+        status = _lstat(current)
+        if status is not None:
+            if stat.S_ISLNK(status.st_mode):
+                raise ValueError(f"audit output path contains a symlink: {current}")
+            if not stat.S_ISDIR(status.st_mode):
+                raise ValueError(
+                    f"audit output ancestor is not a directory: {current}"
+                )
+        if current == current.parent:
+            break
+        current = current.parent
+
+
+def _preflight_new_output(path: Path) -> Path:
+    destination = _absolute_lexical_path(path)
+    _reject_symlinked_ancestors(destination)
+    status = _lstat(destination)
+    if status is not None:
+        if stat.S_ISLNK(status.st_mode):
+            raise ValueError(f"audit output path is a symlink: {destination}")
+        raise FileExistsError(f"audit output already exists: {destination}")
+    return destination
+
+
+def _resolve_cli_audit_output(path: Path) -> Path:
+    root = _absolute_lexical_path(_PREREGISTRATION_ROOT)
+    destination = _absolute_lexical_path(path)
+    try:
+        relative = destination.relative_to(root)
+    except ValueError as exc:
+        raise ValueError(
+            "--output must resolve beneath artifacts/preregistration/v2"
+        ) from exc
+    if relative == Path("."):
+        raise ValueError(
+            "--output must name a file beneath artifacts/preregistration/v2"
+        )
+
+    current = root
+    for component in (Path("."), *relative.parts):
+        if component != Path("."):
+            current = current / component
+        status = _lstat(current)
+        if status is None:
+            continue
+        if stat.S_ISLNK(status.st_mode):
+            raise ValueError(f"--output path contains a symlink: {current}")
+        if current != destination and not stat.S_ISDIR(status.st_mode):
+            raise ValueError(f"--output ancestor is not a directory: {current}")
+
+    resolved_root = root.resolve(strict=False)
+    resolved_destination = destination.resolve(strict=False)
+    try:
+        resolved_destination.relative_to(resolved_root)
+    except ValueError as exc:
+        raise ValueError(
+            "--output must resolve beneath artifacts/preregistration/v2"
+        ) from exc
+    return _preflight_new_output(resolved_destination)
+
+
+def _atomic_write_new(path: Path, payload: bytes) -> None:
+    destination = _preflight_new_output(path)
     destination.parent.mkdir(parents=True, exist_ok=True)
+    _reject_symlinked_ancestors(destination)
+    if _lstat(destination) is not None:
+        raise FileExistsError(f"audit output already exists: {destination}")
     descriptor, temporary_name = tempfile.mkstemp(
         prefix=f".{destination.name}.",
         suffix=".tmp",
@@ -834,10 +916,18 @@ def _atomic_write(path: Path, payload: bytes) -> None:
             handle.write(payload)
             handle.flush()
             os.fsync(handle.fileno())
-        os.replace(temporary, destination)
+        try:
+            os.link(temporary, destination, follow_symlinks=False)
+        except FileExistsError as exc:
+            raise FileExistsError(
+                f"audit output already exists: {destination}"
+            ) from exc
+        temporary.unlink()
         directory_descriptor = os.open(
             destination.parent,
-            os.O_RDONLY | getattr(os, "O_DIRECTORY", 0),
+            os.O_RDONLY
+            | getattr(os, "O_DIRECTORY", 0)
+            | getattr(os, "O_NOFOLLOW", 0),
         )
         try:
             os.fsync(directory_descriptor)
@@ -862,6 +952,7 @@ def audit_seed_access(
         raise ValueError("before-formal-run requires lock_path")
     if phase != "before-formal-run" and lock_path is not None:
         raise ValueError("lock_path is accepted only for before-formal-run")
+    output_file = _preflight_new_output(Path(output_path))
 
     registry_file = Path(registry_path)
     registry = _load_registry(registry_file)
@@ -925,7 +1016,7 @@ def audit_seed_access(
         "lock_sha256": lock_sha256,
     }
     payload = (_canonical_json(result) + "\n").encode("utf-8")
-    _atomic_write(Path(output_path), payload)
+    _atomic_write_new(output_file, payload)
     return result
 
 
@@ -959,11 +1050,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         parser.error("--lock DIR is required for before-formal-run")
     if args.phase != "before-formal-run" and args.lock is not None:
         parser.error("--lock is accepted only for before-formal-run")
+    output = _resolve_cli_audit_output(args.output)
     audit_seed_access(
         args.registry,
         args.ledger,
         args.phase,
-        args.output,
+        output,
         lock_path=args.lock,
     )
     return 0

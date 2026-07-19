@@ -6,6 +6,7 @@ import inspect
 import json
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from threading import Barrier
 from types import SimpleNamespace
 
 import pytest
@@ -305,6 +306,7 @@ def test_seed_access_audit_cli_writes_checksum_bound_pre_pilot_report(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     registry_path = _registry_file(tmp_path, monkeypatch)
+    monkeypatch.setattr(seed_access_module, "_PREREGISTRATION_ROOT", tmp_path)
     ledger = tmp_path / "seed-access.jsonl"
     SeedAccessRecorder(
         ledger,
@@ -338,6 +340,197 @@ def test_seed_access_audit_cli_writes_checksum_bound_pre_pilot_report(
     }
     assert report["pool_counts"]["pilot"]["accessed"] == 0
     assert output.read_bytes().endswith(b"\n")
+
+
+def test_seed_access_audit_cli_resolves_output_beneath_preregistration_root(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repository = tmp_path / "repository"
+    preregistration = repository / "artifacts" / "preregistration" / "v2"
+    preregistration.mkdir(parents=True)
+    registry_path = _registry_file(tmp_path, monkeypatch)
+    monkeypatch.setattr(
+        seed_access_module,
+        "_PREREGISTRATION_ROOT",
+        preregistration,
+    )
+    monkeypatch.chdir(repository)
+
+    assert seed_access_module.main(
+        [
+            "audit",
+            "--registry",
+            str(registry_path),
+            "--ledger",
+            str(tmp_path / "missing-ledger.jsonl"),
+            "--phase",
+            "before-final-pilot",
+            "--output",
+            "artifacts/preregistration/v2/nested/../seed-audit.json",
+        ]
+    ) == 0
+
+    report = preregistration / "seed-audit.json"
+    assert report.is_file()
+    assert not (preregistration / "nested").exists()
+
+
+@pytest.mark.parametrize("escape_kind", ("parent", "prefix-collision"))
+def test_seed_access_audit_cli_rejects_output_prefix_escape_before_mutation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    escape_kind: str,
+) -> None:
+    preregistration = tmp_path / "artifacts" / "preregistration" / "v2"
+    preregistration.mkdir(parents=True)
+    output = (
+        preregistration.parent / "escaped" / "audit.json"
+        if escape_kind == "parent"
+        else Path(f"{preregistration}-escaped") / "audit.json"
+    )
+    monkeypatch.setattr(
+        seed_access_module,
+        "_PREREGISTRATION_ROOT",
+        preregistration,
+    )
+    verifier_called = False
+
+    def unexpected_registry_load(_path: Path) -> object:
+        nonlocal verifier_called
+        verifier_called = True
+        return _registry()
+
+    monkeypatch.setattr(seed_access_module, "_load_registry", unexpected_registry_load)
+
+    with pytest.raises(ValueError, match="preregistration"):
+        seed_access_module.main(
+            [
+                "audit",
+                "--registry",
+                str(tmp_path / "registry.toml"),
+                "--ledger",
+                str(tmp_path / "ledger.jsonl"),
+                "--phase",
+                "before-final-pilot",
+                "--output",
+                str(output),
+            ]
+        )
+
+    assert not verifier_called
+    assert not output.parent.exists()
+
+
+def test_seed_access_audit_cli_rejects_symlinked_output_component_before_mutation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    preregistration = tmp_path / "artifacts" / "preregistration" / "v2"
+    outside = tmp_path / "outside"
+    preregistration.mkdir(parents=True)
+    outside.mkdir()
+    (preregistration / "linked").symlink_to(outside, target_is_directory=True)
+    monkeypatch.setattr(
+        seed_access_module,
+        "_PREREGISTRATION_ROOT",
+        preregistration,
+    )
+    verifier_called = False
+
+    def unexpected_registry_load(_path: Path) -> object:
+        nonlocal verifier_called
+        verifier_called = True
+        return _registry()
+
+    monkeypatch.setattr(seed_access_module, "_load_registry", unexpected_registry_load)
+
+    with pytest.raises(ValueError, match="symlink"):
+        seed_access_module.main(
+            [
+                "audit",
+                "--registry",
+                str(tmp_path / "registry.toml"),
+                "--ledger",
+                str(tmp_path / "ledger.jsonl"),
+                "--phase",
+                "before-final-pilot",
+                "--output",
+                str(preregistration / "linked" / "audit.json"),
+            ]
+        )
+
+    assert not verifier_called
+    assert not (outside / "audit.json").exists()
+
+
+def test_seed_access_audit_rejects_existing_destination_before_verification(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    output = tmp_path / "audit.json"
+    output.write_bytes(b"immutable evidence\n")
+    verifier_called = False
+
+    def unexpected_registry_load(_path: Path) -> object:
+        nonlocal verifier_called
+        verifier_called = True
+        return _registry()
+
+    monkeypatch.setattr(seed_access_module, "_load_registry", unexpected_registry_load)
+
+    with pytest.raises(FileExistsError, match="already exists"):
+        audit_seed_access(
+            tmp_path / "registry.toml",
+            tmp_path / "ledger.jsonl",
+            "before-final-pilot",
+            output,
+        )
+
+    assert not verifier_called
+    assert output.read_bytes() == b"immutable evidence\n"
+
+
+def test_seed_access_audit_atomically_publishes_without_racing_overwrite(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    registry_path = tmp_path / "registry.toml"
+    registry_path.write_text("schema_version = 2\n", encoding="utf-8")
+    output = tmp_path / "audit.json"
+    both_preflighted = Barrier(2)
+
+    def synchronized_registry_load(_path: Path) -> object:
+        both_preflighted.wait(timeout=5)
+        return _registry()
+
+    monkeypatch.setattr(
+        seed_access_module,
+        "_load_registry",
+        synchronized_registry_load,
+    )
+
+    def publish() -> dict[str, object]:
+        return audit_seed_access(
+            registry_path,
+            tmp_path / "missing-ledger.jsonl",
+            "before-final-pilot",
+            output,
+        )
+
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        futures = [executor.submit(publish) for _ in range(2)]
+    outcomes = []
+    for future in futures:
+        try:
+            outcomes.append(future.result())
+        except FileExistsError as exc:
+            outcomes.append(exc)
+
+    assert sum(isinstance(item, dict) for item in outcomes) == 1
+    assert sum(isinstance(item, FileExistsError) for item in outcomes) == 1
+    assert json.loads(output.read_text(encoding="utf-8"))["phase"] == "before-final-pilot"
+    assert {path.name for path in tmp_path.iterdir()} == {"registry.toml", "audit.json"}
 
 
 def test_seed_access_audit_rejects_unknown_phase_or_boundary_violation_before_output(
