@@ -521,14 +521,14 @@ def optimize_schedule(
     search: SearchConfig,
 ) -> SearchResult:
     """Run deterministic first-improvement search over feasible schedules."""
-    current_raw = normalize_roles(
+    normalized_initial = normalize_roles(
         initial,
         snapshot,
         channel_basis=ChannelBasis.PLANNING,
     )
     initial_closed = _close_planning_schedule(
         snapshot,
-        current_raw,
+        normalized_initial,
         channel,
         evaluation,
     )
@@ -543,7 +543,7 @@ def optimize_schedule(
         iterations += 1
         improved = False
         for neighbor in generate_neighbors(
-            current_raw,
+            current,
             snapshot,
             evaluation.n_subcarriers,
             search.allow_cross_uav,
@@ -633,7 +633,6 @@ def optimize_schedule(
                 )
             )
             if accepted:
-                current_raw = neighbor.schedule
                 current = candidate_schedule
                 current_outcome = candidate_outcome
                 visited.add(schedule_key)

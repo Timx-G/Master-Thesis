@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 
+from uav_mec.closure import close_assignment, rate_raw_assignment
 from uav_mec.domain import (
     AllocationDecision,
     ChannelBasis,
@@ -14,11 +15,13 @@ from uav_mec.domain import (
 )
 from uav_mec.evaluation import EvaluationConfig
 from uav_mec.model import ChannelConfig, NOMAChannel
+from uav_mec.resource_allocation import AllocationPolicy
 from uav_mec.scheduler import (
     Acceptance,
     Neighbor,
     SearchConfig,
     _bilateral_accepts,
+    generate_neighbors,
     network_objective,
     optimize_schedule,
 )
@@ -26,12 +29,20 @@ from uav_mec.scheduler import (
 
 def replace_case():
     tasks = (
-        Task(1, 0, 0, 2e6, 1.9e9, 0.8, 1e9),
-        Task(2, 1, 0, 0.4e6, 1.1e9, 0.8, 1e9),
+        Task(1, 0, 0, 0.25e6, 0.218e9, 0.30, 0.597e9),
+        Task(2, 1, 0, 0.49e6, 1.67e9, 1.17, 0.994e9),
     )
-    snapshot = SlotSnapshot(0, tasks, np.array([[2e-16], [9e-8]]), 1)
+    snapshot = SlotSnapshot(0, tasks, np.array([[4.9e-8], [3.6e-8]]), 1)
     initial = Schedule((ScheduleEntry(1, 0, 0, 0, "solo"),))
-    evaluation = EvaluationConfig(1, 5e6, 0.2, 0.02, 1.0, 4e9)
+    evaluation = EvaluationConfig(
+        1,
+        5e6,
+        0.2,
+        0.02,
+        0.01,
+        0.73e9,
+        allocation_policy=AllocationPolicy.CROSSING_EQUAL,
+    )
     return snapshot, initial, evaluation
 
 
@@ -96,6 +107,74 @@ def test_search_returns_a_closed_executable_schedule() -> None:
         result.outcome.completed_task_ids
     )
     assert set(result.schedule.task_ids) < set(initial.task_ids)
+
+
+def test_search_enumerates_each_iteration_from_the_closed_current_schedule() -> None:
+    tasks = (
+        Task(1, 1, 0, 0.49e6, 1.67e9, 1.17, 0.994e9),
+        Task(2, 2, 0, 0.25e6, 0.218e9, 0.30, 0.597e9),
+    )
+    snapshot = SlotSnapshot(
+        0,
+        tasks,
+        np.array([[3.6e-8], [4.9e-8]]),
+        1,
+    )
+    raw = Schedule(
+        (
+            ScheduleEntry(1, 1, 0, 0, "weak"),
+            ScheduleEntry(2, 2, 0, 0, "strong"),
+        )
+    )
+    channel = NOMAChannel(ChannelConfig(), 100.0)
+    evaluation = EvaluationConfig(
+        1,
+        5e6,
+        0.2,
+        0.02,
+        0.01,
+        0.73e9,
+        allocation_policy=AllocationPolicy.CROSSING_EQUAL,
+    )
+    closed = close_assignment(
+        snapshot,
+        rate_raw_assignment(
+            snapshot,
+            raw,
+            channel,
+            evaluation,
+            channel_basis=ChannelBasis.PLANNING,
+        ),
+        channel,
+        evaluation,
+    )
+
+    assert raw.task_ids == (1, 2)
+    assert closed.schedule.task_ids == (2,)
+    assert generate_neighbors(raw, snapshot, 1, False) == ()
+    assert [
+        (neighbor.move_type, neighbor.schedule.task_ids)
+        for neighbor in generate_neighbors(
+            closed.schedule,
+            snapshot,
+            1,
+            False,
+        )
+    ] == [("replace", (1,))]
+
+    result = optimize_schedule(
+        raw,
+        snapshot,
+        channel,
+        evaluation,
+        SearchConfig(False, Acceptance.GLOBAL, 20),
+    )
+
+    assert result.schedule.task_ids == (1,)
+    assert any(
+        event.move_type == "replace" and event.accepted
+        for event in result.events
+    )
 
 
 def test_search_reports_iteration_limit_after_accepting_last_allowed_move():
