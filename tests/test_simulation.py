@@ -56,7 +56,9 @@ def test_episode_rejects_every_repeated_task_id(placement):
     cfg = ScenarioConfig(num_users=1, num_slots=2, num_uavs=1)
     task = Task(7, 0, 0, 1e6, 1.4e9, 0.8, 1e9)
     if placement == "same_slot":
-        slots = (SlotSnapshot(0, (task, task), np.ones((2, 1)), 1),)
+        with pytest.raises(ValueError, match="unique task identity"):
+            SlotSnapshot(0, (task, task), np.ones((2, 1)), 1)
+        return
     else:
         slots = (
             SlotSnapshot(0, (task,), np.ones((1, 1)), 1),

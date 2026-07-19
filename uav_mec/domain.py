@@ -3,10 +3,31 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 from typing import Literal
+from enum import Enum
 
 import numpy as np
 
 NomaRole = Literal["strong", "weak", "solo"]
+
+class ChannelBasis(str, Enum):
+    PLANNING = "planning"
+    REALIZED = "realized"
+
+@dataclass(frozen=True, slots=True)
+class SicLayerCheck:
+    task_id: int
+    receiver_uav: int
+    subcarrier: int
+    decode_rank: int
+    sinr: float
+    threshold: float
+    feasible: bool
+
+
+@dataclass(frozen=True, order=True, slots=True)
+class TaskIdentity:
+    user_id: int
+    job_index: int
 
 
 def _reconstruct_channel_gains(
@@ -98,11 +119,33 @@ class Task:
     comp_cycles: float
     deadline_s: float
     local_cpu_hz: float
+    job_index: int = 0
+    slot_duration_s: float = 1.0
+    result_ratio: float = 0.0
 
     def __post_init__(self) -> None:
+        for name, value in (("task_id", self.task_id), ("user_id", self.user_id), ("arrival_slot", self.arrival_slot), ("job_index", self.job_index)):
+            if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+                raise ValueError(f"{name} must be a non-negative integer")
         quantities = (self.data_bits, self.comp_cycles, self.deadline_s, self.local_cpu_hz)
         if any(not math.isfinite(quantity) or quantity <= 0 for quantity in quantities):
             raise ValueError("task quantities must be positive and finite")
+        if not math.isfinite(self.slot_duration_s) or self.slot_duration_s <= 0:
+            raise ValueError("slot_duration_s must be positive and finite")
+        if not math.isfinite(self.result_ratio) or not 0 <= self.result_ratio <= 1:
+            raise ValueError("result_ratio must be finite in [0, 1]")
+
+    @property
+    def identity(self) -> TaskIdentity:
+        return TaskIdentity(self.user_id, self.job_index)
+
+    @property
+    def release_time_s(self) -> float:
+        return self.arrival_slot * self.slot_duration_s
+
+    @property
+    def remaining_time_s(self) -> float:
+        return self.deadline_s
 
     @property
     def local_delay_s(self) -> float:
@@ -110,7 +153,7 @@ class Task:
 
     @property
     def absolute_deadline_s(self) -> float:
-        return self.arrival_slot + self.deadline_s
+        return self.release_time_s + self.remaining_time_s
 
     @property
     def requires_offload(self) -> bool:
@@ -160,6 +203,8 @@ class SlotSnapshot:
 
     def __post_init__(self) -> None:
         tasks = tuple(self.tasks)
+        if len({task.task_id for task in tasks}) != len(tasks) or len({task.identity for task in tasks}) != len(tasks):
+            raise ValueError("tasks must have unique task identity")
         expected = (len(tasks), self.num_uavs)
         gains = _validated_channel_gains(
             self.channel_gains,
@@ -234,6 +279,8 @@ class RateRecord:
     cross_interference_w: float
     serving_uav: int
     subcarrier: int
+    channel_basis: ChannelBasis = ChannelBasis.PLANNING
+    sic_layers: tuple[SicLayerCheck, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -258,6 +305,15 @@ class SlotOutcome:
     @property
     def completed_count(self) -> int:
         return len(self.completed_task_ids)
+
+@dataclass(frozen=True, slots=True)
+class RealizedSlotOutcome:
+    plan_key: tuple = ()
+    schedule: Schedule = Schedule()
+    decisions: tuple[AllocationDecision, ...] = ()
+    rates: tuple[RateRecord, ...] = ()
+    completed_task_ids: tuple[int, ...] = ()
+    sic_outage_task_ids: tuple[int, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)

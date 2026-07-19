@@ -33,10 +33,7 @@ def test_trace_assigns_each_arrival_one_stable_task_id():
     assert len(task_ids) == len(set(task_ids))
     for snapshot in trace.slots:
         assert all(task.arrival_slot == snapshot.slot_index for task in snapshot.tasks)
-        assert all(
-            task.task_id == snapshot.slot_index * cfg.num_users + task.user_id
-            for task in snapshot.tasks
-        )
+        assert all(task.task_id == (task.user_id << 32) | task.job_index for task in snapshot.tasks)
         assert snapshot.channel_gains.shape == (len(snapshot.tasks), cfg.num_uavs)
 
 

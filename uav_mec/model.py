@@ -103,6 +103,10 @@ class TaskConfig:
     kappa: float = 1e-27            # energy coefficient for local computing
     result_ratio: float = 0.1       # result-to-input ratio (result download size / input upload size)
 
+    def __post_init__(self) -> None:
+        if not math.isfinite(self.result_ratio) or not 0.0 <= self.result_ratio <= 1.0:
+            raise ValueError("result_ratio must be finite in [0, 1]")
+
 
 @dataclass
 class ScenarioConfig:

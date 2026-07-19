@@ -5,6 +5,7 @@ from __future__ import annotations
 import math
 
 import numpy as np
+from .seed_access import SeedAccessRecorder
 
 from .domain import ExperimentTrace, SlotSnapshot, Task
 from .model import (
@@ -32,6 +33,8 @@ def generate_trace(
     cfg: ScenarioConfig,
     seed: int,
     csi_error_std: float = 0.0,
+    *,
+    seed_access: SeedAccessRecorder,
 ) -> ExperimentTrace:
     """Generate all task arrivals and channels from one seed-owned RNG."""
     if not math.isfinite(csi_error_std) or csi_error_std < 0.0:
@@ -43,6 +46,7 @@ def generate_trace(
     if not cfg.fixed_cluster_centers:
         raise ValueError("trusted trace requires fixed_cluster_centers=True")
 
+    seed_access.record("generate_trace", [seed], {"scenario": repr(cfg), "csi_error_std": csi_error_std})
     rng = np.random.default_rng(seed)
     csi_rng = np.random.default_rng(seed + 7_919)
     centers = _centers(cfg)
@@ -66,6 +70,9 @@ def generate_trace(
     )
 
     slots: list[SlotSnapshot] = []
+    next_job_index = [0 for _ in range(cfg.num_users)]
+    if cfg.task.t_max > cfg.uav.dt:
+        raise ValueError("trusted no-queue trace requires deadline <= slot duration")
     for slot in range(cfg.num_slots):
         if slot > 0 and cfg.user_mobility:
             angles = rng.uniform(0.0, 2.0 * math.pi, cfg.num_users)
@@ -94,15 +101,20 @@ def generate_trace(
 
             data_bits = float(rng.uniform(cfg.task.data_min, cfg.task.data_max))
             density = float(rng.uniform(cfg.task.comp_min, cfg.task.comp_max))
+            job_index = next_job_index[user]
+            next_job_index[user] += 1
             tasks.append(
                 Task(
-                    task_id=slot * cfg.num_users + user,
+                    task_id=(user << 32) | job_index,
                     user_id=user,
                     arrival_slot=slot,
                     data_bits=data_bits,
                     comp_cycles=data_bits * density,
                     deadline_s=cfg.task.t_max,
                     local_cpu_hz=cfg.task.f_local,
+                    job_index=job_index,
+                    slot_duration_s=cfg.uav.dt,
+                    result_ratio=cfg.task.result_ratio,
                 )
             )
 
