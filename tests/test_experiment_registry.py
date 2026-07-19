@@ -286,7 +286,7 @@ def test_registry_primary_hypotheses_freeze_test_estimand_and_holm_family() -> N
     }
 
 
-def test_registry_rejects_resolved_definition_drift() -> None:
+def test_registry_rejects_config_seed_method_or_slot_drift() -> None:
     registry = load_registry(REGISTRY_PATH)
     family = registered_family(registry, "main")
     definition = load_definition(family.config_path)
