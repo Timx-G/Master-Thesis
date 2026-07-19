@@ -3,6 +3,7 @@ from dataclasses import replace
 import numpy as np
 import pytest
 
+import uav_mec.scheduler as scheduler_module
 from uav_mec.closure import close_assignment, rate_raw_assignment
 from uav_mec.domain import (
     AllocationDecision,
@@ -495,6 +496,35 @@ def test_search_result_preserves_closed_neighborhood_audit_counts() -> None:
     assert result.cache_hits >= 0
     assert result.accepted_moves == sum(event.accepted for event in result.events)
     assert result.closure_rounds >= 0
+
+
+def test_search_evaluates_every_raw_candidate_through_incremental_boundary(
+    monkeypatch,
+) -> None:
+    snapshot, initial, evaluation = replace_case()
+    calls = 0
+    implementation = scheduler_module.evaluate_move_incremental
+
+    def audited_incremental(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        return implementation(*args, **kwargs)
+
+    monkeypatch.setattr(
+        scheduler_module,
+        "evaluate_move_incremental",
+        audited_incremental,
+    )
+    result = optimize_schedule(
+        initial,
+        snapshot,
+        NOMAChannel(ChannelConfig(), 100.0),
+        evaluation,
+        SearchConfig(False, Acceptance.GLOBAL, 1),
+    )
+
+    assert calls == result.raw_move_count
+    assert calls > 0
 
 
 @pytest.mark.parametrize(

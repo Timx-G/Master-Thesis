@@ -6,7 +6,7 @@ import hashlib
 import math
 import struct
 from collections import defaultdict
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from numbers import Integral
 from typing import TYPE_CHECKING
@@ -214,11 +214,33 @@ def compute_rate_records(
     cfg: EvaluationConfig,
     *,
     channel_basis: ChannelBasis,
+    receiver_blocks: Iterable[tuple[int, int]] | None = None,
 ) -> tuple[RateRecord, ...]:
-    """Evaluate uplink rates on each entry's actual serving UAV."""
+    """Evaluate uplink rates at all or a selected set of receiver blocks.
+
+    The full schedule always remains in the interference calculation.  A
+    ``receiver_blocks`` selection limits only which receiver-side records are
+    materialized, so incremental callers cannot accidentally omit co-channel
+    transmitters from the canonical SINR formula.
+    """
     if not isinstance(channel_basis, ChannelBasis):
         raise ValueError("channel_basis must be a ChannelBasis value")
     validate_schedule(schedule, snapshot, cfg.n_subcarriers)
+    selected_blocks = None
+    if receiver_blocks is not None:
+        selected_blocks = frozenset(receiver_blocks)
+        if any(
+            not isinstance(block, tuple)
+            or len(block) != 2
+            or not all(
+                isinstance(value, int) and not isinstance(value, bool)
+                for value in block
+            )
+            or not 0 <= block[0] < snapshot.num_uavs
+            or not 0 <= block[1] < cfg.n_subcarriers
+            for block in selected_blocks
+        ):
+            raise ValueError("receiver_blocks contains an invalid block")
     gains = snapshot.channel_gains_for(channel_basis)
     row_by_task = {task.task_id: row for row, task in enumerate(snapshot.tasks)}
     groups: dict[tuple[int, int], list[ScheduleEntry]] = defaultdict(list)
@@ -229,6 +251,11 @@ def compute_rate_records(
     noise_w = channel.noise_for_bandwidth(bandwidth_hz)
     records: list[RateRecord] = []
     for (uav, subcarrier), own_entries in sorted(groups.items()):
+        if (
+            selected_blocks is not None
+            and (uav, subcarrier) not in selected_blocks
+        ):
+            continue
         cross_w = _cross_interference_w(
             uav,
             subcarrier,

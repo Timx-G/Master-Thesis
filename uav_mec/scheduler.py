@@ -24,6 +24,7 @@ from .evaluation import (
     build_outcome_from_closed,
     compute_rate_records,
 )
+from .incremental import evaluate_move_incremental
 from .model import NOMAChannel
 from .schedule import normalize_roles, validate_schedule
 
@@ -801,8 +802,9 @@ def optimize_schedule(
             raw_move_count += 1
             raw_schedule_key = raw_neighbor.schedule.stable_key()
             try:
-                candidate_closed = _close_planning_schedule(
+                candidate_closed = evaluate_move_incremental(
                     snapshot,
+                    current_closed,
                     raw_neighbor.schedule,
                     channel,
                     evaluation,
