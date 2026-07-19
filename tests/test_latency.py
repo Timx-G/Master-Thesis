@@ -53,6 +53,7 @@ def test_resource_requirement_api_has_no_global_result_ratio() -> None:
         "task",
         "rate_bps",
         "downlink_rate_bps",
+        "alpha",
     )
 
 

@@ -67,6 +67,37 @@ def test_positive_result_ratio_requires_an_independent_downlink_rate():
         )
 
 
+def test_explicit_zero_alpha_needs_no_downlink_for_a_local_task():
+    task = make_task(600_000_000.0)
+
+    requirement = required_resources(task, rate_bps=math.nan, alpha=0.0)
+
+    assert requirement.local_only
+    assert requirement.alpha == 0.0
+    assert requirement.cpu_hz == 0.0
+
+
+def test_explicit_positive_alpha_requires_downlink_for_positive_result_ratio():
+    task = make_task(600_000_000.0)
+
+    with pytest.raises(ValueError, match="downlink_rate_bps"):
+        required_resources(task, rate_bps=4_000_000.0, alpha=0.1)
+
+
+def test_alpha_below_local_deadline_boundary_is_infeasible():
+    task = make_task(1_200_000_000.0, result_ratio=0.0)
+    alpha_min = 1.0 - task.remaining_time_s * task.local_cpu_hz / task.comp_cycles
+
+    requirement = required_resources(
+        task,
+        rate_bps=4_000_000.0,
+        alpha=math.nextafter(alpha_min, 0.0),
+    )
+
+    assert not requirement.feasible
+    assert requirement.reason is RequirementReason.LINK_INFEASIBLE
+
+
 def test_downlink_rate_is_keyword_only_to_reject_legacy_scalar_ratio():
     with pytest.raises(TypeError, match="positional"):
         required_resources(make_task(1_200_000_000.0), 4_000_000.0, 0.1)

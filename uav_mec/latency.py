@@ -1,4 +1,9 @@
-"""Canonical, unit-safe task latency formulas for thesis-v2."""
+"""Canonical, unit-safe parallel-branch task latency formulas for thesis-v2.
+
+``mec_cpu_hz`` is a persistent virtual CPU rate reserved for one admitted task.
+Server admission separately enforces the simultaneous sum of those rates; this
+module does not model preemptive EDF execution or time-reused processor demand.
+"""
 from __future__ import annotations
 
 import math
@@ -62,6 +67,7 @@ def branch_delays_s(
     mec_cpu_hz: float,
     downlink_rate_bps: float | None,
 ) -> BranchDelays:
+    """Evaluate local and edge branches under a fixed virtual CPU share."""
     if not math.isfinite(alpha) or not 0.0 <= alpha <= 1.0:
         raise ValueError("alpha must be finite and in [0, 1]")
     if alpha == 0.0:
@@ -96,4 +102,5 @@ def branch_delays_s(
 
 def completion_delay_s(task: Task, alpha: float, uplink_rate_bps: float,
                        mec_cpu_hz: float, downlink_rate_bps: float | None = None) -> float:
+    """Return the maximum delay of the parallel local and edge branches."""
     return branch_delays_s(task, alpha, uplink_rate_bps, mec_cpu_hz, downlink_rate_bps).completion_s

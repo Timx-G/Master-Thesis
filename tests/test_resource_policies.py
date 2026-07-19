@@ -15,6 +15,7 @@ from uav_mec.model import ChannelConfig, NOMAChannel
 from uav_mec.resource_allocation import (
     AllocationPolicy,
     allocate_with_policy,
+    required_resources,
 )
 
 
@@ -93,6 +94,32 @@ def test_deadline_policy_matches_the_proven_allocator():
     assert by_id[1].alpha == pytest.approx(1.0 / 3.0)
     assert by_id[2].alpha == pytest.approx(5.0 / 9.0)
     assert result.completed_task_ids
+
+
+def test_deadline_first_min_cpu_is_distinct_from_dd_mcaa_cpu_order() -> None:
+    smallest_positive = math.nextafter(0.0, math.inf)
+    early_expensive = Task(10, 10, 0, smallest_positive, 0.65, 0.5, 1.0)
+    later_cheap = Task(20, 20, 0, smallest_positive, 1.1, 1.0, 1.0)
+    tasks = (later_cheap, early_expensive)
+    rates = {task.task_id: 1.0 for task in tasks}
+    early_requirement = required_resources(early_expensive, 1.0)
+
+    dd = allocate_with_policy(
+        AllocationPolicy.DEADLINE,
+        tasks,
+        rates,
+        early_requirement.cpu_hz,
+    )
+    deadline_first = allocate_with_policy(
+        AllocationPolicy.EDF_MIN_CPU,
+        tasks,
+        rates,
+        early_requirement.cpu_hz,
+    )
+
+    assert dd.completed_task_ids == (later_cheap.task_id,)
+    assert deadline_first.completed_task_ids == (early_expensive.task_id,)
+    assert AllocationPolicy.EDF_MIN_CPU.value == "edf_min_cpu"
 
 
 @pytest.mark.parametrize("invalid_rate", [0.0, -1.0, float("nan")])

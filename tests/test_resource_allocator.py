@@ -12,6 +12,7 @@ from uav_mec.resource_allocation import (
     RequirementReason,
     ResourceRequirement,
     allocate_deadline_tasks,
+    minimum_cpu_prefix_admission,
     required_resources,
 )
 
@@ -75,6 +76,24 @@ def test_allocator_cardinality_matches_brute_force():
     )
 
     assert len(result.completed_task_ids) == brute_best
+
+
+def test_legacy_allocator_name_is_the_dd_mcaa_response() -> None:
+    task_list = tasks()
+    rates = {10: 3e6, 11: 2e6, 12: 5e6}
+    downlink_rates = {10: 6e6, 11: 4e6, 12: 10e6}
+
+    assert allocate_deadline_tasks(
+        task_list,
+        rates,
+        2e9,
+        downlink_rates_bps=downlink_rates,
+    ) == minimum_cpu_prefix_admission(
+        task_list,
+        rates,
+        2e9,
+        downlink_rates_bps=downlink_rates,
+    )
 
 
 def test_completion_delay_matches_normalized_parallel_branch_model():

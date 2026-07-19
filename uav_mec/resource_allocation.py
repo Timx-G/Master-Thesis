@@ -6,6 +6,8 @@ import math
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from enum import Enum
+from itertools import combinations
+from types import MappingProxyType
 
 from .domain import AllocationDecision, Task
 from .latency import completion_delay_s
@@ -23,6 +25,7 @@ class RequirementReason(str, Enum):
 
 class AllocationPolicy(str, Enum):
     DEADLINE = "deadline"
+    EDF_MIN_CPU = "edf_min_cpu"
     CROSSING_EQUAL = "crossing_equal"
     FIXED_HALF_EQUAL = "fixed_half_equal"
 
@@ -42,6 +45,54 @@ class AllocationResult:
     decisions: tuple[AllocationDecision, ...]
     completed_task_ids: tuple[int, ...]
     total_cpu_hz: float
+
+
+@dataclass(frozen=True, slots=True)
+class ExactAdmissionResult:
+    """Exhaustive fixed-radio CPU-admission result.
+
+    This certificate deliberately has no radio schedule: it conditions on the
+    caller's closure-before task set and frozen rates, then enumerates CPU subsets
+    under one static virtual-share capacity.
+    """
+
+    admitted_task_ids: tuple[int, ...]
+    rejected_task_ids: tuple[int, ...]
+    requirements: Mapping[int, ResourceRequirement]
+    total_cpu_hz: float
+    enumerated_subsets: int
+
+    def __post_init__(self) -> None:
+        admitted = tuple(self.admitted_task_ids)
+        rejected = tuple(self.rejected_task_ids)
+        if admitted != tuple(sorted(admitted)) or len(set(admitted)) != len(admitted):
+            raise ValueError("admitted_task_ids must be unique and sorted")
+        if rejected != tuple(sorted(rejected)) or len(set(rejected)) != len(rejected):
+            raise ValueError("rejected_task_ids must be unique and sorted")
+        if set(admitted).intersection(rejected):
+            raise ValueError("admitted and rejected task IDs must be disjoint")
+
+        requirements = dict(self.requirements)
+        if set(requirements) != set(admitted).union(rejected):
+            raise ValueError("requirements must cover every admitted and rejected task")
+        if any(task_id != requirement.task_id for task_id, requirement in requirements.items()):
+            raise ValueError("requirement keys must match requirement task IDs")
+        if not math.isfinite(self.total_cpu_hz) or self.total_cpu_hz < 0.0:
+            raise ValueError("total_cpu_hz must be finite and non-negative")
+        if (
+            not isinstance(self.enumerated_subsets, int)
+            or isinstance(self.enumerated_subsets, bool)
+            or self.enumerated_subsets < 1
+        ):
+            raise ValueError("enumerated_subsets must be a positive integer")
+
+        object.__setattr__(self, "admitted_task_ids", admitted)
+        object.__setattr__(self, "rejected_task_ids", rejected)
+        object.__setattr__(
+            self,
+            "requirements",
+            MappingProxyType(dict(sorted(requirements.items()))),
+        )
 
 
 def _positive_product_ratio(
@@ -165,7 +216,7 @@ def _local_branch_delay(task: Task, alpha: float) -> float:
 def _deadline_feasible_alpha(task: Task) -> tuple[float, bool]:
     """Return a conservative deadline-feasible alpha under IEEE arithmetic."""
     local_fraction = _positive_product_ratio(
-        (task.deadline_s, task.local_cpu_hz),
+        (task.remaining_time_s, task.local_cpu_hz),
         (task.comp_cycles,),
     )
     alpha = min(max(1.0 - local_fraction, 0.0), 1.0)
@@ -202,14 +253,14 @@ def _deadline_feasible_cpu_hz(
     transfer_per_alpha_s: float,
 ) -> float:
     """Return a conservative deadline-feasible CPU requirement."""
-    denominator = task.deadline_s - transmission_s
+    denominator = task.remaining_time_s - transmission_s
     denominator_candidate = _positive_product_ratio(
         (alpha, task.comp_cycles),
         (denominator,),
     )
 
     deadline_per_alpha = _positive_product_ratio(
-        (task.deadline_s,),
+        (task.remaining_time_s,),
         (alpha,),
     )
     grouped_window = deadline_per_alpha - transfer_per_alpha_s
@@ -231,21 +282,34 @@ def required_resources(
     rate_bps: float,
     *,
     downlink_rate_bps: float | None = None,
+    alpha: float | None = None,
 ) -> ResourceRequirement:
     """Return the task's pre-budget deadline-feasible resource requirements.
 
-    A task that meets its deadline locally needs neither resource, so ``rate_bps``
-    is intentionally unused and may be invalid on that path. At ordinary
-    representable scales, ``alpha`` and ``cpu_hz`` are the closed-form analytical
-    minima. Near IEEE overflow, underflow, or cancellation, bounded corrections
-    move only toward feasibility and may conservatively exceed an adjacent feasible
-    float; the function never searches downward through quantization plateaus because
-    doing so could understate the real-valued requirement.
+    With ``alpha=None``, a task that meets its deadline locally needs neither
+    resource, so ``rate_bps`` is intentionally unused and may be invalid on that
+    path. Otherwise the explicit, validated alpha is evaluated without changing
+    the admission policy. At ordinary representable scales, the default ``alpha``
+    and ``cpu_hz`` are the closed-form analytical minima. Near IEEE overflow,
+    underflow, or cancellation, bounded corrections move only toward feasibility
+    and may conservatively exceed an adjacent feasible float; the function never
+    searches downward through quantization plateaus because doing so could
+    understate the real-valued requirement.
 
     ``feasible`` means the module's normalized floating-point delay checks meet the
     deadline. MEC CPU-budget admission is handled separately by the allocator.
     """
-    if task.local_delay_s <= task.deadline_s:
+    if alpha is not None:
+        if isinstance(alpha, bool):
+            raise ValueError("alpha must be finite and in [0, 1]")
+        try:
+            alpha = float(alpha)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("alpha must be finite and in [0, 1]") from exc
+        if not math.isfinite(alpha) or not 0.0 <= alpha <= 1.0:
+            raise ValueError("alpha must be finite and in [0, 1]")
+
+    if alpha is None and task.local_delay_s <= task.remaining_time_s:
         return ResourceRequirement(
             task.task_id,
             True,
@@ -254,6 +318,17 @@ def required_resources(
             0.0,
             RequirementReason.LOCAL,
         )
+    if alpha == 0.0:
+        if task.local_delay_s <= task.remaining_time_s:
+            return ResourceRequirement(
+                task.task_id,
+                True,
+                True,
+                0.0,
+                0.0,
+                RequirementReason.LOCAL,
+            )
+        return _link_infeasible(task, 0.0)
     if not math.isfinite(rate_bps) or rate_bps <= 0:
         return ResourceRequirement(
             task.task_id,
@@ -279,7 +354,14 @@ def required_resources(
             math.inf,
             RequirementReason.INVALID_RATE,
         )
-    alpha, local_branch_feasible = _deadline_feasible_alpha(task)
+    if alpha is None:
+        selected_alpha, local_branch_feasible = _deadline_feasible_alpha(task)
+    else:
+        selected_alpha = float(alpha)
+        local_branch_feasible = (
+            _local_branch_delay(task, selected_alpha) <= task.remaining_time_s
+        )
+    alpha = selected_alpha
     if not local_branch_feasible:
         return _link_infeasible(task, alpha)
     uplink_s = _positive_product_ratio(
@@ -295,7 +377,7 @@ def required_resources(
         )
     )
     transmission_s = _cpu_sum((uplink_s, downlink_s))
-    denominator = task.deadline_s - transmission_s
+    denominator = task.remaining_time_s - transmission_s
     if not math.isfinite(denominator) or denominator <= 0.0:
         return _link_infeasible(task, alpha)
 
@@ -348,20 +430,19 @@ def required_resources(
     )
 
 
-def allocate_deadline_tasks(
+def _static_virtual_cpu_admission(
     tasks: Sequence[Task],
     rates_bps: Mapping[int, float],
     cpu_budget_hz: float,
-    downlink_rates_bps: Mapping[int, float] | None = None,
+    downlink_rates_bps: Mapping[int, float] | None,
+    *,
+    deadline_first: bool,
 ) -> AllocationResult:
-    """Return the canonical maximum-cardinality deadline allocation.
+    """Allocate persistent virtual CPU shares in one frozen radio snapshot.
 
-    Local-feasible tasks complete at zero MEC cost. Feasible offloaded tasks are
-    ordered by ``(required CPU, task_id)`` and the largest hard-budget prefix is
-    selected. This maximizes completion cardinality, then minimizes total MEC CPU
-    among maximum-cardinality subsets, with ``task_id`` resolving equal-cost
-    choices. The prefix is the deterministic representative of that objective
-    hierarchy; other maximum-cardinality feasible subsets can still exist.
+    Each admitted task keeps its derived CPU rate for the complete edge branch;
+    the budget is therefore a simultaneous capacity constraint, not a preemptive
+    single-processor demand-bound test.
 
     ``total_cpu_hz`` includes only completed MEC decisions. A missing rate for a
     task that requires offloading is an input data-flow error and raises ``KeyError``.
@@ -415,7 +496,7 @@ def allocate_deadline_tasks(
             rate_bps,
             downlink_rate_bps=(
                 None
-                if task.result_ratio == 0.0
+                if not task.requires_offload or task.result_ratio == 0.0
                 else downlink_rates_bps[task.task_id]
             ),
         )
@@ -444,7 +525,18 @@ def allocate_deadline_tasks(
         else:
             rejected[task.task_id] = requirement
 
-    mec_requirements.sort(key=lambda requirement: (requirement.cpu_hz, requirement.task_id))
+    if deadline_first:
+        mec_requirements.sort(
+            key=lambda requirement: (
+                task_by_id[requirement.task_id].absolute_deadline_s,
+                requirement.cpu_hz,
+                requirement.task_id,
+            )
+        )
+    else:
+        mec_requirements.sort(
+            key=lambda requirement: (requirement.cpu_hz, requirement.task_id)
+        )
     chosen: set[int] = set()
     chosen_cpu_costs: list[float] = []
     for requirement in mec_requirements:
@@ -518,6 +610,164 @@ def allocate_deadline_tasks(
     if total_cpu_hz > cpu_budget_hz:
         raise RuntimeError("completed MEC decisions exceed cpu_budget_hz")
     return AllocationResult(ordered, completed, total_cpu_hz)
+
+
+def minimum_cpu_prefix_admission(
+    tasks: Sequence[Task],
+    uplink_rates_bps: Mapping[int, float],
+    cpu_budget_hz: float,
+    downlink_rates_bps: Mapping[int, float] | None = None,
+) -> AllocationResult:
+    """Return the DD-MCAA static-share response for frozen radio rates.
+
+    Feasible offloaded tasks are ordered by ``(minimum CPU, task_id)`` and the
+    longest hard-capacity prefix is admitted. Under unit task value and independent
+    static virtual CPU shares, this maximizes cardinality and then minimizes total
+    CPU within that cardinality.
+    """
+    return _static_virtual_cpu_admission(
+        tasks,
+        uplink_rates_bps,
+        cpu_budget_hz,
+        downlink_rates_bps,
+        deadline_first=False,
+    )
+
+
+def deadline_first_minimum_cpu_admission(
+    tasks: Sequence[Task],
+    uplink_rates_bps: Mapping[int, float],
+    cpu_budget_hz: float,
+    downlink_rates_bps: Mapping[int, float] | None = None,
+) -> AllocationResult:
+    """Return the distinct Deadline-First-MinCPU static-share prefix policy.
+
+    This compatibility control orders by absolute deadline, minimum CPU, and task
+    ID. It reserves persistent parallel virtual CPU shares and is not preemptive
+    EDF scheduling.
+    """
+    return _static_virtual_cpu_admission(
+        tasks,
+        uplink_rates_bps,
+        cpu_budget_hz,
+        downlink_rates_bps,
+        deadline_first=True,
+    )
+
+
+def allocate_deadline_tasks(
+    tasks: Sequence[Task],
+    rates_bps: Mapping[int, float],
+    cpu_budget_hz: float,
+    downlink_rates_bps: Mapping[int, float] | None = None,
+) -> AllocationResult:
+    """Compatibility name for :func:`minimum_cpu_prefix_admission`."""
+    return minimum_cpu_prefix_admission(
+        tasks,
+        rates_bps,
+        cpu_budget_hz,
+        downlink_rates_bps,
+    )
+
+
+def exact_admission(
+    tasks: Sequence[Task],
+    uplink_rates_bps: Mapping[int, float],
+    cpu_budget_hz: float,
+    downlink_rates_bps: Mapping[int, float] | None = None,
+) -> ExactAdmissionResult:
+    """Exhaustively optimize fixed-radio static-share CPU admission.
+
+    Every subset of the supplied closure-before task set is visited. The objective
+    is maximum admitted cardinality, then minimum total CPU, then lexicographically
+    smallest sorted task-ID tuple. This oracle neither receives nor returns a radio
+    schedule and does not apply admission closure.
+    """
+    if not math.isfinite(cpu_budget_hz) or cpu_budget_hz < 0.0:
+        raise ValueError("cpu_budget_hz must be finite and non-negative")
+    _validate_downlink_rates_bps(downlink_rates_bps)
+
+    task_list = tuple(tasks)
+    seen_task_ids: set[int] = set()
+    for task in task_list:
+        if task.task_id in seen_task_ids:
+            raise ValueError(f"duplicate task_id {task.task_id}")
+        seen_task_ids.add(task.task_id)
+
+    missing_rate_task_ids = sorted(
+        task.task_id
+        for task in task_list
+        if task.requires_offload and task.task_id not in uplink_rates_bps
+    )
+    if missing_rate_task_ids:
+        raise KeyError(f"missing uplink_rate_bps for task {missing_rate_task_ids[0]}")
+    missing_downlink_task_ids = sorted(
+        task.task_id
+        for task in task_list
+        if task.requires_offload
+        and task.result_ratio > 0.0
+        and (
+            downlink_rates_bps is None
+            or task.task_id not in downlink_rates_bps
+        )
+    )
+    if missing_downlink_task_ids:
+        raise KeyError(
+            "missing downlink_rate_bps for task "
+            f"{missing_downlink_task_ids[0]}"
+        )
+
+    requirements = {
+        task.task_id: required_resources(
+            task,
+            (
+                uplink_rates_bps[task.task_id]
+                if task.requires_offload
+                else math.nan
+            ),
+            downlink_rate_bps=(
+                None
+                if not task.requires_offload or task.result_ratio == 0.0
+                else downlink_rates_bps[task.task_id]
+            ),
+        )
+        for task in sorted(task_list, key=lambda item: item.task_id)
+    }
+    ordered_task_ids = tuple(requirements)
+    best_task_ids: tuple[int, ...] = ()
+    best_cpu_hz = 0.0
+    best_key: tuple[int, float, tuple[int, ...]] = (0, 0.0, ())
+    enumerated_subsets = 0
+
+    for width in range(len(ordered_task_ids) + 1):
+        for subset in combinations(ordered_task_ids, width):
+            enumerated_subsets += 1
+            subset_requirements = tuple(requirements[task_id] for task_id in subset)
+            if not all(requirement.feasible for requirement in subset_requirements):
+                continue
+            total_cpu_hz = _cpu_sum(
+                tuple(requirement.cpu_hz for requirement in subset_requirements)
+            )
+            if total_cpu_hz > cpu_budget_hz:
+                continue
+            candidate_key = (-len(subset), total_cpu_hz, subset)
+            if candidate_key < best_key:
+                best_key = candidate_key
+                best_task_ids = subset
+                best_cpu_hz = total_cpu_hz
+
+    admitted = tuple(best_task_ids)
+    admitted_set = set(admitted)
+    rejected = tuple(
+        task_id for task_id in ordered_task_ids if task_id not in admitted_set
+    )
+    return ExactAdmissionResult(
+        admitted_task_ids=admitted,
+        rejected_task_ids=rejected,
+        requirements=requirements,
+        total_cpu_hz=best_cpu_hz,
+        enumerated_subsets=enumerated_subsets,
+    )
 
 
 def _equal_cpu_allocation(
@@ -677,7 +927,14 @@ def allocate_with_policy(
         raise ValueError("policy must be an AllocationPolicy value")
     _validate_downlink_rates_bps(downlink_rates_bps)
     if policy is AllocationPolicy.DEADLINE:
-        return allocate_deadline_tasks(
+        return minimum_cpu_prefix_admission(
+            tasks,
+            rates_bps,
+            cpu_budget_hz,
+            downlink_rates_bps,
+        )
+    if policy is AllocationPolicy.EDF_MIN_CPU:
+        return deadline_first_minimum_cpu_admission(
             tasks,
             rates_bps,
             cpu_budget_hz,
