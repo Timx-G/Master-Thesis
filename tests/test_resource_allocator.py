@@ -489,7 +489,11 @@ def test_allocator_fails_fast_if_a_selected_requirement_is_not_deadline_feasible
         0.01,
         RequirementReason.MEC,
     )
-    monkeypatch.setattr(resource_allocation, "required_resources", lambda *_: corrupted)
+    monkeypatch.setattr(
+        resource_allocation,
+        "required_resources",
+        lambda *_, **__: corrupted,
+    )
 
     with pytest.raises(RuntimeError, match="deadline"):
         allocate_deadline_tasks((task,), {task.task_id: 1.0}, 1.0)

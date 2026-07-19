@@ -1,3 +1,4 @@
+import math
 from dataclasses import replace
 
 import numpy as np
@@ -93,6 +94,36 @@ def test_equal_policy_handles_zero_cpu_budget_as_a_miss():
 
     assert not result.decisions[0].completed
     assert result.decisions[0].reason == "cpu_budget"
+    assert result.total_cpu_hz == 0.0
+
+
+@pytest.mark.parametrize(
+    "policy",
+    (
+        AllocationPolicy.CROSSING_EQUAL,
+        AllocationPolicy.FIXED_HALF_EQUAL,
+    ),
+)
+def test_equal_policy_handles_underflowed_per_task_cpu_as_misses(
+    policy: AllocationPolicy,
+):
+    tasks = (
+        Task(1, 0, 0, 1e6, 1.2e9, 0.8, 1e9),
+        Task(2, 1, 0, 1e6, 1.2e9, 0.8, 1e9),
+    )
+    smallest_positive = math.nextafter(0.0, math.inf)
+
+    result = allocate_with_policy(
+        policy,
+        tasks,
+        {1: 5e6, 2: 5e6},
+        smallest_positive,
+    )
+
+    assert not result.completed_task_ids
+    assert all(not decision.completed for decision in result.decisions)
+    assert all(decision.reason == "cpu_budget" for decision in result.decisions)
+    assert all(decision.cpu_hz == 0.0 for decision in result.decisions)
     assert result.total_cpu_hz == 0.0
 
 

@@ -173,6 +173,7 @@ def _deadline_feasible_cpu_hz(
 def required_resources(
     task: Task,
     rate_bps: float,
+    *,
     downlink_rate_bps: float | None = None,
 ) -> ResourceRequirement:
     """Return the task's pre-budget deadline-feasible resource requirements.
@@ -356,9 +357,11 @@ def allocate_deadline_tasks(
         requirement = required_resources(
             task,
             rate_bps,
-            None
-            if task.result_ratio == 0.0
-            else downlink_rates_bps[task.task_id],
+            downlink_rate_bps=(
+                None
+                if task.result_ratio == 0.0
+                else downlink_rates_bps[task.task_id]
+            ),
         )
         if requirement.local_only:
             delay_s = completion_delay_s(
@@ -497,7 +500,8 @@ def _equal_cpu_allocation(
             f"{missing_downlink_task_ids[0]}"
         )
 
-    if cpu_budget_hz == 0.0:
+    cpu_hz = cpu_budget_hz / len(ordered_tasks)
+    if cpu_hz == 0.0:
         decisions = tuple(
             AllocationDecision(
                 task.task_id,
@@ -512,7 +516,6 @@ def _equal_cpu_allocation(
         )
         return AllocationResult(decisions, (), 0.0)
 
-    cpu_hz = cpu_budget_hz / len(ordered_tasks)
     decisions: list[AllocationDecision] = []
     for task in ordered_tasks:
         rate_bps = rates_bps.get(task.task_id, 0.0)

@@ -67,6 +67,11 @@ def test_positive_result_ratio_requires_an_independent_downlink_rate():
         )
 
 
+def test_downlink_rate_is_keyword_only_to_reject_legacy_scalar_ratio():
+    with pytest.raises(TypeError, match="positional"):
+        required_resources(make_task(1_200_000_000.0), 4_000_000.0, 0.1)
+
+
 @pytest.mark.parametrize("unused_rate", [0.0, -1.0, math.nan, math.inf])
 def test_local_deadline_equality_ignores_unused_rate(unused_rate: float):
     task = make_task(800_000_000.0)
