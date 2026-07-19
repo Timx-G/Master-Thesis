@@ -34,7 +34,7 @@ def generate_trace(
     seed: int,
     csi_error_std: float = 0.0,
     *,
-    seed_access: SeedAccessRecorder,
+    seed_access: SeedAccessRecorder | None = None,
 ) -> ExperimentTrace:
     """Generate all task arrivals and channels from one seed-owned RNG."""
     if not math.isfinite(csi_error_std) or csi_error_std < 0.0:
@@ -46,7 +46,8 @@ def generate_trace(
     if not cfg.fixed_cluster_centers:
         raise ValueError("trusted trace requires fixed_cluster_centers=True")
 
-    seed_access.record("generate_trace", [seed], {"scenario": repr(cfg), "csi_error_std": csi_error_std})
+    if seed_access is not None:
+        seed_access.record("generate_trace", [seed], {"scenario": repr(cfg), "csi_error_std": csi_error_std})
     rng = np.random.default_rng(seed)
     csi_rng = np.random.default_rng(seed + 7_919)
     centers = _centers(cfg)
