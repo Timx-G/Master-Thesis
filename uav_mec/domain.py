@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Literal
 from enum import Enum
 
@@ -292,6 +292,7 @@ class SlotOutcome:
     total_slack_s: float
     total_cross_interference_w: float
     runtime_s: float = 0.0
+    aggregate_victim_link_exposure_w: float = field(init=False)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "arrived_task_ids", tuple(self.arrived_task_ids))
@@ -299,6 +300,16 @@ class SlotOutcome:
         object.__setattr__(self, "missed_task_ids", tuple(self.missed_task_ids))
         object.__setattr__(self, "decisions", tuple(self.decisions))
         object.__setattr__(self, "rates", tuple(self.rates))
+        # Imported lazily to keep the domain records independent of the
+        # certificate module at import time.  This is the active v2 metric;
+        # ``total_cross_interference_w`` remains a compatibility field.
+        from .externality import aggregate_victim_link_exposure
+
+        object.__setattr__(
+            self,
+            "aggregate_victim_link_exposure_w",
+            aggregate_victim_link_exposure(self.rates),
+        )
 
     @property
     def completed_count(self) -> int:
