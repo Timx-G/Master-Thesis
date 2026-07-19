@@ -18,6 +18,7 @@ from .domain import (
     ChannelBasis,
     SicLayerCheck,
 )
+from .externality import aggregate_victim_link_exposure
 from .model import NOMAChannel
 from .resource_allocation import AllocationPolicy, allocate_with_policy
 from .schedule import (
@@ -308,11 +309,9 @@ def build_outcome_from_rates(
     missed = tuple(
         decision.task_id for decision in ordered if not decision.completed
     )
-    # This is a task-link aggregate: both users in a NOMA pair experience the
-    # receiver's external interference through their respective rate equations.
-    total_cross_interference_w = math.fsum(
-        record.cross_interference_w for record in ordered_rates
-    )
+    # Compatibility output and the active schema share the same canonical
+    # victim-link aggregate. Both users in a NOMA pair contribute one link.
+    total_cross_interference_w = aggregate_victim_link_exposure(ordered_rates)
     return SlotOutcome(
         slot_index=snapshot.slot_index,
         arrived_task_ids=tuple(sorted(task_by_id)),
@@ -439,7 +438,5 @@ def evaluate_realized_schedule(
         total_slack_s=math.fsum(
             decision.slack_s for decision in decisions if decision.completed
         ),
-        total_cross_interference_w=math.fsum(
-            record.cross_interference_w for record in rates
-        ),
+        total_cross_interference_w=aggregate_victim_link_exposure(rates),
     )

@@ -358,11 +358,11 @@ def _task_impacts(
         completed_after = task_id in completed_after_ids
         allocated_cpu_before_hz = _allocated_cpu(
             actual_before,
-            admitted=completed_before,
+            admitted=admitted_before,
         )
         allocated_cpu_after_hz = _allocated_cpu(
             actual_after,
-            admitted=completed_after,
+            admitted=admitted_after,
         )
 
         changed_fields_before = (
@@ -455,20 +455,58 @@ def _validate_side(closed: Any, *, label: str) -> None:
     )
 
 
-def _validate_realized_side(realized: Any, *, label: str) -> None:
+def _validate_realized_side(
+    realized: Any,
+    closed: Any,
+    *,
+    label: str,
+) -> None:
+    rates = tuple(realized.rates)
+    decisions = tuple(realized.decisions)
     _validate_rate_records(
-        tuple(realized.rates),
+        rates,
         label=f"{label} realized",
         expected_basis=ChannelBasis.REALIZED,
     )
     _validate_decisions(
-        tuple(realized.decisions),
+        decisions,
         label=f"{label} realized allocation",
     )
-    _task_id_set(
+    completed_ids = _task_id_set(
         tuple(realized.completed_task_ids),
         label=f"{label} completed tasks",
     )
+    scheduled_ids = set(
+        _index_by_task_id(
+            tuple(closed.schedule.entries),
+            label=f"{label} schedule",
+        )
+    )
+    rate_ids = set(
+        _index_by_task_id(rates, label=f"{label} realized rates")
+    )
+    decision_ids = set(
+        _index_by_task_id(
+            decisions,
+            label=f"{label} realized decisions",
+        )
+    )
+    missing_rate_ids = sorted(scheduled_ids - rate_ids)
+    if missing_rate_ids:
+        raise ValueError(
+            f"{label} result audit lacks scheduled task rates "
+            f"{missing_rate_ids}"
+        )
+    missing_decision_ids = sorted(scheduled_ids - decision_ids)
+    if missing_decision_ids:
+        raise ValueError(
+            f"{label} result audit lacks scheduled task decisions "
+            f"{missing_decision_ids}"
+        )
+    if not completed_ids <= decision_ids:
+        raise ValueError(
+            f"{label} completed tasks must have realized decisions"
+        )
 
 
 def externality_certificate(
@@ -485,8 +523,8 @@ def externality_certificate(
     _validate_side(before, label="before")
     _validate_side(after, label="after")
     if realized_before is not None:
-        _validate_realized_side(realized_before, label="before")
-        _validate_realized_side(realized_after, label="after")
+        _validate_realized_side(realized_before, before, label="before")
+        _validate_realized_side(realized_after, after, label="after")
 
     before_rates = tuple(before.rate_snapshot.rates)
     after_rates = tuple(after.rate_snapshot.rates)

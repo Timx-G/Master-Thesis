@@ -34,6 +34,15 @@ def test_smoke_experiment_writes_complete_bundle(tmp_path: Path):
         slot_rows = list(csv.DictReader(handle))
     assert len(slot_rows) == 3 * 2 * 3
     assert all(int(row["sic_violations"]) == 0 for row in slot_rows)
+    assert all(
+        float(row["aggregate_victim_link_exposure_w"])
+        == pytest.approx(float(row["cross_interference_w"]))
+        for row in slot_rows
+    )
+    assert all(
+        "mean_aggregate_victim_link_exposure_w_by_seed" in values
+        for values in summary["methods"].values()
+    )
 
     manifest = json.loads((output / "manifest.json").read_text())
     assert manifest["config_sha256"] == hashlib.sha256(

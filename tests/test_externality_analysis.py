@@ -206,7 +206,7 @@ def test_planning_certificate_leaves_all_realized_fields_absent() -> None:
     assert impact.third_party
 
 
-def test_realized_completion_and_allocation_drive_actual_task_fields() -> None:
+def test_realized_admission_and_decision_drive_allocated_cpu_fields() -> None:
     before = _closed(_rate(1), _decision(1, 1_000_000_000.0))
     after = _closed(
         _rate(1, rate_bps=1_100_000.0),
@@ -220,7 +220,7 @@ def test_realized_completion_and_allocation_drive_actual_task_fields() -> None:
     realized_after = _realized(
         after,
         _rate(1, channel_basis=ChannelBasis.REALIZED),
-        _decision(1, 700_000_000.0, completed=False),
+        _decision(1, 600_000_000.0, completed=False),
     )
 
     certificate = externality_certificate(
@@ -234,11 +234,11 @@ def test_realized_completion_and_allocation_drive_actual_task_fields() -> None:
     assert impact.minimum_cpu_before_hz == pytest.approx(1_000_000_000.0)
     assert impact.minimum_cpu_after_hz == pytest.approx(900_000_000.0)
     assert impact.allocated_cpu_before_hz == pytest.approx(800_000_000.0)
-    assert impact.allocated_cpu_after_hz == 0.0
+    assert impact.allocated_cpu_after_hz == pytest.approx(600_000_000.0)
     assert impact.admitted_before and impact.admitted_after
     assert impact.completed_before and not impact.completed_after
     assert certificate.actual_allocated_cpu_delta_hz == pytest.approx(
-        -800_000_000.0
+        -200_000_000.0
     )
     assert certificate.actual_allocated_cpu_delta_hz == pytest.approx(
         math.fsum(
@@ -250,6 +250,34 @@ def test_realized_completion_and_allocation_drive_actual_task_fields() -> None:
     assert certificate.admitted_cpu_delta_hz != pytest.approx(
         certificate.actual_allocated_cpu_delta_hz
     )
+
+
+@pytest.mark.parametrize("missing", ("rate", "decision"))
+def test_result_audit_requires_every_scheduled_task_input(missing: str) -> None:
+    before = _closed(_rate(1), _decision(1, 1_000_000_000.0))
+    after = _closed(_rate(1), _decision(1, 900_000_000.0))
+    realized_before = _realized(
+        before,
+        _rate(1, channel_basis=ChannelBasis.REALIZED),
+        _decision(1, 800_000_000.0),
+    )
+    if missing == "rate":
+        realized_before = replace(realized_before, rates=())
+    else:
+        realized_before = replace(realized_before, decisions=())
+    realized_after = _realized(
+        after,
+        _rate(1, channel_basis=ChannelBasis.REALIZED),
+        _decision(1, 700_000_000.0),
+    )
+
+    with pytest.raises(ValueError, match="scheduled task"):
+        externality_certificate(
+            before,
+            after,
+            realized_before=realized_before,
+            realized_after=realized_after,
+        )
 
 
 @pytest.mark.parametrize(

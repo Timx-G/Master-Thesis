@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import math
 import platform
 import subprocess
 import sys
@@ -27,6 +28,7 @@ from .evaluation import (
     EvaluationConfig,
     evaluate_realized_schedule,
 )
+from .externality import aggregate_victim_link_exposure
 from .model import NOMAChannel, ScenarioConfig
 from .resource_allocation import AllocationPolicy
 from .scheduler import (
@@ -360,6 +362,7 @@ def run_definition(
     slot_rows: list[dict[str, object]] = []
     event_rows: list[dict[str, object]] = []
     method_summary = {name: [] for name in definition.methods}
+    method_exposure_summary = {name: [] for name in definition.methods}
 
     for seed in definition.seeds:
         trace = generate_trace(
@@ -397,7 +400,17 @@ def run_definition(
                 ),
             )
             method_summary[name].append(episode.on_time_rate)
+            method_exposure_summary[name].append(
+                math.fsum(
+                    aggregate_victim_link_exposure(outcome.rates)
+                    for outcome in episode.outcomes
+                )
+                / max(len(episode.outcomes), 1)
+            )
             for outcome in episode.outcomes:
+                aggregate_exposure_w = aggregate_victim_link_exposure(
+                    outcome.rates
+                )
                 decision_by_id = {
                     decision.task_id: decision
                     for decision in outcome.decisions
@@ -455,6 +468,9 @@ def run_definition(
                         "cross_interference_w": (
                             outcome.total_cross_interference_w
                         ),
+                        "aggregate_victim_link_exposure_w": (
+                            aggregate_exposure_w
+                        ),
                         "sic_violations": sum(
                             not record.sic_feasible
                             for record in outcome.rates
@@ -509,6 +525,17 @@ def run_definition(
                     if len(values) > 1
                     else 0.0
                 ),
+                "mean_aggregate_victim_link_exposure_w_by_seed": (
+                    method_exposure_summary[name]
+                ),
+                "mean_aggregate_victim_link_exposure_w": float(
+                    np.mean(method_exposure_summary[name])
+                ),
+                "std_aggregate_victim_link_exposure_w": (
+                    float(np.std(method_exposure_summary[name], ddof=1))
+                    if len(method_exposure_summary[name]) > 1
+                    else 0.0
+                ),
             }
             for name, values in method_summary.items()
         },
@@ -552,6 +579,7 @@ def run_definition(
             "completed",
             "slack_s",
             "cross_interference_w",
+            "aggregate_victim_link_exposure_w",
             "sic_violations",
             "runtime_s",
         ),

@@ -430,7 +430,7 @@ def network_objective(outcome: SlotOutcome) -> tuple[int, float, float]:
     return (
         outcome.completed_count,
         round(outcome.total_slack_s, 12),
-        round(-outcome.total_cross_interference_w, 18),
+        round(-outcome.aggregate_victim_link_exposure_w, 18),
     )
 
 

@@ -5,9 +5,11 @@ from uav_mec.domain import ChannelBasis, Schedule, ScheduleEntry, SlotSnapshot, 
 from uav_mec.evaluation import (
     EvaluationConfig,
     InfeasibleScheduleError,
+    build_outcome_from_rates,
     compute_rate_records,
     evaluate_schedule,
 )
+from uav_mec.externality import aggregate_victim_link_exposure
 from uav_mec.model import ChannelConfig, NOMAChannel
 
 
@@ -144,6 +146,44 @@ def test_cross_interference_uses_interferer_gain_at_target_uav():
     by_task = {record.task_id: record for record in rates}
     assert by_task[1].cross_interference_w == pytest.approx(0.2 * 4e-8)
     assert by_task[2].cross_interference_w == pytest.approx(0.2 * 1e-12)
+
+
+def test_evaluator_exposes_canonical_victim_link_aggregate():
+    tasks = (
+        Task(1, 0, 0, 1e6, 1.4e9, 0.8, 1e9),
+        Task(2, 1, 0, 1e6, 1.4e9, 0.8, 1e9),
+    )
+    snapshot = SlotSnapshot(
+        0,
+        tasks,
+        np.array([[1e-7, 1e-12], [4e-8, 1e-7]]),
+        2,
+    )
+    schedule = Schedule(
+        (
+            ScheduleEntry(1, 0, 0, 0, "solo"),
+            ScheduleEntry(2, 1, 1, 0, "solo"),
+        )
+    )
+    evaluation = config()
+    rates = compute_rate_records(
+        snapshot,
+        schedule,
+        NOMAChannel(ChannelConfig(), 100.0),
+        evaluation,
+        channel_basis=ChannelBasis.PLANNING,
+    )
+
+    outcome = build_outcome_from_rates(
+        snapshot,
+        {1: 0, 2: 1},
+        rates,
+        evaluation,
+    )
+
+    expected = aggregate_victim_link_exposure(rates)
+    assert outcome.aggregate_victim_link_exposure_w == pytest.approx(expected)
+    assert outcome.total_cross_interference_w == pytest.approx(expected)
 
 
 def test_positive_tiny_sinr_keeps_a_positive_rate():

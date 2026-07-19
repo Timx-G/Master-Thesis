@@ -3,8 +3,11 @@ import pytest
 
 from uav_mec.domain import (
     AllocationDecision,
+    ChannelBasis,
+    RateRecord,
     Schedule,
     ScheduleEntry,
+    SicLayerCheck,
     SlotOutcome,
     SlotSnapshot,
     Task,
@@ -164,6 +167,40 @@ def test_global_gain_can_fail_bilateral_acceptance():
 
     assert network_objective(after) > network_objective(before)
     assert not _bilateral_accepts(schedule, before, neighbor, after)
+
+
+def test_network_objective_uses_aggregate_victim_link_exposure():
+    def outcome(cross_interference_w: float, compatibility_total: float):
+        layer = SicLayerCheck(1, 0, 0, 0, 2.0, 1.0, True)
+        rate = RateRecord(
+            1,
+            1_000_000.0,
+            2.0,
+            True,
+            cross_interference_w,
+            0,
+            0,
+            ChannelBasis.PLANNING,
+            (layer,),
+        )
+        return SlotOutcome(
+            0,
+            (1,),
+            (1,),
+            (),
+            (AllocationDecision(1, 0.5, 1e9, True, 0.5, 0.3, "mec"),),
+            (rate,),
+            0.3,
+            compatibility_total,
+        )
+
+    before = outcome(0.4, 0.0)
+    after = outcome(0.1, 99.0)
+
+    assert after.aggregate_victim_link_exposure_w < (
+        before.aggregate_victim_link_exposure_w
+    )
+    assert network_objective(after) > network_objective(before)
 
 
 @pytest.mark.parametrize(
