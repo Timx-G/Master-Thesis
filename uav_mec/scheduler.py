@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import math
+from collections.abc import Iterable
 from dataclasses import dataclass
 from enum import Enum
 from itertools import combinations
@@ -304,112 +306,259 @@ def _normalized_neighbor(
     return Neighbor(schedule, move_type, tuple(sorted(affected)))
 
 
+def _entry_at_block(
+    entry: ScheduleEntry,
+    block: tuple[int, int],
+) -> ScheduleEntry:
+    return ScheduleEntry(
+        entry.task_id,
+        entry.user_id,
+        block[0],
+        block[1],
+        entry.noma_role,
+    )
+
+
+def _enumerate_neighbor_moves(
+    schedule: Schedule,
+    snapshot: SlotSnapshot,
+    n_subcarriers: int,
+    allow_cross_uav: bool,
+) -> tuple[Neighbor, ...]:
+    """Return every legal raw action without pre-closure deduplication."""
+    validate_schedule(schedule, snapshot, n_subcarriers)
+    entries = list(schedule.entries)
+    scheduled_ids = {entry.task_id for entry in entries}
+    scheduled_users = {entry.user_id for entry in entries}
+    unscheduled = tuple(
+        sorted(
+            (
+                task
+                for task in snapshot.tasks
+                if task.requires_offload and task.task_id not in scheduled_ids
+            ),
+            key=lambda task: task.task_id,
+        )
+    )
+    blocks = tuple(
+        (uav, subcarrier)
+        for uav in range(snapshot.num_uavs)
+        for subcarrier in range(n_subcarriers)
+    )
+    occupancy = {
+        block: sum(
+            (entry.serving_uav, entry.subcarrier) == block
+            for entry in entries
+        )
+        for block in blocks
+    }
+    neighbors: list[Neighbor] = []
+
+    def append(
+        changed: list[ScheduleEntry],
+        move_type: MoveType,
+        affected: set[tuple[int, int]],
+    ) -> None:
+        neighbors.append(
+            _normalized_neighbor(
+                changed,
+                move_type,
+                affected,
+                snapshot,
+                n_subcarriers,
+            )
+        )
+
+    # Replace family: explicit removal, replacement, and insertion.  An
+    # intra-only search gives a previously unscheduled task its deterministic
+    # nearest-UAV association; the full search exposes every serving UAV.
+    for index, old in enumerate(entries):
+        append(
+            entries[:index] + entries[index + 1 :],
+            "replace",
+            {(old.serving_uav, old.subcarrier)},
+        )
+        other_users = scheduled_users - {old.user_id}
+        for task in unscheduled:
+            if task.user_id in other_users:
+                continue
+            if (
+                not allow_cross_uav
+                and _nearest_uav(snapshot, task.task_id) != old.serving_uav
+            ):
+                continue
+            changed = entries.copy()
+            changed[index] = _with_task(old, task.task_id, task.user_id)
+            append(
+                changed,
+                "replace",
+                {(old.serving_uav, old.subcarrier)},
+            )
+
+    for task in unscheduled:
+        if task.user_id in scheduled_users:
+            continue
+        nearest = _nearest_uav(snapshot, task.task_id)
+        for block in blocks:
+            if occupancy[block] >= 2:
+                continue
+            if not allow_cross_uav and block[0] != nearest:
+                continue
+            append(
+                entries
+                + [
+                    ScheduleEntry(
+                        task.task_id,
+                        task.user_id,
+                        block[0],
+                        block[1],
+                        "solo",
+                    )
+                ],
+                "replace",
+                {block},
+            )
+
+    # Position family: exchange two occupied positions or relocate one task to
+    # a free position on the same UAV.
+    for left in range(len(entries)):
+        for right in range(left + 1, len(entries)):
+            first, second = entries[left], entries[right]
+            first_block = (first.serving_uav, first.subcarrier)
+            second_block = (second.serving_uav, second.subcarrier)
+            if first.serving_uav != second.serving_uav or first_block == second_block:
+                continue
+            changed = entries.copy()
+            changed[left] = _entry_at_block(first, second_block)
+            changed[right] = _entry_at_block(second, first_block)
+            append(changed, "position", {first_block, second_block})
+
+    for index, entry in enumerate(entries):
+        source = (entry.serving_uav, entry.subcarrier)
+        for target in blocks:
+            if (
+                target == source
+                or target[0] != entry.serving_uav
+                or occupancy[target] >= 2
+            ):
+                continue
+            changed = entries.copy()
+            changed[index] = _entry_at_block(entry, target)
+            append(changed, "position", {source, target})
+
+    if allow_cross_uav:
+        # CrossUAV family: exchange occupied positions or relocate into any
+        # free position at another receiver UAV.
+        for left in range(len(entries)):
+            for right in range(left + 1, len(entries)):
+                first, second = entries[left], entries[right]
+                if first.serving_uav == second.serving_uav:
+                    continue
+                first_block = (first.serving_uav, first.subcarrier)
+                second_block = (second.serving_uav, second.subcarrier)
+                changed = entries.copy()
+                changed[left] = _entry_at_block(first, second_block)
+                changed[right] = _entry_at_block(second, first_block)
+                append(changed, "cross", {first_block, second_block})
+
+        for index, entry in enumerate(entries):
+            source = (entry.serving_uav, entry.subcarrier)
+            for target in blocks:
+                if target[0] == entry.serving_uav or occupancy[target] >= 2:
+                    continue
+                changed = entries.copy()
+                changed[index] = _entry_at_block(entry, target)
+                append(changed, "cross", {source, target})
+
+    return tuple(
+        sorted(
+            neighbors,
+            key=lambda neighbor: (
+                neighbor.move_type,
+                neighbor.schedule.stable_key(),
+                neighbor.affected_blocks,
+            ),
+        )
+    )
+
+
+def enumerate_raw_moves(
+    snapshot: SlotSnapshot,
+    schedule: Schedule,
+    cfg: EvaluationConfig,
+) -> tuple[Schedule, ...]:
+    """Enumerate the complete Replace/Position/CrossUAV raw neighborhood.
+
+    Distinct legal actions are intentionally retained even when they happen to
+    produce the same raw schedule.  Search-state identity is defined only after
+    rating and policy closure.
+    """
+    return tuple(
+        neighbor.schedule
+        for neighbor in _enumerate_neighbor_moves(
+            schedule,
+            snapshot,
+            cfg.n_subcarriers,
+            True,
+        )
+    )
+
+
 def generate_neighbors(
     schedule: Schedule,
     snapshot: SlotSnapshot,
     n_subcarriers: int,
     allow_cross_uav: bool,
 ) -> tuple[Neighbor, ...]:
-    """Enumerate canonical Replace, Position, and optional CrossUAV moves."""
-    validate_schedule(schedule, snapshot, n_subcarriers)
-    scheduled_ids = {entry.task_id for entry in schedule.entries}
-    unscheduled = [
-        task
-        for task in snapshot.tasks
-        if task.requires_offload and task.task_id not in scheduled_ids
-    ]
-    neighbors: list[Neighbor] = []
-    entries = list(schedule.entries)
-
-    for index, old in enumerate(entries):
-        for task in unscheduled:
-            if _nearest_uav(snapshot, task.task_id) != old.serving_uav:
-                continue
-            changed = entries.copy()
-            changed[index] = _with_task(old, task.task_id, task.user_id)
-            neighbors.append(
-                _normalized_neighbor(
-                    changed,
-                    "replace",
-                    {(old.serving_uav, old.subcarrier)},
-                    snapshot,
-                    n_subcarriers,
-                )
-            )
-
-    for left in range(len(entries)):
-        for right in range(left + 1, len(entries)):
-            first, second = entries[left], entries[right]
-            if (
-                first.serving_uav != second.serving_uav
-                or first.subcarrier == second.subcarrier
-            ):
-                continue
-            changed = entries.copy()
-            changed[left] = _with_task(
-                first,
-                second.task_id,
-                second.user_id,
-            )
-            changed[right] = _with_task(
-                second,
-                first.task_id,
-                first.user_id,
-            )
-            neighbors.append(
-                _normalized_neighbor(
-                    changed,
-                    "position",
-                    {
-                        (first.serving_uav, first.subcarrier),
-                        (second.serving_uav, second.subcarrier),
-                    },
-                    snapshot,
-                    n_subcarriers,
-                )
-            )
-
-    if allow_cross_uav:
-        for left in range(len(entries)):
-            for right in range(left + 1, len(entries)):
-                first, second = entries[left], entries[right]
-                if first.serving_uav == second.serving_uav:
-                    continue
-                changed = entries.copy()
-                changed[left] = _with_task(
-                    first,
-                    second.task_id,
-                    second.user_id,
-                )
-                changed[right] = _with_task(
-                    second,
-                    first.task_id,
-                    first.user_id,
-                )
-                neighbors.append(
-                    _normalized_neighbor(
-                        changed,
-                        "cross",
-                        {
-                            (first.serving_uav, first.subcarrier),
-                            (second.serving_uav, second.subcarrier),
-                        },
-                        snapshot,
-                        n_subcarriers,
-                    )
-                )
-
-    ordered = sorted(
-        neighbors,
-        key=lambda neighbor: (
-            neighbor.move_type,
-            neighbor.schedule.stable_key(),
-        ),
+    """Compatibility view of unique raw schedules in the configured scope."""
+    ordered = _enumerate_neighbor_moves(
+        schedule,
+        snapshot,
+        n_subcarriers,
+        allow_cross_uav,
     )
     unique: dict[tuple, Neighbor] = {}
     for neighbor in ordered:
         unique.setdefault(neighbor.schedule.stable_key(), neighbor)
     return tuple(unique.values())
+
+
+def _closed_candidate_key(closed: ClosedExecutableSchedule) -> tuple:
+    """Bind closed-state identity to the complete Plan 1 semantics."""
+    return (
+        closed.stable_key(),
+        closed.rate_snapshot.semantic_fingerprint,
+    )
+
+
+def close_and_deduplicate_moves(
+    snapshot: SlotSnapshot,
+    raw_moves: Iterable[Schedule],
+    channel: NOMAChannel,
+    cfg: EvaluationConfig,
+    *,
+    channel_basis: ChannelBasis,
+) -> tuple[ClosedExecutableSchedule, ...]:
+    """Close every raw move and deduplicate only by its semantic closed key."""
+    unique: dict[tuple, ClosedExecutableSchedule] = {}
+    for raw_move in raw_moves:
+        try:
+            closed = close_assignment(
+                snapshot,
+                rate_raw_assignment(
+                    snapshot,
+                    raw_move,
+                    channel,
+                    cfg,
+                    channel_basis=channel_basis,
+                ),
+                channel,
+                cfg,
+            )
+        except InfeasibleScheduleError:
+            continue
+        unique.setdefault(_closed_candidate_key(closed), closed)
+    return tuple(unique[key] for key in sorted(unique))
 
 
 class Acceptance(str, Enum):
@@ -419,8 +568,8 @@ class Acceptance(str, Enum):
 
 @dataclass(frozen=True, slots=True)
 class SearchConfig:
-    allow_cross_uav: bool
-    acceptance: Acceptance
+    allow_cross_uav: bool = True
+    acceptance: Acceptance = Acceptance.GLOBAL
     max_iterations: int = 50
 
     def __post_init__(self) -> None:
@@ -432,8 +581,8 @@ class SearchConfig:
             self.max_iterations, bool
         ):
             raise ValueError("max_iterations must be an integer")
-        if self.max_iterations <= 0:
-            raise ValueError("max_iterations must be positive")
+        if self.max_iterations < 0:
+            raise ValueError("max_iterations must be non-negative")
 
 
 @dataclass(frozen=True, slots=True)
@@ -452,16 +601,46 @@ class SearchResult:
     outcome: SlotOutcome
     events: tuple[SearchEvent, ...]
     iterations: int
-    converged: bool
-    termination_reason: str
+    stop_reason: Literal["no_improving_move", "iteration_cap"]
+    local_optimum_certified: bool
+    raw_move_count: int
+    unique_closed_candidate_count: int
+    cache_hits: int
+    accepted_moves: int
+    closure_rounds: int
+
+    @property
+    def converged(self) -> bool:
+        """Compatibility alias for code predating explicit certification."""
+        return self.stop_reason == "no_improving_move"
+
+    @property
+    def termination_reason(self) -> str:
+        """Compatibility label retained for legacy result writers."""
+        if self.stop_reason == "iteration_cap":
+            return "max_iterations"
+        if self.local_optimum_certified:
+            return "local_optimum"
+        return "cycle_free_fixed_point"
 
 
 def network_objective(outcome: SlotOutcome) -> tuple[int, float, float]:
     """Return the canonical network-level lexicographic objective."""
+    total_mec_cpu_hz = math.fsum(
+        decision.cpu_hz for decision in outcome.decisions
+    )
+    exposure_w = outcome.aggregate_victim_link_exposure_w
+    if (
+        not math.isfinite(total_mec_cpu_hz)
+        or total_mec_cpu_hz < 0.0
+        or not math.isfinite(exposure_w)
+        or exposure_w < 0.0
+    ):
+        raise ValueError("network objective requires finite non-negative costs")
     return (
         outcome.completed_count,
-        round(outcome.total_slack_s, 12),
-        round(-outcome.aggregate_victim_link_exposure_w, 18),
+        round(-total_mec_cpu_hz, 6),
+        round(-exposure_w, 18),
     )
 
 
@@ -513,114 +692,187 @@ def _bilateral_accepts(
     )
 
 
-def optimize_schedule(
-    initial: Schedule,
+def _changed_receiver_blocks(
+    before: Schedule,
+    after: Schedule,
+) -> tuple[tuple[int, int], ...]:
+    before_by_task = {entry.task_id: entry for entry in before.entries}
+    after_by_task = {entry.task_id: entry for entry in after.entries}
+    affected: set[tuple[int, int]] = set()
+    for task_id in before_by_task.keys() | after_by_task.keys():
+        old = before_by_task.get(task_id)
+        new = after_by_task.get(task_id)
+        if old == new:
+            continue
+        if old is not None:
+            affected.add((old.serving_uav, old.subcarrier))
+        if new is not None:
+            affected.add((new.serving_uav, new.subcarrier))
+    return tuple(sorted(affected))
+
+
+def _validated_initial_closure(
     snapshot: SlotSnapshot,
+    initial: Schedule | ClosedExecutableSchedule,
     channel: NOMAChannel,
     evaluation: EvaluationConfig,
-    search: SearchConfig,
-) -> SearchResult:
-    """Run deterministic first-improvement search over feasible schedules."""
-    normalized_initial = normalize_roles(
+) -> ClosedExecutableSchedule:
+    if isinstance(initial, ClosedExecutableSchedule):
+        if initial.rate_snapshot.channel_basis is not ChannelBasis.PLANNING:
+            raise ValueError("search requires a planning-basis closed schedule")
+        validated = close_assignment(
+            snapshot,
+            initial.rate_snapshot,
+            channel,
+            evaluation,
+        )
+        if (
+            validated.stable_key() != initial.stable_key()
+            or validated.rate_snapshot.rates != initial.rate_snapshot.rates
+            or validated.allocation.decisions != initial.allocation.decisions
+        ):
+            raise ValueError("initial closed schedule is inconsistent")
+        return initial
+    if not isinstance(initial, Schedule):
+        raise TypeError("initial must be a Schedule or ClosedExecutableSchedule")
+    normalized = normalize_roles(
         initial,
         snapshot,
         channel_basis=ChannelBasis.PLANNING,
     )
-    initial_closed = _close_planning_schedule(
+    return _close_planning_schedule(snapshot, normalized, channel, evaluation)
+
+
+def optimize_schedule(
+    initial: Schedule | ClosedExecutableSchedule | SlotSnapshot,
+    snapshot: SlotSnapshot | Schedule | ClosedExecutableSchedule,
+    channel: NOMAChannel,
+    evaluation: EvaluationConfig,
+    search: SearchConfig,
+) -> SearchResult:
+    """Search closed executable states and explicitly certify termination.
+
+    The historical ``(initial, snapshot, ...)`` argument order remains valid;
+    the normative ``(snapshot, initial, ...)`` order is accepted as well.
+    """
+    if isinstance(initial, SlotSnapshot):
+        initial, snapshot = snapshot, initial
+    if not isinstance(snapshot, SlotSnapshot):
+        raise TypeError("snapshot must be a SlotSnapshot")
+
+    initial_closed = _validated_initial_closure(
         snapshot,
-        normalized_initial,
+        initial,
         channel,
         evaluation,
     )
-    current = initial_closed.schedule
-    current_outcome = build_outcome_from_closed(snapshot, initial_closed)
+    current_closed = initial_closed
+    current_outcome = build_outcome_from_closed(snapshot, current_closed)
+    current_key = _closed_candidate_key(current_closed)
+
     events: list[SearchEvent] = []
-    visited = {current.stable_key()}
+    outcome_cache: dict[
+        tuple,
+        tuple[ClosedExecutableSchedule, SlotOutcome],
+    ] = {current_key: (current_closed, current_outcome)}
+    visited = {current_key}
+    discovered_candidate_keys: set[tuple] = set()
+    raw_move_count = 0
+    cache_hits = 0
+    accepted_moves = 0
+    closure_rounds = initial_closed.closure_rounds
     iterations = 0
-    improved = False
+    stop_reason: Literal["no_improving_move", "iteration_cap"] = (
+        "iteration_cap"
+    )
 
     while iterations < search.max_iterations:
         iterations += 1
-        improved = False
-        for neighbor in generate_neighbors(
-            current,
+        accepted_this_iteration = False
+        before_objective = network_objective(current_outcome)
+        unique_this_iteration: set[tuple] = set()
+
+        for raw_neighbor in _enumerate_neighbor_moves(
+            current_closed.schedule,
             snapshot,
             evaluation.n_subcarriers,
             search.allow_cross_uav,
         ):
-            before_objective = network_objective(current_outcome)
-            schedule_key = neighbor.schedule.stable_key()
-            if schedule_key in visited:
-                events.append(
-                    SearchEvent(
-                        neighbor.move_type,
-                        False,
-                        "visited schedule",
-                        before_objective,
-                        before_objective,
-                        schedule_key,
-                    )
-                )
-                continue
-
+            raw_move_count += 1
+            raw_schedule_key = raw_neighbor.schedule.stable_key()
             try:
                 candidate_closed = _close_planning_schedule(
                     snapshot,
-                    neighbor.schedule,
+                    raw_neighbor.schedule,
                     channel,
                     evaluation,
                 )
             except InfeasibleScheduleError as exc:
                 events.append(
                     SearchEvent(
-                        neighbor.move_type,
+                        raw_neighbor.move_type,
                         False,
                         str(exc),
                         before_objective,
                         before_objective,
-                        schedule_key,
+                        raw_schedule_key,
                     )
                 )
                 continue
 
+            closure_rounds += candidate_closed.closure_rounds
+            candidate_key = _closed_candidate_key(candidate_closed)
+            discovered_candidate_keys.add(candidate_key)
+            if candidate_key in unique_this_iteration:
+                cache_hits += 1
+                continue
+            unique_this_iteration.add(candidate_key)
+
+            cached = outcome_cache.get(candidate_key)
+            if cached is None:
+                candidate_outcome = build_outcome_from_closed(
+                    snapshot,
+                    candidate_closed,
+                )
+                outcome_cache[candidate_key] = (
+                    candidate_closed,
+                    candidate_outcome,
+                )
+            else:
+                cache_hits += 1
+                candidate_closed, candidate_outcome = cached
+
             candidate_schedule = candidate_closed.schedule
             schedule_key = candidate_schedule.stable_key()
-            if schedule_key in visited:
-                events.append(
-                    SearchEvent(
-                        neighbor.move_type,
-                        False,
-                        "visited schedule after closure",
-                        before_objective,
-                        before_objective,
-                        schedule_key,
-                    )
-                )
-                continue
-            candidate_outcome = build_outcome_from_closed(
-                snapshot,
-                candidate_closed,
+            affected_blocks = _changed_receiver_blocks(
+                current_closed.schedule,
+                candidate_schedule,
             )
             closed_neighbor = Neighbor(
                 candidate_schedule,
-                neighbor.move_type,
-                neighbor.affected_blocks,
+                raw_neighbor.move_type,
+                affected_blocks,
             )
             after_objective = network_objective(candidate_outcome)
+
             if search.acceptance is Acceptance.GLOBAL:
                 accepted = after_objective > before_objective
                 accepted_reason = "global strict improvement"
+            elif candidate_key in visited:
+                accepted = False
+                accepted_reason = "visited closed schedule"
             else:
                 accepted = _bilateral_accepts(
-                    current,
+                    current_closed.schedule,
                     current_outcome,
                     closed_neighbor,
                     candidate_outcome,
                 )
                 accepted_reason = "bilateral Pareto improvement"
+
             events.append(
                 SearchEvent(
-                    neighbor.move_type,
+                    raw_neighbor.move_type,
                     accepted,
                     (
                         accepted_reason
@@ -633,26 +885,32 @@ def optimize_schedule(
                 )
             )
             if accepted:
-                current = candidate_schedule
+                current_closed = candidate_closed
                 current_outcome = candidate_outcome
-                visited.add(schedule_key)
-                improved = True
+                current_key = candidate_key
+                visited.add(current_key)
+                accepted_moves += 1
+                accepted_this_iteration = True
                 break
-        if not improved:
+
+        if not accepted_this_iteration:
+            stop_reason = "no_improving_move"
             break
 
-    converged = not improved
-    if not converged:
-        termination_reason = "max_iterations"
-    elif search.acceptance is Acceptance.GLOBAL:
-        termination_reason = "local_optimum"
-    else:
-        termination_reason = "cycle_free_fixed_point"
+    local_optimum_certified = (
+        stop_reason == "no_improving_move"
+        and search.acceptance is Acceptance.GLOBAL
+    )
     return SearchResult(
-        current,
-        current_outcome,
-        tuple(events),
-        iterations,
-        converged,
-        termination_reason,
+        schedule=current_closed.schedule,
+        outcome=current_outcome,
+        events=tuple(events),
+        iterations=iterations,
+        stop_reason=stop_reason,
+        local_optimum_certified=local_optimum_certified,
+        raw_move_count=raw_move_count,
+        unique_closed_candidate_count=len(discovered_candidate_keys),
+        cache_hits=cache_hits,
+        accepted_moves=accepted_moves,
+        closure_rounds=closure_rounds,
     )

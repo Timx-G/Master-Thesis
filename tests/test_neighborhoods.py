@@ -2,7 +2,8 @@ import numpy as np
 
 from uav_mec.domain import Schedule, ScheduleEntry, SlotSnapshot, Task
 from uav_mec.schedule import validate_schedule
-from uav_mec.scheduler import generate_neighbors
+from uav_mec.evaluation import EvaluationConfig
+from uav_mec.scheduler import enumerate_raw_moves, generate_neighbors
 
 
 def snapshot() -> SlotSnapshot:
@@ -126,3 +127,47 @@ def test_neighbors_are_valid_unique_and_stably_ordered():
         (neighbor.move_type, neighbor.schedule.stable_key())
         for neighbor in neighbors
     )
+
+
+def test_full_raw_neighborhood_includes_empty_position_actions_and_removal():
+    current = initial()
+    raw_moves = enumerate_raw_moves(
+        snapshot(),
+        current,
+        EvaluationConfig(2, 5e6, 0.2, 0.02, 0.01, 8e9),
+    )
+
+    # Insert an unscheduled task into a genuinely empty block.
+    assert any(
+        set(move.task_ids) == {0, 1, 2, 3, 4}
+        and any(
+            entry.task_id == 2 and entry.subcarrier == 1
+            for entry in move.entries
+        )
+        for move in raw_moves
+    )
+    # Drop is an explicit raw action; closure is not responsible for creating it.
+    assert any(set(move.task_ids) == {1, 3, 4} for move in raw_moves)
+    # Intra- and cross-UAV relocations may target an empty position.
+    assert any(
+        any(
+            entry.task_id == 0
+            and entry.serving_uav == 0
+            and entry.subcarrier == 1
+            for entry in move.entries
+        )
+        and set(move.task_ids) == set(current.task_ids)
+        for move in raw_moves
+    )
+    assert any(
+        any(
+            entry.task_id == 0
+            and entry.serving_uav == 1
+            and entry.subcarrier == 1
+            for entry in move.entries
+        )
+        and set(move.task_ids) == set(current.task_ids)
+        for move in raw_moves
+    )
+    for move in raw_moves:
+        validate_schedule(move, snapshot(), 2)
