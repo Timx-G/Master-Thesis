@@ -9,6 +9,7 @@ from itertools import combinations
 import numpy as np
 
 from .domain import (
+    ChannelBasis,
     RateRecord,
     Schedule,
     ScheduleEntry,
@@ -86,7 +87,7 @@ def greedy_schedule(
                     )
                 )
 
-    return normalize_roles(Schedule(tuple(entries)), snapshot)
+    return normalize_roles(Schedule(tuple(entries)), snapshot, channel_basis=ChannelBasis.PLANNING)
 
 
 def evaluate_fair_ofdma(
@@ -262,6 +263,7 @@ def ia_greedy_schedule(
                 trial = normalize_roles(
                     Schedule(current.entries + additions),
                     snapshot,
+                    channel_basis=ChannelBasis.PLANNING,
                 )
                 try:
                     outcome = evaluate_schedule(snapshot, trial, channel, cfg)

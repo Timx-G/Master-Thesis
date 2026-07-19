@@ -10,7 +10,7 @@ from typing import Literal
 import numpy as np
 from scipy.optimize import Bounds, LinearConstraint, milp
 
-from .domain import Schedule, ScheduleEntry, SlotOutcome, SlotSnapshot
+from .domain import ChannelBasis, Schedule, ScheduleEntry, SlotOutcome, SlotSnapshot
 from .evaluation import (
     EvaluationConfig,
     InfeasibleScheduleError,
@@ -56,7 +56,7 @@ def _candidate_schedule(
             for task_id in candidate.task_ids
         )
     )
-    return normalize_roles(raw, snapshot)
+    return normalize_roles(raw, snapshot, channel_basis=ChannelBasis.PLANNING)
 
 
 def _candidates_for_uav(
@@ -169,9 +169,9 @@ def repair_sic(
     cfg: EvaluationConfig,
 ) -> Schedule:
     """Deterministically downgrade violating pairs until all SIC checks pass."""
-    current = normalize_roles(schedule, snapshot)
+    current = normalize_roles(schedule, snapshot, channel_basis=ChannelBasis.PLANNING)
     while current.entries:
-        records = compute_rate_records(snapshot, current, channel, cfg)
+        records = compute_rate_records(snapshot, current, channel, cfg, channel_basis=ChannelBasis.PLANNING)
         violating_ids = {
             record.task_id for record in records if not record.sic_feasible
         }
@@ -187,6 +187,7 @@ def repair_sic(
         current = normalize_roles(
             _drop_weak_user(current, violating_blocks[-1]),
             snapshot,
+            channel_basis=ChannelBasis.PLANNING,
         )
     return current
 
@@ -267,7 +268,7 @@ def _normalized_neighbor(
     snapshot: SlotSnapshot,
     n_subcarriers: int,
 ) -> Neighbor:
-    schedule = normalize_roles(Schedule(tuple(entries)), snapshot)
+    schedule = normalize_roles(Schedule(tuple(entries)), snapshot, channel_basis=ChannelBasis.PLANNING)
     validate_schedule(schedule, snapshot, n_subcarriers)
     return Neighbor(schedule, move_type, tuple(sorted(affected)))
 
@@ -489,7 +490,7 @@ def optimize_schedule(
     search: SearchConfig,
 ) -> SearchResult:
     """Run deterministic first-improvement search over feasible schedules."""
-    current = normalize_roles(initial, snapshot)
+    current = normalize_roles(initial, snapshot, channel_basis=ChannelBasis.PLANNING)
     current_outcome = evaluate_schedule(
         snapshot,
         current,

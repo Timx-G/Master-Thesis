@@ -62,7 +62,7 @@ def normalize_roles(
     schedule: Schedule,
     snapshot: SlotSnapshot,
     *,
-    channel_basis: ChannelBasis = ChannelBasis.PLANNING,
+    channel_basis: ChannelBasis,
 ) -> Schedule:
     if channel_basis is not ChannelBasis.PLANNING:
         raise ValueError("role normalization is only valid on the planning basis")

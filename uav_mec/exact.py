@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from itertools import product
 
-from .domain import Schedule, ScheduleEntry, SlotOutcome, SlotSnapshot
+from .domain import ChannelBasis, Schedule, ScheduleEntry, SlotOutcome, SlotSnapshot
 from .evaluation import (
     EvaluationConfig,
     InfeasibleScheduleError,
@@ -75,7 +75,7 @@ def exact_schedule(
                     "solo",
                 )
             )
-        schedule = normalize_roles(Schedule(tuple(entries)), snapshot)
+        schedule = normalize_roles(Schedule(tuple(entries)), snapshot, channel_basis=ChannelBasis.PLANNING)
         evaluated += 1
         try:
             outcome = evaluate_schedule(snapshot, schedule, channel, cfg)

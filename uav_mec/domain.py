@@ -256,14 +256,6 @@ class SlotSnapshot:
             raise ValueError("channel_basis must be a ChannelBasis value")
         return self.planning_channel_gains if channel_basis is ChannelBasis.PLANNING else self.channel_gains
 
-    def as_planning_snapshot(self) -> SlotSnapshot:
-        return SlotSnapshot(
-            self.slot_index,
-            self.tasks,
-            self.planning_channel_gains,
-            self.num_uavs,
-        )
-
 
 @dataclass(frozen=True, slots=True)
 class AllocationDecision:

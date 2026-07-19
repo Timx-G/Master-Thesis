@@ -102,7 +102,7 @@ def compute_rate_records(
     channel: NOMAChannel,
     cfg: EvaluationConfig,
     *,
-    channel_basis: ChannelBasis = ChannelBasis.PLANNING,
+    channel_basis: ChannelBasis,
 ) -> tuple[RateRecord, ...]:
     """Evaluate uplink rates on each entry's actual serving UAV."""
     if not isinstance(channel_basis, ChannelBasis):
@@ -336,7 +336,7 @@ def evaluate_schedule(
 ) -> SlotOutcome:
     """Return one decision per arrived task for a candidate schedule."""
     try:
-        rates = compute_rate_records(snapshot, schedule, channel, cfg)
+        rates = compute_rate_records(snapshot, schedule, channel, cfg, channel_basis=ChannelBasis.PLANNING)
     except ScheduleValidationError as exc:
         raise InfeasibleScheduleError(str(exc)) from exc
 
@@ -369,12 +369,12 @@ def evaluate_realized_schedule(
     a miss while its transmission remains in every other link's interference.
     """
     try:
-        realized_schedule = normalize_roles(planned_schedule, snapshot)
         rates = compute_rate_records(
             snapshot,
-            realized_schedule,
+            planned_schedule,
             channel,
             cfg,
+            channel_basis=ChannelBasis.REALIZED,
         )
     except ScheduleValidationError as exc:
         raise InfeasibleScheduleError(str(exc)) from exc
@@ -390,7 +390,7 @@ def evaluate_realized_schedule(
             cfg,
         )
 
-    realized_uav = serving_uav_by_task(realized_schedule)
+    realized_uav = serving_uav_by_task(planned_schedule)
     feasible_rates = tuple(
         record for record in rates if record.task_id not in outage_ids
     )

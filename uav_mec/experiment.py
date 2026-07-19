@@ -209,7 +209,7 @@ def _slot_method(
         )
 
     def method(snapshot: SlotSnapshot) -> SlotOutcome:
-        planning = snapshot.as_planning_snapshot()
+        planning = snapshot
         if name == "local_only":
             return evaluate_noma(snapshot, local_only_schedule(planning))
         if name == "fair_ofdma":
