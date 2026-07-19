@@ -203,6 +203,17 @@ def test_externality_certificate_conserves_two_victim_links() -> None:
     victim = next(row for row in certificate.task_impacts if row.task_id == 1)
     assert victim.third_party
     assert victim.affected_receiver_blocks == ((0, 0), (1, 0), (1, 1))
+    # CPU accounting is based on realized per-task allocations, not the
+    # requested/required aggregate.  The certificate delta must equal the
+    # fsum of each task's allocated CPU delta (including zero rows for tasks
+    # that were admitted but received no CPU after closure).
+    assert certificate.actual_allocated_cpu_delta_hz == pytest.approx(
+        math.fsum(
+            impact.allocated_cpu_after_hz - impact.allocated_cpu_before_hz
+            for impact in certificate.task_impacts
+        )
+    )
+    assert certificate.admitted_cpu_delta_hz != certificate.actual_allocated_cpu_delta_hz
 ```
 
 - [ ] **Step 2: Run RED**
@@ -251,6 +262,8 @@ class TaskImpact:
     realized_sic_after: bool | None
     minimum_cpu_before_hz: float | None
     minimum_cpu_after_hz: float | None
+    allocated_cpu_before_hz: float
+    allocated_cpu_after_hz: float
     admitted_before: bool
     admitted_after: bool
     completed_before: bool
@@ -298,7 +311,7 @@ def externality_certificate(
     )
 ```
 
-Implement `_block_exposure` by grouping rate records on `(serving_uav, subcarrier)`, counting records, and summing each record's `cross_interference_w`; never multiply a physical block value by an assumed occupancy after grouping. `_task_impacts` joins schedule entries, planning rates, optional realized rates, and allocation decisions by stable task ID. It marks a row `third_party=True` only when its block and role did not change but at least one radio, SIC, CPU, admission, or completion field changed. Every row carries the sorted union of affected receiver blocks. When realized inputs are absent during planning search, all six realized scalar/status fields are `None`; result-audit certificates must pass both realized outcomes and populate them. `actual_allocated_cpu_delta_hz` is computed from completed/admitted task allocations after closure and must conserve exactly with the per-task CPU rows; a certificate with exposure-only or requested-CPU-only accounting is rejected. Make the evaluator objective, scheduler comparison/certificate, result summary, and externality analysis call `aggregate_victim_link_exposure`. Compatibility output may retain `total_cross_interference_w`, but active schemas and prose add `aggregate_victim_link_exposure_w`.
+Implement `_block_exposure` by grouping rate records on `(serving_uav, subcarrier)`, counting records, and summing each record's `cross_interference_w`; never multiply a physical block value by an assumed occupancy after grouping. `_task_impacts` joins schedule entries, planning rates, optional realized rates, and allocation decisions by stable task ID. It marks a row `third_party=True` only when its block and role did not change but at least one radio, SIC, CPU, admission, or completion field changed. Every row carries the sorted union of affected receiver blocks. When realized inputs are absent during planning search, all six realized scalar/status fields are `None`; result-audit certificates must pass both realized outcomes and populate them. Add an explicit per-task `allocated_cpu_before_hz`/`allocated_cpu_after_hz` value to the internal join (the public `TaskImpact` may expose it as the minimum-CPU fields only when those fields represent the actual decision CPU). Compute `actual_allocated_cpu_delta_hz` as `math.fsum(after_decision.cpu_hz - before_decision.cpu_hz for every task id)`, where non-admitted or missing decisions contribute zero. Compute `admitted_cpu_delta_hz` separately from the admitted/requested requirement total. Reject certificates when either side contains NaN/inf or when the fsum of per-task CPU deltas is not exactly within `rel_tol=1e-12, abs_tol=1e-9` of `actual_allocated_cpu_delta_hz`; a certificate with exposure-only or requested-CPU-only accounting is invalid. Make the evaluator objective, scheduler comparison/certificate, result summary, and externality analysis call `aggregate_victim_link_exposure`. Compatibility output may retain `total_cross_interference_w`, but active schemas and prose add `aggregate_victim_link_exposure_w`.
 
 - [ ] **Step 4: Run GREEN**
 
