@@ -33,7 +33,7 @@ def test_exact_search_enumerates_non_nearest_uav_associations():
     gains = np.array(
         [
             [1e-6, 1e-12],
-            [1e-7, 1e-12],
+            [2e-7, 1e-12],
             [9e-8, 8e-8],
             [9e-9, 8e-9],
         ]
