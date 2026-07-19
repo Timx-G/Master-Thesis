@@ -43,6 +43,45 @@ def _scenario_fingerprint(cfg: ScenarioConfig) -> str:
     return hashlib.sha256(encoded).hexdigest()
 
 
+def _sample_deadline_s(
+    cfg: ScenarioConfig,
+    rng: np.random.Generator,
+) -> float:
+    """Return an exact or bounded heterogeneous relative deadline."""
+    lower = cfg.task.t_min
+    if lower is None or lower == cfg.task.t_max:
+        return float(cfg.task.t_max)
+    return float(rng.uniform(lower, cfg.task.t_max))
+
+
+def _periodic_arrival_state(
+    cfg: ScenarioConfig,
+    rng: np.random.Generator,
+) -> tuple[list[int], list[int]]:
+    """Freeze one weighted period and initial phase for every user."""
+    periods = [
+        int(rng.choice(cfg.task.period_choices))
+        for _ in range(cfg.num_users)
+    ]
+    next_arrivals = [
+        int(rng.integers(0, period))
+        for period in periods
+    ]
+    return periods, next_arrivals
+
+
+def _periodic_interval(
+    period: int,
+    jitter_slots: int,
+    rng: np.random.Generator,
+) -> int:
+    """Sample the next interval while preserving strictly increasing releases."""
+    if jitter_slots == 0:
+        return period
+    jitter = int(rng.integers(-jitter_slots, jitter_slots + 1))
+    return max(1, period + jitter)
+
+
 def generate_trace(
     cfg: ScenarioConfig,
     seed: int,
@@ -59,6 +98,8 @@ def generate_trace(
         raise ValueError(f"trusted trace has no fixed layout for K={cfg.num_uavs}")
     if not cfg.fixed_cluster_centers:
         raise ValueError("trusted trace requires fixed_cluster_centers=True")
+    if cfg.task.arrival_mode not in {"bernoulli", "periodic"}:
+        raise ValueError("arrival_mode must be bernoulli or periodic")
 
     if not isinstance(seed_access, SeedAccessRecorder):
         raise TypeError("seed_access must be a SeedAccessRecorder")
@@ -96,6 +137,12 @@ def generate_trace(
     next_job_index = [0 for _ in range(cfg.num_users)]
     if cfg.task.t_max > cfg.uav.dt:
         raise ValueError("trusted no-queue trace requires deadline <= slot duration")
+    if cfg.task.arrival_mode == "periodic":
+        periods, next_arrivals = _periodic_arrival_state(cfg, rng)
+    elif cfg.task.arrival_mode == "bernoulli":
+        periods, next_arrivals = [], []
+    else:
+        raise ValueError("arrival_mode must be bernoulli or periodic")
     for slot in range(cfg.num_slots):
         if slot > 0 and cfg.user_mobility:
             angles = rng.uniform(0.0, 2.0 * math.pi, cfg.num_users)
@@ -112,18 +159,28 @@ def generate_trace(
 
         tasks: list[Task] = []
         for user in range(cfg.num_users):
-            probability = cfg.task.arrival_prob
-            if cfg.random_burst:
-                probability = (
-                    cfg.burst_rate
-                    if cluster_ids[user] == burst_cluster
-                    else cfg.cool_rate
+            if cfg.task.arrival_mode == "periodic":
+                if slot != next_arrivals[user]:
+                    continue
+                next_arrivals[user] = slot + _periodic_interval(
+                    periods[user],
+                    cfg.task.period_jitter_slots,
+                    rng,
                 )
-            if rng.random() >= probability:
-                continue
+            else:
+                probability = cfg.task.arrival_prob
+                if cfg.random_burst:
+                    probability = (
+                        cfg.burst_rate
+                        if cluster_ids[user] == burst_cluster
+                        else cfg.cool_rate
+                    )
+                if rng.random() >= probability:
+                    continue
 
             data_bits = float(rng.uniform(cfg.task.data_min, cfg.task.data_max))
             density = float(rng.uniform(cfg.task.comp_min, cfg.task.comp_max))
+            deadline_s = _sample_deadline_s(cfg, rng)
             job_index = next_job_index[user]
             next_job_index[user] += 1
             tasks.append(
@@ -133,7 +190,7 @@ def generate_trace(
                     arrival_slot=slot,
                     data_bits=data_bits,
                     comp_cycles=data_bits * density,
-                    deadline_s=cfg.task.t_max,
+                    deadline_s=deadline_s,
                     local_cpu_hz=cfg.task.f_local,
                     job_index=job_index,
                     slot_duration_s=cfg.uav.dt,

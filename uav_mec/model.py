@@ -111,7 +111,12 @@ class TaskConfig:
     def __post_init__(self) -> None:
         if self.arrival_mode not in {"bernoulli", "periodic"}:
             raise ValueError("arrival_mode must be bernoulli or periodic")
-        self.period_choices = tuple(self.period_choices)
+        try:
+            self.period_choices = tuple(self.period_choices)
+        except TypeError as exc:
+            raise ValueError(
+                "period_choices must contain positive integers"
+            ) from exc
         if not self.period_choices or any(
             not isinstance(period, int)
             or isinstance(period, bool)
@@ -125,8 +130,17 @@ class TaskConfig:
             or self.period_jitter_slots < 0
         ):
             raise ValueError("period_jitter_slots must be a non-negative integer")
+        if (
+            not isinstance(self.t_max, (int, float))
+            or isinstance(self.t_max, bool)
+            or not math.isfinite(self.t_max)
+            or self.t_max <= 0.0
+        ):
+            raise ValueError("t_max must be positive and finite")
         if self.t_min is not None and (
-            not math.isfinite(self.t_min)
+            not isinstance(self.t_min, (int, float))
+            or isinstance(self.t_min, bool)
+            or not math.isfinite(self.t_min)
             or self.t_min <= 0.0
             or self.t_min > self.t_max
         ):
