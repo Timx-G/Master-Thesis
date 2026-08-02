@@ -59,6 +59,60 @@ _CANONICAL_LATENCY = "canonical_task_latency_v2"
 _POLICY_CLOSURE = "policy_closure"
 _FROZEN_RATE_ADMISSION = "frozen_rate_conditional_admission"
 _SHARED_INITIALIZERS = ("per_uav_ilp", "ia_greedy", "greedy")
+_WIRELESS_KERNELS = frozenset(
+    {
+        "local_only",
+        "fair_ofdma",
+        "greedy",
+        "ia_greedy",
+        "per_uav_ilp",
+        "exchange_stable",
+        "iea_cap",
+        "guo_jagp_adapted",
+        "frozen_radio_snapshot",
+        "exact_admission",
+        "exact_schedule",
+        "iea_cap_deadline_search",
+    }
+)
+_INITIALIZER_IDS = frozenset(
+    {"per_uav_ilp", "ia_greedy", "greedy", "guo_jagp_adapted"}
+)
+_NEIGHBORHOOD_SCOPES = frozenset(
+    {"none", "intra_uav", "cross_uav", "global", "kernel_native"}
+)
+_ACCEPTANCE_RULES = frozenset(
+    {"none", "bilateral", "global_lexicographic", "exact", "kernel_native"}
+)
+_TRAVERSAL_RULES = frozenset(
+    {"none", "direct", "first_improvement", "exhaustive"}
+)
+_FIXED_RADIO_SOURCES = frozenset(
+    {"dd_generated", "radio_neutral", "deadline_first_generated"}
+)
+_ADAPTATION_IDS = frozenset({"guo_jagp_to_canonical_noma_v2"})
+_PHYSICS_MODELS = frozenset(
+    {"local_compute_v2", "canonical_ofdma_v2", _CANONICAL_PHYSICS}
+)
+_LATENCY_MODELS = frozenset({_CANONICAL_LATENCY})
+_CLOSURE_MODES = frozenset(
+    {
+        "local_execution",
+        "direct_policy_allocation",
+        _POLICY_CLOSURE,
+        _FROZEN_RATE_ADMISSION,
+        "frozen_rate_exact_admission",
+    }
+)
+_SEARCH_KERNELS = frozenset(
+    {"iea_cap", "exchange_stable", "iea_cap_deadline_search"}
+)
+_DIRECT_NOMA_KERNELS = frozenset(
+    {"greedy", "ia_greedy", "per_uav_ilp", "guo_jagp_adapted"}
+)
+_DEDICATED_KERNELS = frozenset(
+    {"frozen_radio_snapshot", "exact_admission", "exact_schedule"}
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -95,6 +149,21 @@ class MethodSpec:
             value = getattr(self, field_name)
             if not isinstance(value, str) or not value.strip():
                 raise ValueError(f"{field_name} must be a non-empty string")
+        for field_name, value, allowed in (
+            ("wireless_kernel", self.wireless_kernel, _WIRELESS_KERNELS),
+            (
+                "neighborhood_scope",
+                self.neighborhood_scope,
+                _NEIGHBORHOOD_SCOPES,
+            ),
+            ("acceptance_rule", self.acceptance_rule, _ACCEPTANCE_RULES),
+            ("traversal_rule", self.traversal_rule, _TRAVERSAL_RULES),
+            ("physics_model_id", self.physics_model_id, _PHYSICS_MODELS),
+            ("latency_model_id", self.latency_model_id, _LATENCY_MODELS),
+            ("closure_mode", self.closure_mode, _CLOSURE_MODES),
+        ):
+            if value not in allowed:
+                raise ValueError(f"unsupported {field_name} {value}")
         if not isinstance(self.initializer_ids, tuple):
             raise ValueError("initializer_ids must be stored as a tuple")
         for initializer_id in self.initializer_ids:
@@ -102,20 +171,122 @@ class MethodSpec:
                 raise ValueError("initializer_ids must contain non-empty strings")
         if len(set(self.initializer_ids)) != len(self.initializer_ids):
             raise ValueError("initializer_ids must be unique and ordered")
+        if not set(self.initializer_ids) <= _INITIALIZER_IDS:
+            raise ValueError("initializer_ids contain an unsupported initializer")
         if not isinstance(self.allocation_policy, AllocationPolicy):
             raise ValueError("allocation_policy must be an AllocationPolicy")
         for field_name in ("fixed_radio_source", "adaptation_id"):
             value = getattr(self, field_name)
             if value is not None and (not isinstance(value, str) or not value.strip()):
                 raise ValueError(f"{field_name} must be None or non-empty")
-        if not isinstance(self.realized_replay, bool):
-            raise ValueError("realized_replay must be bool")
-        if (self.fixed_radio_source is None) != (
-            self.closure_mode != _FROZEN_RATE_ADMISSION
+        if (
+            self.fixed_radio_source is not None
+            and self.fixed_radio_source not in _FIXED_RADIO_SOURCES
         ):
             raise ValueError(
-                "fixed-radio sources require frozen-rate conditional admission"
+                f"unsupported fixed_radio_source {self.fixed_radio_source}"
             )
+        if self.adaptation_id is not None and self.adaptation_id not in _ADAPTATION_IDS:
+            raise ValueError(f"unsupported adaptation_id {self.adaptation_id}")
+        if not isinstance(self.realized_replay, bool):
+            raise ValueError("realized_replay must be bool")
+        self._validate_compatible_factors()
+
+    def _validate_compatible_factors(self) -> None:
+        if self.wireless_kernel in _SEARCH_KERNELS:
+            if not self.initializer_ids or self.traversal_rule != "first_improvement":
+                raise ValueError("search kernels require initializers and first improvement")
+            if self.closure_mode != _POLICY_CLOSURE:
+                raise ValueError("search kernels require policy closure")
+            if self.physics_model_id != _CANONICAL_PHYSICS or not self.realized_replay:
+                raise ValueError("search kernels require canonical realized replay")
+            if self.neighborhood_scope == "kernel_native":
+                if (
+                    self.wireless_kernel not in {"iea_cap", "exchange_stable"}
+                    or self.acceptance_rule != "kernel_native"
+                ):
+                    raise ValueError("kernel_native factors require a native search kernel")
+            elif (
+                self.neighborhood_scope not in {"intra_uav", "cross_uav"}
+                or self.acceptance_rule
+                not in {"bilateral", "global_lexicographic"}
+            ):
+                raise ValueError("search scope and acceptance factors are incompatible")
+        elif self.wireless_kernel in _DIRECT_NOMA_KERNELS:
+            if (
+                not self.initializer_ids
+                or self.neighborhood_scope != "none"
+                or self.acceptance_rule != "none"
+                or self.traversal_rule != "direct"
+                or self.closure_mode != _POLICY_CLOSURE
+                or self.physics_model_id != _CANONICAL_PHYSICS
+                or not self.realized_replay
+            ):
+                raise ValueError("direct NOMA kernel factors are incompatible")
+        elif self.wireless_kernel == "frozen_radio_snapshot":
+            if (
+                self.initializer_ids
+                or self.neighborhood_scope != "none"
+                or self.acceptance_rule != "none"
+                or self.traversal_rule != "none"
+                or self.fixed_radio_source is None
+                or self.closure_mode != _FROZEN_RATE_ADMISSION
+                or self.physics_model_id != _CANONICAL_PHYSICS
+                or not self.realized_replay
+            ):
+                raise ValueError("frozen-radio factors are incompatible")
+        elif self.wireless_kernel == "exact_admission":
+            if (
+                self.initializer_ids
+                or self.neighborhood_scope != "none"
+                or self.acceptance_rule != "none"
+                or self.traversal_rule != "exhaustive"
+                or self.fixed_radio_source is not None
+                or self.closure_mode != "frozen_rate_exact_admission"
+                or self.physics_model_id != _CANONICAL_PHYSICS
+                or not self.realized_replay
+            ):
+                raise ValueError("exact-admission factors are incompatible")
+        elif self.wireless_kernel == "exact_schedule":
+            if (
+                self.initializer_ids
+                or self.neighborhood_scope != "global"
+                or self.acceptance_rule != "exact"
+                or self.traversal_rule != "exhaustive"
+                or self.fixed_radio_source is not None
+                or self.closure_mode != _POLICY_CLOSURE
+                or self.physics_model_id != _CANONICAL_PHYSICS
+                or self.realized_replay
+            ):
+                raise ValueError("exact-schedule factors are incompatible")
+        elif self.wireless_kernel == "local_only":
+            if (
+                self.initializer_ids
+                or self.neighborhood_scope != "none"
+                or self.acceptance_rule != "none"
+                or self.traversal_rule != "direct"
+                or self.closure_mode != "local_execution"
+                or self.physics_model_id != "local_compute_v2"
+                or not self.realized_replay
+            ):
+                raise ValueError("local-only factors are incompatible")
+        elif self.wireless_kernel == "fair_ofdma" and (
+            self.initializer_ids
+            or self.neighborhood_scope != "none"
+            or self.acceptance_rule != "none"
+            or self.traversal_rule != "direct"
+            or self.closure_mode != "direct_policy_allocation"
+            or self.physics_model_id != "canonical_ofdma_v2"
+            or not self.realized_replay
+        ):
+            raise ValueError("Fair-OFDMA factors are incompatible")
+
+        if self.wireless_kernel != "frozen_radio_snapshot" and self.fixed_radio_source:
+            raise ValueError("only frozen-radio methods may name a fixed source")
+        if (self.wireless_kernel == "guo_jagp_adapted") != (
+            self.adaptation_id is not None
+        ):
+            raise ValueError("adaptation_id must identify only the adapted kernel")
 
 
 def _spec(
@@ -312,8 +483,8 @@ def thesis_method_specs() -> dict[str, MethodSpec]:
             "IEA-CAP + DD-MCAA static-share admission",
             "iea_cap",
             _SHARED_INITIALIZERS,
-            "cross_uav",
-            "global_lexicographic",
+            "kernel_native",
+            "kernel_native",
             "first_improvement",
             AllocationPolicy.DEADLINE,
         ),
@@ -322,8 +493,8 @@ def thesis_method_specs() -> dict[str, MethodSpec]:
             "IEA-CAP + non-preemptive Deadline-First-MinCPU static-share admission",
             "iea_cap",
             _SHARED_INITIALIZERS,
-            "cross_uav",
-            "global_lexicographic",
+            "kernel_native",
+            "kernel_native",
             "first_improvement",
             AllocationPolicy.EDF_MIN_CPU,
         ),
@@ -332,8 +503,8 @@ def thesis_method_specs() -> dict[str, MethodSpec]:
             "Exchange-Stable + DD-MCAA static-share admission",
             "exchange_stable",
             _SHARED_INITIALIZERS,
-            "cross_uav",
-            "global_lexicographic",
+            "kernel_native",
+            "kernel_native",
             "first_improvement",
             AllocationPolicy.DEADLINE,
         ),
@@ -342,8 +513,8 @@ def thesis_method_specs() -> dict[str, MethodSpec]:
             "Exchange-Stable + non-preemptive Deadline-First-MinCPU static-share admission",
             "exchange_stable",
             _SHARED_INITIALIZERS,
-            "cross_uav",
-            "global_lexicographic",
+            "kernel_native",
+            "kernel_native",
             "first_improvement",
             AllocationPolicy.EDF_MIN_CPU,
         ),
@@ -365,6 +536,7 @@ def thesis_method_specs() -> dict[str, MethodSpec]:
             "global",
             "exact",
             "exhaustive",
+            realized_replay=False,
         ),
         # Compatibility controls retained for the original thesis suites.
         _spec(
@@ -520,24 +692,33 @@ def load_definition(path: Path) -> ExperimentDefinition:
     if unknown:
         raise ValueError(f"unknown method {unknown[0]}")
     specs = thesis_method_specs()
+    metadata_required = raw.get("method_metadata_required", False)
+    if not isinstance(metadata_required, bool):
+        raise ValueError("method_metadata_required must be bool")
+    expected_hashes = {
+        method_id: method_spec_sha256(specs[method_id]) for method_id in methods
+    }
     declared_hashes = raw.get("method_factor_hashes")
-    if declared_hashes is not None:
+    if declared_hashes is None:
+        if metadata_required:
+            raise ValueError("method_factor_hashes table is required")
+    else:
         if not isinstance(declared_hashes, dict):
             raise ValueError("method_factor_hashes must be a table")
-        expected_hashes = {
-            method_id: method_spec_sha256(specs[method_id]) for method_id in methods
-        }
         if declared_hashes != expected_hashes:
             raise ValueError("method_factor_hashes mismatch")
+    expected_sources = {
+        method_id: specs[method_id].fixed_radio_source
+        for method_id in methods
+        if specs[method_id].fixed_radio_source is not None
+    }
     declared_sources = raw.get("fixed_radio_sources")
-    if declared_sources is not None:
+    if declared_sources is None:
+        if metadata_required and expected_sources:
+            raise ValueError("fixed_radio_sources table is required")
+    else:
         if not isinstance(declared_sources, dict):
             raise ValueError("fixed_radio_sources must be a table")
-        expected_sources = {
-            method_id: specs[method_id].fixed_radio_source
-            for method_id in methods
-            if specs[method_id].fixed_radio_source is not None
-        }
         if declared_sources != expected_sources:
             raise ValueError("fixed_radio_sources mismatch")
 
@@ -620,6 +801,31 @@ def _git_sha() -> str:
         ["git", "rev-parse", "HEAD"],
         text=True,
     ).strip()
+
+
+def _search_config_for_spec(
+    spec: MethodSpec,
+    *,
+    max_iterations: int,
+) -> SearchConfig:
+    """Resolve explicit or kernel-native search factors without method-ID rules."""
+    if not isinstance(spec, MethodSpec):
+        raise TypeError("spec must be a MethodSpec")
+    if spec.wireless_kernel not in _SEARCH_KERNELS:
+        raise ValueError(f"{spec.method_id} is not a search method")
+    if spec.neighborhood_scope == "kernel_native":
+        native = {
+            "iea_cap": (True, Acceptance.GLOBAL),
+            "exchange_stable": (False, Acceptance.BILATERAL),
+        }
+        allow_cross_uav, acceptance = native[spec.wireless_kernel]
+    else:
+        allow_cross_uav = spec.neighborhood_scope == "cross_uav"
+        acceptance = {
+            "global_lexicographic": Acceptance.GLOBAL,
+            "bilateral": Acceptance.BILATERAL,
+        }[spec.acceptance_rule]
+    return SearchConfig(allow_cross_uav, acceptance, max_iterations)
 
 
 def _slot_method(
@@ -751,27 +957,11 @@ def _slot_method(
 
         if not spec.initializer_ids:
             raise ValueError(f"{name} requires at least one initializer")
-        if spec.wireless_kernel == "exchange_stable":
-            allow_cross_uav = False
-            acceptance = Acceptance.BILATERAL
-        else:
-            if spec.neighborhood_scope not in {"intra_uav", "cross_uav"}:
-                raise ValueError(
-                    f"unsupported neighborhood_scope {spec.neighborhood_scope}"
-                )
-            allow_cross_uav = spec.neighborhood_scope == "cross_uav"
-            if spec.acceptance_rule == "global_lexicographic":
-                acceptance = Acceptance.GLOBAL
-            elif spec.acceptance_rule == "bilateral":
-                acceptance = Acceptance.BILATERAL
-            else:
-                raise ValueError(f"unsupported acceptance_rule {spec.acceptance_rule}")
         if spec.traversal_rule != "first_improvement":
             raise ValueError(f"unsupported traversal_rule {spec.traversal_rule}")
-        search = SearchConfig(
-            allow_cross_uav,
-            acceptance,
-            max_iterations,
+        search = _search_config_for_spec(
+            spec,
+            max_iterations=max_iterations,
         )
         candidates = []
         for initializer_id in spec.initializer_ids:
@@ -879,6 +1069,20 @@ def run_definition(
     *,
     seed_access: SeedAccessRecorder,
 ) -> None:
+    all_specs = thesis_method_specs()
+    try:
+        selected_specs = {name: all_specs[name] for name in definition.methods}
+    except KeyError as exc:
+        raise ValueError(f"unknown method {exc.args[0]}") from exc
+    dedicated = tuple(
+        spec.method_id
+        for spec in selected_specs.values()
+        if spec.wireless_kernel in _DEDICATED_KERNELS
+    )
+    if dedicated:
+        raise ValueError(
+            f"methods {dedicated} require a dedicated experiment runner"
+        )
     if not isinstance(seed_access, SeedAccessRecorder):
         raise TypeError("seed_access must be a SeedAccessRecorder")
     seed_access.record(
@@ -890,8 +1094,6 @@ def run_definition(
         },
     )
     writer = RunArtifactWriter(output_dir)
-    all_specs = thesis_method_specs()
-    selected_specs = {name: all_specs[name] for name in definition.methods}
     task_rows: list[dict[str, object]] = []
     slot_rows: list[dict[str, object]] = []
     event_rows: list[dict[str, object]] = []

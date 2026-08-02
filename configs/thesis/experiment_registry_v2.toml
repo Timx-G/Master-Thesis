@@ -11,16 +11,16 @@ method_id = "cross_bilateral"
 factor_hash = "6430c2344b85fa22e5a31e56dfbee7d6da44326f64c63ae5067d1512e1f16427"
 [[method_specs]]
 method_id = "exact"
-factor_hash = "a1ea86cb7884358e03635d5193a95c97465f3ecd938e1aa1249818152c462c20"
+factor_hash = "3bf73f7b72b8a29d8595df22e4a60f45820a918247e008c01e38f3e4dbcb09b4"
 [[method_specs]]
 method_id = "exact_admission"
 factor_hash = "4150730a131d04cdde61e9523f11ad0c6956f8f6dac289f70c3b972cdfc09041"
 [[method_specs]]
 method_id = "exchange_dd"
-factor_hash = "07ed35c83f4feacd612ce5ad0bda757d9e3239a01c61638df3d98c4707d78b8d"
+factor_hash = "84fdc50e5653b5346a05fe8d6d5cb791d0d5ca996cc90791c61a6f9a65032c4d"
 [[method_specs]]
 method_id = "exchange_edf"
-factor_hash = "457ceeb89f4937d31121cf6132ef7b02306c3816e17cebba518059122ddf7899"
+factor_hash = "465137a9b76b1eb19047bf534fb80638c4bb155622e0fe97da44ded2ca7ee1ee"
 [[method_specs]]
 method_id = "exchange_stable"
 factor_hash = "7cb9b5c2f27b4a1034443028cff5b05c8cfeb117f064f8b5ebd8b6c9200b7cae"
@@ -59,10 +59,10 @@ method_id = "ia_greedy"
 factor_hash = "020a770109a4c09c8e14e543a9ac595d6260d29f397286e69b520113656b82e2"
 [[method_specs]]
 method_id = "iea_dd"
-factor_hash = "7254e074879296ac3bf63b602723959f06a1e58476f0bf9516f87644e6017388"
+factor_hash = "cc4a9fb9abfe30a2cedcc7afa9061b063215116ec215bf2a6980302f2b8cdda8"
 [[method_specs]]
 method_id = "iea_edf"
-factor_hash = "9c2088ee7bca14940d7a4245e7308bdc77286cadf56a9115fa7e7777f6405ca0"
+factor_hash = "ea5861afc595dfe9f361a09d92b683522033a09f04beb4edb0500be36c0b3643"
 [[method_specs]]
 method_id = "intra_global"
 factor_hash = "7e620ae49a5f04e8b96d6b403bd457c9b0925b9dec9e52f3afb4ba902c687edb"

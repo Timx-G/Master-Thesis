@@ -5,6 +5,7 @@ seed_start = 24000
 seed_count = 200
 methods = ["local_only", "fair_ofdma", "greedy", "ia_greedy", "per_uav_ilp", "exchange_stable", "intra_global", "cross_bilateral", "single_start_first", "full", "guo_jagp_adapted"]
 sample_size_policy = "power_selected"
+method_metadata_required = true
 
 [scenario]
 num_users = 45

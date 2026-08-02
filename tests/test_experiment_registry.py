@@ -21,6 +21,35 @@ from uav_mec.experiment_registry import (
 REGISTRY_PATH = Path("configs/thesis/experiment_registry_v2.toml")
 
 
+def _table_bounds(text: str, table_name: str) -> tuple[int, int]:
+    header = f"\n[{table_name}]\n"
+    start = text.index(header)
+    next_table = text.find("\n[", start + len(header))
+    return start, len(text) if next_table < 0 else next_table
+
+
+def _drop_table(text: str, table_name: str) -> str:
+    start, end = _table_bounds(text, table_name)
+    return text[:start] + text[end:]
+
+
+def _replace_table_line(
+    text: str,
+    table_name: str,
+    old: str,
+    new: str,
+) -> str:
+    start, end = _table_bounds(text, table_name)
+    table = text[start:end]
+    assert old in table
+    return text[:start] + table.replace(old, new, 1) + text[end:]
+
+
+def _append_table_line(text: str, table_name: str, line: str) -> str:
+    _start, end = _table_bounds(text, table_name)
+    return text[:end] + f"\n{line}" + text[end:]
+
+
 def test_v2_registry_freezes_approved_candidate_pools_and_all_eight_families() -> None:
     registry = load_registry(REGISTRY_PATH)
 
@@ -249,6 +278,145 @@ def test_all_eight_registered_configs_load_and_validate_real_definitions() -> No
             (case.case_id, case.role, case.fixed_sample_size) for case in family.cases
         )
         validate_registered_definition(registry, family.name, definition)
+
+
+def test_load_definition_rejects_deleted_missing_extra_or_changed_method_metadata(
+    tmp_path: Path,
+) -> None:
+    main = Path("configs/thesis/confirmatory_main_v2.toml").read_text(
+        encoding="utf-8"
+    )
+    resource = Path("configs/thesis/confirmatory_resource_fixed_v2.toml").read_text(
+        encoding="utf-8"
+    )
+    full_hash_line = next(
+        line for line in main.splitlines() if line.startswith("full = ")
+    )
+    source_line = 'fixed_radio_edf = "dd_generated"'
+    invalid_configs = {
+        "hash-table-deleted": _drop_table(main, "method_factor_hashes"),
+        "hash-key-missing": _replace_table_line(
+            main, "method_factor_hashes", full_hash_line, ""
+        ),
+        "hash-key-extra": _append_table_line(
+            main, "method_factor_hashes", 'bogus = "' + "0" * 64 + '"'
+        ),
+        "hash-value-changed": _replace_table_line(
+            main,
+            "method_factor_hashes",
+            full_hash_line,
+            'full = "' + "0" * 64 + '"',
+        ),
+        "source-table-deleted": _drop_table(resource, "fixed_radio_sources"),
+        "source-key-missing": _replace_table_line(
+            resource, "fixed_radio_sources", source_line, ""
+        ),
+        "source-key-extra": _append_table_line(
+            resource,
+            "fixed_radio_sources",
+            'bogus = "dd_generated"',
+        ),
+        "source-value-changed": _replace_table_line(
+            resource,
+            "fixed_radio_sources",
+            source_line,
+            'fixed_radio_edf = "radio_neutral"',
+        ),
+    }
+
+    for name, text in invalid_configs.items():
+        path = tmp_path / f"{name}.toml"
+        path.write_text(text, encoding="utf-8")
+        with pytest.raises(ValueError, match="method_factor_hashes|fixed_radio_sources"):
+            load_definition(path)
+
+
+def test_registry_contract_rejects_deleted_missing_extra_or_changed_metadata(
+    tmp_path: Path,
+) -> None:
+    registry = load_registry(REGISTRY_PATH)
+    main = registered_family(registry, "main").config_path.read_text(encoding="utf-8")
+    resource = registered_family(registry, "resource").config_path.read_text(
+        encoding="utf-8"
+    )
+    full_hash_line = next(
+        line for line in main.splitlines() if line.startswith("full = ")
+    )
+    source_line = 'fixed_radio_edf = "dd_generated"'
+    invalid_configs = (
+        ("main", "method_factor_hashes", _drop_table(main, "method_factor_hashes")),
+        (
+            "main",
+            "method_factor_hashes",
+            _replace_table_line(main, "method_factor_hashes", full_hash_line, ""),
+        ),
+        (
+            "main",
+            "method_factor_hashes",
+            _append_table_line(
+                main, "method_factor_hashes", 'bogus = "' + "0" * 64 + '"'
+            ),
+        ),
+        (
+            "main",
+            "method_factor_hashes",
+            _replace_table_line(
+                main,
+                "method_factor_hashes",
+                full_hash_line,
+                'full = "' + "0" * 64 + '"',
+            ),
+        ),
+        (
+            "resource",
+            "fixed_radio_sources",
+            _drop_table(resource, "fixed_radio_sources"),
+        ),
+        (
+            "resource",
+            "fixed_radio_sources",
+            _replace_table_line(
+                resource, "fixed_radio_sources", source_line, ""
+            ),
+        ),
+        (
+            "resource",
+            "fixed_radio_sources",
+            _append_table_line(
+                resource, "fixed_radio_sources", 'bogus = "dd_generated"'
+            ),
+        ),
+        (
+            "resource",
+            "fixed_radio_sources",
+            _replace_table_line(
+                resource,
+                "fixed_radio_sources",
+                source_line,
+                'fixed_radio_edf = "radio_neutral"',
+            ),
+        ),
+    )
+    for index, (family_name, table_name, text) in enumerate(invalid_configs):
+        family = registered_family(registry, family_name)
+        path = tmp_path / f"{family_name}-{index}.toml"
+        path.write_text(text, encoding="utf-8")
+        modified_family = replace(family, config_path=path.resolve())
+        modified_registry = replace(
+            registry,
+            families=tuple(
+                modified_family if item.name == family_name else item
+                for item in registry.families
+            ),
+        )
+        definition = load_definition(family.config_path)
+
+        with pytest.raises(ValueError, match=table_name):
+            validate_registered_definition(
+                modified_registry,
+                family_name,
+                definition,
+            )
 
 
 def test_registry_primary_hypotheses_freeze_test_estimand_and_holm_family() -> None:

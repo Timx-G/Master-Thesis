@@ -349,3 +349,25 @@ def test_exact_benchmark_rejects_allocation_factor_drift_before_seed_access(
             tmp_path / "incompatible-exact",
             seed_access=object(),  # type: ignore[arg-type]
         )
+
+
+def test_exact_benchmark_rejects_complete_spec_hash_drift_before_seed_access(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    config_path = Path("configs/thesis/confirmatory_exact.toml")
+    definition = load_definition(config_path)
+    specs = thesis_method_specs()
+    specs["exact"] = replace(specs["exact"], display_name="drifted exact")
+    monkeypatch.setattr(
+        "uav_mec.run_exact_benchmark.thesis_method_specs",
+        lambda: specs,
+    )
+
+    with pytest.raises(ValueError, match="factor hash"):
+        run_exact_definition(
+            definition,
+            config_path,
+            tmp_path / "drifted-exact",
+            seed_access=object(),  # type: ignore[arg-type]
+        )

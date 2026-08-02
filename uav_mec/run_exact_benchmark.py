@@ -33,6 +33,12 @@ from .seed_access import (
 from .trace import generate_trace
 
 
+_EXPECTED_EXACT_METHOD_FACTOR_HASHES = {
+    "full": "a64606644faf97fd313fd6d3c83a8bf30904ec3f71968888195dc24eb3942153",
+    "exact": "3bf73f7b72b8a29d8595df22e4a60f45820a918247e008c01e38f3e4dbcb09b4",
+}
+
+
 def _validated_exact_method_specs(
     definition: ExperimentDefinition,
 ) -> tuple[MethodSpec, MethodSpec]:
@@ -41,6 +47,12 @@ def _validated_exact_method_specs(
         raise ValueError("exact benchmark methods must be ('full', 'exact')")
     full_spec = specs[definition.methods[0]]
     exact_spec = specs[definition.methods[1]]
+    actual_hashes = {
+        spec.method_id: method_spec_sha256(spec)
+        for spec in (full_spec, exact_spec)
+    }
+    if actual_hashes != _EXPECTED_EXACT_METHOD_FACTOR_HASHES:
+        raise ValueError("exact benchmark method factor hash mismatch")
     if full_spec.wireless_kernel != "iea_cap":
         raise ValueError("full exact-benchmark method must use iea_cap")
     if exact_spec.wireless_kernel != "exact_schedule":

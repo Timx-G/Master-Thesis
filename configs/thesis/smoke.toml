@@ -1,6 +1,7 @@
 run_id = "smoke"
 seeds = [42, 43]
 methods = ["local_only", "greedy", "full"]
+method_metadata_required = true
 
 [scenario]
 num_users = 6

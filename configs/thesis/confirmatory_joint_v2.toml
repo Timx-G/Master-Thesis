@@ -5,6 +5,7 @@ seed_start = 27000
 seed_count = 200
 methods = ["iea_dd", "iea_edf", "exchange_dd", "exchange_edf"]
 sample_size_policy = "power_selected"
+method_metadata_required = true
 
 [scenario]
 num_users = 45
@@ -46,7 +47,7 @@ case_id = "joint_k3_n45"
 role = "primary"
 
 [method_factor_hashes]
-iea_dd = "7254e074879296ac3bf63b602723959f06a1e58476f0bf9516f87644e6017388"
-iea_edf = "9c2088ee7bca14940d7a4245e7308bdc77286cadf56a9115fa7e7777f6405ca0"
-exchange_dd = "07ed35c83f4feacd612ce5ad0bda757d9e3239a01c61638df3d98c4707d78b8d"
-exchange_edf = "457ceeb89f4937d31121cf6132ef7b02306c3816e17cebba518059122ddf7899"
+iea_dd = "cc4a9fb9abfe30a2cedcc7afa9061b063215116ec215bf2a6980302f2b8cdda8"
+iea_edf = "ea5861afc595dfe9f361a09d92b683522033a09f04beb4edb0500be36c0b3643"
+exchange_dd = "84fdc50e5653b5346a05fe8d6d5cb791d0d5ca996cc90791c61a6f9a65032c4d"
+exchange_edf = "465137a9b76b1eb19047bf534fb80638c4bb155622e0fe97da44ded2ca7ee1ee"

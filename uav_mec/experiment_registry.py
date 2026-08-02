@@ -549,6 +549,37 @@ def _config_contract(
     scenario = raw.get("scenario")
     if not isinstance(scenario, Mapping):
         raise ValueError(f"{family.name}.config.scenario is missing")
+    metadata_required = raw.get("method_metadata_required", False)
+    if not isinstance(metadata_required, bool):
+        raise ValueError(
+            f"{family.name}.config.method_metadata_required must be bool"
+        )
+    if metadata_required:
+        specs = thesis_method_specs()
+        expected_hashes = {
+            method_id: method_spec_sha256(specs[method_id])
+            for method_id in family.methods
+        }
+        declared_hashes = raw.get("method_factor_hashes")
+        if declared_hashes != expected_hashes:
+            raise ValueError(
+                f"{family.name}.config.method_factor_hashes mismatch"
+            )
+        expected_sources = {
+            method_id: specs[method_id].fixed_radio_source
+            for method_id in family.methods
+            if specs[method_id].fixed_radio_source is not None
+        }
+        declared_sources = raw.get("fixed_radio_sources")
+        if (
+            expected_sources
+            and declared_sources is None
+            or declared_sources is not None
+            and declared_sources != expected_sources
+        ):
+            raise ValueError(
+                f"{family.name}.config.fixed_radio_sources mismatch"
+            )
     raw_cases = _table_array(raw.get("cases"), f"{family.name}.config.cases")
     return (
         _nonnegative_int(

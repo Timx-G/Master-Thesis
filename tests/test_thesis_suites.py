@@ -240,3 +240,36 @@ def test_suite_case_executes_with_resolved_manifest(
         }
         assert summary["methods"][method_id]["method_spec"] == serialized
         assert summary["methods"][method_id]["method_spec_sha256"] == factor_hash
+
+
+@pytest.mark.parametrize(
+    "method_id",
+    ("fixed_radio_dd", "exact_admission", "exact"),
+)
+def test_generic_runner_rejects_dedicated_methods_before_seed_recording(
+    tmp_path: Path,
+    development_seed_access,
+    method_id: str,
+) -> None:
+    config_path = Path("configs/thesis/confirmatory_main.toml")
+    base = load_definition(config_path)
+    definition = replace(
+        base,
+        seeds=(22_000,),
+        methods=(method_id,),
+    )
+    ledger = development_seed_access.ledger_path
+    before = ledger.read_bytes() if ledger.exists() else b""
+    output = tmp_path / method_id
+
+    with pytest.raises(ValueError, match="dedicated"):
+        run_definition(
+            definition,
+            config_path,
+            output,
+            seed_access=development_seed_access,
+        )
+
+    after = ledger.read_bytes() if ledger.exists() else b""
+    assert after == before
+    assert not output.exists()

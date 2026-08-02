@@ -3,6 +3,7 @@ event_log_level = "summary"
 seed_start = 1000
 seed_count = 100
 methods = ["iea_dd", "exchange_edf"]
+method_metadata_required = true
 
 [scenario]
 num_users = 45
@@ -44,5 +45,5 @@ max_iterations = 50
 multistart_workers = 3
 
 [method_factor_hashes]
-iea_dd = "7254e074879296ac3bf63b602723959f06a1e58476f0bf9516f87644e6017388"
-exchange_edf = "457ceeb89f4937d31121cf6132ef7b02306c3816e17cebba518059122ddf7899"
+iea_dd = "cc4a9fb9abfe30a2cedcc7afa9061b063215116ec215bf2a6980302f2b8cdda8"
+exchange_edf = "465137a9b76b1eb19047bf534fb80638c4bb155622e0fe97da44ded2ca7ee1ee"

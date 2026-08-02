@@ -6,9 +6,15 @@ import pytest
 
 from uav_mec.domain import ChannelBasis, Schedule, ScheduleEntry, SlotSnapshot, Task
 from uav_mec.evaluation import EvaluationConfig, compute_rate_records
-from uav_mec.experiment import MethodSpec, thesis_method_specs
+from uav_mec.experiment import (
+    MethodSpec,
+    _search_config_for_spec,
+    _slot_method,
+    thesis_method_specs,
+)
 from uav_mec.experiment_registry import thesis_contrasts
-from uav_mec.model import ChannelConfig, NOMAChannel
+from uav_mec.model import ChannelConfig, NOMAChannel, ScenarioConfig
+from uav_mec.scheduler import Acceptance
 
 
 def _factor_differences(left: MethodSpec, right: MethodSpec) -> set[str]:
@@ -52,6 +58,85 @@ def test_joint_methods_form_an_exact_two_by_two_factorial() -> None:
     assert len({spec.initializer_ids for spec in joint.values()}) == 1
     h4 = thesis_contrasts()["H4"]
     assert (h4.treatment_id, h4.control_id) == ("iea_dd", "exchange_edf")
+
+
+def test_joint_wireless_kernel_resolves_native_execution_for_all_four_cells() -> None:
+    specs = thesis_method_specs()
+    expected = {
+        "iea_dd": (True, Acceptance.GLOBAL),
+        "iea_edf": (True, Acceptance.GLOBAL),
+        "exchange_dd": (False, Acceptance.BILATERAL),
+        "exchange_edf": (False, Acceptance.BILATERAL),
+    }
+
+    for method_id, (allow_cross_uav, acceptance) in expected.items():
+        spec = specs[method_id]
+        assert spec.neighborhood_scope == "kernel_native"
+        assert spec.acceptance_rule == "kernel_native"
+        search = _search_config_for_spec(spec, max_iterations=17)
+        assert search.allow_cross_uav is allow_cross_uav
+        assert search.acceptance is acceptance
+        assert search.max_iterations == 17
+
+
+def test_joint_slot_execution_passes_kernel_native_search_to_optimizer(
+    monkeypatch,
+) -> None:
+    tasks = tuple(
+        Task(index, index, 0, 600_000.0, 1.2e9, 0.8, 0.4e9)
+        for index in range(4)
+    )
+    snapshot = SlotSnapshot(
+        0,
+        tasks,
+        np.array(
+            [
+                [9e-8, 2e-8],
+                [6e-8, 4e-8],
+                [3e-8, 8e-8],
+                [2e-8, 7e-8],
+            ]
+        ),
+        2,
+    )
+    scenario = ScenarioConfig(num_uavs=2, n_subcarriers=1)
+    evaluation = EvaluationConfig(
+        n_subcarriers=1,
+        bandwidth_hz=5e6,
+        transmit_power_w=0.2,
+        sic_residual=0.02,
+        gamma_sic_min=0.1,
+        cpu_per_uav_hz=4e9,
+    )
+    from uav_mec import experiment as experiment_module
+
+    actual_optimizer = experiment_module.optimize_schedule
+    captured: dict[str, list[tuple[bool, Acceptance]]] = {}
+    active_method = ""
+
+    def capture_search(*args, **kwargs):
+        search = args[-1]
+        captured.setdefault(active_method, []).append(
+            (search.allow_cross_uav, search.acceptance)
+        )
+        return actual_optimizer(*args, **kwargs)
+
+    monkeypatch.setattr(experiment_module, "optimize_schedule", capture_search)
+    expected = {
+        "iea_dd": (True, Acceptance.GLOBAL),
+        "iea_edf": (True, Acceptance.GLOBAL),
+        "exchange_dd": (False, Acceptance.BILATERAL),
+        "exchange_edf": (False, Acceptance.BILATERAL),
+    }
+    for method_id in expected:
+        active_method = method_id
+        _slot_method(method_id, scenario, evaluation, 20, [])(snapshot)
+
+    assert {
+        method_id: set(configs) for method_id, configs in captured.items()
+    } == {
+        method_id: {config} for method_id, config in expected.items()
+    }
 
 
 def test_fixed_radio_resource_methods_name_their_schedule_source() -> None:
@@ -103,6 +188,43 @@ def test_end_to_end_noma_methods_share_canonical_semantics() -> None:
         assert spec.latency_model_id == "canonical_task_latency_v2"
         assert spec.closure_mode == "policy_closure"
         assert spec.realized_replay
+
+    assert not specs["exact"].realized_replay
+
+
+@pytest.mark.parametrize(
+    "changes",
+    (
+        {"wireless_kernel": "bogus_kernel"},
+        {"neighborhood_scope": "bogus_scope"},
+        {"acceptance_rule": "bogus_acceptance"},
+        {"traversal_rule": "bogus_traversal"},
+        {"closure_mode": "bogus_closure"},
+        {"physics_model_id": "bogus_physics"},
+        {"latency_model_id": "bogus_latency"},
+        {"allocation_policy": "deadline"},
+    ),
+)
+def test_method_spec_rejects_unknown_factor_values(changes: dict[str, object]) -> None:
+    with pytest.raises(ValueError):
+        replace(thesis_method_specs()["full"], **changes)
+
+
+@pytest.mark.parametrize(
+    ("method_id", "changes"),
+    (
+        ("full", {"neighborhood_scope": "none"}),
+        ("greedy", {"acceptance_rule": "bilateral"}),
+        ("fixed_radio_dd", {"closure_mode": "policy_closure"}),
+        ("exact", {"realized_replay": True}),
+    ),
+)
+def test_method_spec_rejects_incompatible_factor_combinations(
+    method_id: str,
+    changes: dict[str, object],
+) -> None:
+    with pytest.raises(ValueError):
+        replace(thesis_method_specs()[method_id], **changes)
 
 
 def base_config() -> EvaluationConfig:

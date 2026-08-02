@@ -3,6 +3,7 @@ event_log_level = "summary"
 seed_start = 1000
 seed_count = 100
 methods = ["fixed_radio_dd", "fixed_radio_edf"]
+method_metadata_required = true
 
 [scenario]
 num_users = 45
