@@ -50,6 +50,16 @@ def _append_table_line(text: str, table_name: str, line: str) -> str:
     return text[:end] + f"\n{line}" + text[end:]
 
 
+def _delete_method_metadata(text: str) -> str:
+    marker = "method_metadata_required = true\n"
+    assert text.count(marker) == 1
+    result = text.replace(marker, "", 1)
+    for table_name in ("method_factor_hashes", "fixed_radio_sources"):
+        if f"\n[{table_name}]\n" in result:
+            result = _drop_table(result, table_name)
+    return result
+
+
 def test_v2_registry_freezes_approved_candidate_pools_and_all_eight_families() -> None:
     registry = load_registry(REGISTRY_PATH)
 
@@ -331,6 +341,30 @@ def test_load_definition_rejects_deleted_missing_extra_or_changed_method_metadat
             load_definition(path)
 
 
+@pytest.mark.parametrize(
+    "config_name",
+    (
+        "confirmatory_main_v2.toml",
+        "confirmatory_resource_fixed_v2.toml",
+        "confirmatory_joint_v2.toml",
+        "pilot_main_v2.toml",
+        "pilot_resource_fixed_v2.toml",
+        "pilot_joint_v2.toml",
+        "smoke.toml",
+    ),
+)
+def test_load_definition_metadata_requirement_cannot_be_deleted_from_audited_config(
+    tmp_path: Path,
+    config_name: str,
+) -> None:
+    original = Path("configs/thesis", config_name).read_text(encoding="utf-8")
+    path = tmp_path / config_name
+    path.write_text(_delete_method_metadata(original), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="method_factor_hashes"):
+        load_definition(path)
+
+
 def test_registry_contract_rejects_deleted_missing_extra_or_changed_metadata(
     tmp_path: Path,
 ) -> None:
@@ -417,6 +451,34 @@ def test_registry_contract_rejects_deleted_missing_extra_or_changed_metadata(
                 family_name,
                 definition,
             )
+
+
+@pytest.mark.parametrize("family_name", ("main", "resource", "joint"))
+def test_registry_metadata_requirement_cannot_be_deleted_from_family_config(
+    tmp_path: Path,
+    family_name: str,
+) -> None:
+    registry = load_registry(REGISTRY_PATH)
+    family = registered_family(registry, family_name)
+    original = family.config_path.read_text(encoding="utf-8")
+    path = tmp_path / family.config_path.name
+    path.write_text(_delete_method_metadata(original), encoding="utf-8")
+    modified_family = replace(family, config_path=path.resolve())
+    modified_registry = replace(
+        registry,
+        families=tuple(
+            modified_family if item.name == family_name else item
+            for item in registry.families
+        ),
+    )
+    definition = load_definition(family.config_path)
+
+    with pytest.raises(ValueError, match="method_factor_hashes"):
+        validate_registered_definition(
+            modified_registry,
+            family_name,
+            definition,
+        )
 
 
 def test_registry_primary_hypotheses_freeze_test_estimand_and_holm_family() -> None:

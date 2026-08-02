@@ -214,7 +214,9 @@ def test_method_spec_rejects_unknown_factor_values(changes: dict[str, object]) -
     ("method_id", "changes"),
     (
         ("full", {"neighborhood_scope": "none"}),
+        ("full", {"initializer_ids": ("guo_jagp_adapted",)}),
         ("greedy", {"acceptance_rule": "bilateral"}),
+        ("greedy", {"initializer_ids": ("per_uav_ilp",)}),
         ("fixed_radio_dd", {"closure_mode": "policy_closure"}),
         ("exact", {"realized_replay": True}),
     ),

@@ -75,8 +75,15 @@ _WIRELESS_KERNELS = frozenset(
         "iea_cap_deadline_search",
     }
 )
-_INITIALIZER_IDS = frozenset(
-    {"per_uav_ilp", "ia_greedy", "greedy", "guo_jagp_adapted"}
+_SEARCH_INITIALIZER_IDS = frozenset({"per_uav_ilp", "ia_greedy", "greedy"})
+_DIRECT_INITIALIZER_BY_KERNEL = {
+    "greedy": "greedy",
+    "ia_greedy": "ia_greedy",
+    "per_uav_ilp": "per_uav_ilp",
+    "guo_jagp_adapted": "guo_jagp_adapted",
+}
+_INITIALIZER_IDS = _SEARCH_INITIALIZER_IDS | frozenset(
+    _DIRECT_INITIALIZER_BY_KERNEL.values()
 )
 _NEIGHBORHOOD_SCOPES = frozenset(
     {"none", "intra_uav", "cross_uav", "global", "kernel_native"}
@@ -107,11 +114,21 @@ _CLOSURE_MODES = frozenset(
 _SEARCH_KERNELS = frozenset(
     {"iea_cap", "exchange_stable", "iea_cap_deadline_search"}
 )
-_DIRECT_NOMA_KERNELS = frozenset(
-    {"greedy", "ia_greedy", "per_uav_ilp", "guo_jagp_adapted"}
-)
+_DIRECT_NOMA_KERNELS = frozenset(_DIRECT_INITIALIZER_BY_KERNEL)
 _DEDICATED_KERNELS = frozenset(
     {"frozen_radio_snapshot", "exact_admission", "exact_schedule"}
+)
+_METHOD_METADATA_FAMILIES = frozenset({"main", "resource", "joint"})
+_METHOD_METADATA_RUN_IDS = frozenset(
+    {
+        "confirmatory-main-v2",
+        "confirmatory-resource-fixed-v2",
+        "confirmatory-joint-v2",
+        "pilot-main-v2",
+        "pilot-resource-fixed-v2",
+        "pilot-joint-v2",
+        "smoke",
+    }
 )
 
 
@@ -194,8 +211,20 @@ class MethodSpec:
 
     def _validate_compatible_factors(self) -> None:
         if self.wireless_kernel in _SEARCH_KERNELS:
-            if not self.initializer_ids or self.traversal_rule != "first_improvement":
-                raise ValueError("search kernels require initializers and first improvement")
+            if not self.initializer_ids or not set(self.initializer_ids) <= (
+                _SEARCH_INITIALIZER_IDS
+            ):
+                raise ValueError("search kernel initializer_ids are incompatible")
+        elif self.wireless_kernel in _DIRECT_INITIALIZER_BY_KERNEL:
+            expected = (_DIRECT_INITIALIZER_BY_KERNEL[self.wireless_kernel],)
+            if self.initializer_ids != expected:
+                raise ValueError("direct kernel initializer_ids are incompatible")
+        elif self.initializer_ids:
+            raise ValueError("non-initializing kernels require empty initializer_ids")
+
+        if self.wireless_kernel in _SEARCH_KERNELS:
+            if self.traversal_rule != "first_improvement":
+                raise ValueError("search kernels require first improvement")
             if self.closure_mode != _POLICY_CLOSURE:
                 raise ValueError("search kernels require policy closure")
             if self.physics_model_id != _CANONICAL_PHYSICS or not self.realized_replay:
@@ -214,8 +243,7 @@ class MethodSpec:
                 raise ValueError("search scope and acceptance factors are incompatible")
         elif self.wireless_kernel in _DIRECT_NOMA_KERNELS:
             if (
-                not self.initializer_ids
-                or self.neighborhood_scope != "none"
+                self.neighborhood_scope != "none"
                 or self.acceptance_rule != "none"
                 or self.traversal_rule != "direct"
                 or self.closure_mode != _POLICY_CLOSURE
@@ -692,9 +720,17 @@ def load_definition(path: Path) -> ExperimentDefinition:
     if unknown:
         raise ValueError(f"unknown method {unknown[0]}")
     specs = thesis_method_specs()
-    metadata_required = raw.get("method_metadata_required", False)
-    if not isinstance(metadata_required, bool):
+    declared_metadata_required = raw.get("method_metadata_required", False)
+    if not isinstance(declared_metadata_required, bool):
         raise ValueError("method_metadata_required must be bool")
+    metadata_required = (
+        declared_metadata_required
+        or run_id in _METHOD_METADATA_RUN_IDS
+        or (
+            raw.get("schema_version") == 2
+            and raw.get("formal_family") in _METHOD_METADATA_FAMILIES
+        )
+    )
     expected_hashes = {
         method_id: method_spec_sha256(specs[method_id]) for method_id in methods
     }

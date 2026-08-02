@@ -549,11 +549,16 @@ def _config_contract(
     scenario = raw.get("scenario")
     if not isinstance(scenario, Mapping):
         raise ValueError(f"{family.name}.config.scenario is missing")
-    metadata_required = raw.get("method_metadata_required", False)
-    if not isinstance(metadata_required, bool):
+    declared_metadata_required = raw.get("method_metadata_required", False)
+    if not isinstance(declared_metadata_required, bool):
         raise ValueError(
             f"{family.name}.config.method_metadata_required must be bool"
         )
+    metadata_required = declared_metadata_required or family.name in {
+        "main",
+        "resource",
+        "joint",
+    }
     if metadata_required:
         specs = thesis_method_specs()
         expected_hashes = {
