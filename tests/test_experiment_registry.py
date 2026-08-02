@@ -365,6 +365,57 @@ def test_load_definition_metadata_requirement_cannot_be_deleted_from_audited_con
         load_definition(path)
 
 
+@pytest.mark.parametrize(
+    ("config_name", "run_id"),
+    (
+        ("pilot_main_v2.toml", "pilot-main-v2"),
+        ("smoke.toml", "smoke"),
+    ),
+)
+def test_renamed_audited_config_cannot_self_disable_method_metadata(
+    tmp_path: Path,
+    config_name: str,
+    run_id: str,
+) -> None:
+    original = Path("configs/thesis", config_name).read_text(encoding="utf-8")
+    renamed = _delete_method_metadata(original).replace(
+        f'run_id = "{run_id}"',
+        'run_id = "renamed-config"',
+        1,
+    )
+    path = tmp_path / "renamed.toml"
+    path.write_text(renamed, encoding="utf-8")
+
+    with pytest.raises(ValueError, match="method_factor_hashes"):
+        load_definition(path)
+
+
+def test_unknown_config_requires_method_metadata_by_default(tmp_path: Path) -> None:
+    original = Path("configs/thesis/confirmatory_main.toml").read_text(
+        encoding="utf-8"
+    )
+    path = tmp_path / "unknown.toml"
+    path.write_text(original, encoding="utf-8")
+
+    with pytest.raises(ValueError, match="method_factor_hashes"):
+        load_definition(path)
+
+
+@pytest.mark.parametrize(
+    "config_name",
+    (
+        "exploratory.toml",
+        "confirmatory_main.toml",
+        "confirmatory_pairing.toml",
+        "confirmatory_resource.toml",
+    ),
+)
+def test_trusted_legacy_config_identity_remains_compatible(config_name: str) -> None:
+    definition = load_definition(Path("configs/thesis", config_name))
+
+    assert definition.run_id
+
+
 def test_registry_contract_rejects_deleted_missing_extra_or_changed_metadata(
     tmp_path: Path,
 ) -> None:

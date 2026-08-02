@@ -118,18 +118,95 @@ _DIRECT_NOMA_KERNELS = frozenset(_DIRECT_INITIALIZER_BY_KERNEL)
 _DEDICATED_KERNELS = frozenset(
     {"frozen_radio_snapshot", "exact_admission", "exact_schedule"}
 )
-_METHOD_METADATA_FAMILIES = frozenset({"main", "resource", "joint"})
-_METHOD_METADATA_RUN_IDS = frozenset(
-    {
-        "confirmatory-main-v2",
-        "confirmatory-resource-fixed-v2",
-        "confirmatory-joint-v2",
-        "pilot-main-v2",
-        "pilot-resource-fixed-v2",
-        "pilot-joint-v2",
-        "smoke",
-    }
-)
+_REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+# Compatibility is limited to committed config identities that predate method
+# metadata; protocol schema v2 alone does not make a copied config trusted.
+_TRUSTED_PRE_METADATA_CONFIGS = {
+    "configs/thesis/exploratory.toml": (
+        "exploratory",
+        None,
+        None,
+        (
+            "local_only",
+            "greedy",
+            "ia_greedy",
+            "ilp",
+            "exchange_stable",
+            "intra_global",
+            "full",
+            "fair_ofdma",
+        ),
+    ),
+    "configs/thesis/confirmatory_main.toml": (
+        "confirmatory-main",
+        None,
+        None,
+        (
+            "local_only",
+            "greedy",
+            "ia_greedy",
+            "ilp",
+            "exchange_stable",
+            "intra_global",
+            "full",
+            "fair_ofdma",
+        ),
+    ),
+    "configs/thesis/confirmatory_pairing.toml": (
+        "confirmatory-pairing",
+        None,
+        None,
+        ("intra_bilateral", "cross_bilateral", "intra_global", "full"),
+    ),
+    "configs/thesis/confirmatory_resource.toml": (
+        "confirmatory-resource",
+        None,
+        None,
+        ("full_fixed_half", "full_crossing", "full"),
+    ),
+    "configs/thesis/confirmatory_exact.toml": (
+        "confirmatory-exact-v2",
+        2,
+        "exact",
+        ("full", "exact"),
+    ),
+    "configs/thesis/externality_stress.toml": (
+        "externality-stress-v2",
+        2,
+        "externality",
+        ("full", "cross_bilateral", "intra_global"),
+    ),
+    "configs/thesis/confirmatory_robustness_v2.toml": (
+        "confirmatory-robustness-v2",
+        2,
+        "robustness",
+        ("full", "exchange_stable"),
+    ),
+    "configs/thesis/confirmatory_scaling_v2.toml": (
+        "confirmatory-scaling-v2",
+        2,
+        "scaling",
+        ("full", "exchange_stable"),
+    ),
+    "configs/thesis/confirmatory_trace_v2.toml": (
+        "confirmatory-trace-v2",
+        2,
+        "trace_driven",
+        ("full", "exchange_stable"),
+    ),
+    "configs/thesis/pilot_externality_v2.toml": (
+        "pilot-externality-v2",
+        None,
+        None,
+        ("full", "cross_bilateral"),
+    ),
+    "configs/thesis/smoke_exact.toml": (
+        "smoke-exact",
+        None,
+        None,
+        ("full", "exact"),
+    ),
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -673,6 +750,30 @@ class ExperimentDefinition:
     cases: tuple[ExperimentCase, ...] = ()
 
 
+def _method_metadata_required(
+    config_path: Path,
+    raw: dict[str, object],
+    methods: tuple[str, ...],
+) -> bool:
+    declared = raw.get("method_metadata_required", False)
+    if not isinstance(declared, bool):
+        raise ValueError("method_metadata_required must be bool")
+    if declared:
+        return True
+    try:
+        relative_path = config_path.resolve().relative_to(_REPOSITORY_ROOT).as_posix()
+    except ValueError:
+        return True
+    expected = _TRUSTED_PRE_METADATA_CONFIGS.get(relative_path)
+    actual = (
+        raw.get("run_id"),
+        raw.get("schema_version"),
+        raw.get("formal_family"),
+        methods,
+    )
+    return expected != actual
+
+
 def load_definition(path: Path) -> ExperimentDefinition:
     config_path = Path(path)
     raw = tomllib.loads(config_path.read_text(encoding="utf-8"))
@@ -720,17 +821,7 @@ def load_definition(path: Path) -> ExperimentDefinition:
     if unknown:
         raise ValueError(f"unknown method {unknown[0]}")
     specs = thesis_method_specs()
-    declared_metadata_required = raw.get("method_metadata_required", False)
-    if not isinstance(declared_metadata_required, bool):
-        raise ValueError("method_metadata_required must be bool")
-    metadata_required = (
-        declared_metadata_required
-        or run_id in _METHOD_METADATA_RUN_IDS
-        or (
-            raw.get("schema_version") == 2
-            and raw.get("formal_family") in _METHOD_METADATA_FAMILIES
-        )
-    )
+    metadata_required = _method_metadata_required(config_path, raw, methods)
     expected_hashes = {
         method_id: method_spec_sha256(specs[method_id]) for method_id in methods
     }

@@ -14,7 +14,11 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import Mapping, Sequence
 
-from .experiment import method_spec_sha256, thesis_method_specs
+from .experiment import (
+    _method_metadata_required,
+    method_spec_sha256,
+    thesis_method_specs,
+)
 
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
@@ -549,16 +553,11 @@ def _config_contract(
     scenario = raw.get("scenario")
     if not isinstance(scenario, Mapping):
         raise ValueError(f"{family.name}.config.scenario is missing")
-    declared_metadata_required = raw.get("method_metadata_required", False)
-    if not isinstance(declared_metadata_required, bool):
-        raise ValueError(
-            f"{family.name}.config.method_metadata_required must be bool"
-        )
-    metadata_required = declared_metadata_required or family.name in {
-        "main",
-        "resource",
-        "joint",
-    }
+    metadata_required = _method_metadata_required(
+        family.config_path,
+        raw,
+        family.methods,
+    )
     if metadata_required:
         specs = thesis_method_specs()
         expected_hashes = {
