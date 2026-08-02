@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import math
 import time
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping
 from dataclasses import dataclass
 from itertools import product
 
@@ -21,6 +21,7 @@ from .domain import (
     Schedule,
     ScheduleEntry,
     SlotSnapshot,
+    Task,
 )
 from .evaluation import (
     EvaluationConfig,
@@ -110,6 +111,22 @@ class ExactScheduleResult:
             raise ValueError("plan and certificate fingerprints must agree")
         if self.certificate.complete and self.certificate.best_bound != self.objective:
             raise ValueError("a complete certificate bound must equal objective")
+        if self.certificate.gap_status == "bounded":
+            bound = self.certificate.best_bound
+            if bound < self.objective:
+                raise ValueError("a bounded certificate bound must cover objective")
+            expected_gap = tuple(
+                bound_value - objective_value
+                for bound_value, objective_value in zip(
+                    bound,
+                    self.objective,
+                    strict=True,
+                )
+            )
+            if self.certificate.lexicographic_gap != expected_gap:
+                raise ValueError(
+                    "certificate gap must equal bound minus objective"
+                )
 
     @property
     def schedule(self) -> Schedule:
@@ -142,6 +159,10 @@ def _validate_certificate_tuple(
 ) -> None:
     if not isinstance(values, tuple) or len(values) != 3:
         raise ValueError(f"{name} must contain three components")
+    if values[0] is not None and (
+        not isinstance(values[0], int) or isinstance(values[0], bool)
+    ):
+        raise ValueError(f"{name} completion component must be an integer or None")
     for value in values:
         if value is not None and (
             isinstance(value, bool)
@@ -152,16 +173,21 @@ def _validate_certificate_tuple(
 
 
 def _legal_raw_assignments(
-    task_count: int,
+    tasks: tuple[Task, ...],
     resource_blocks: int,
 ) -> Iterator[tuple[int, ...]]:
     choices = range(-1, resource_blocks)
-    for assignment in product(choices, repeat=task_count):
+    for assignment in product(choices, repeat=len(tasks)):
         counts = [0] * resource_blocks
+        scheduled_users: set[int] = set()
         legal = True
-        for block in assignment:
+        for task, block in zip(tasks, assignment, strict=True):
             if block < 0:
                 continue
+            if task.user_id in scheduled_users:
+                legal = False
+                break
+            scheduled_users.add(task.user_id)
             counts[block] += 1
             if counts[block] > 2:
                 legal = False
@@ -196,6 +222,7 @@ def _proves_cpu_nontrivial(
     snapshot: SlotSnapshot,
     rated,
     cfg: EvaluationConfig,
+    downlink_rates_bps: Mapping[int, float] | None,
 ) -> bool:
     task_by_id = {task.task_id: task for task in snapshot.tasks}
     requirements_by_uav: dict[int, list[float]] = {}
@@ -203,6 +230,11 @@ def _proves_cpu_nontrivial(
         requirement = required_resources(
             task_by_id[record.task_id],
             record.rate_bps,
+            downlink_rate_bps=(
+                None
+                if downlink_rates_bps is None
+                else downlink_rates_bps.get(record.task_id)
+            ),
         )
         if not requirement.feasible:
             continue
@@ -241,6 +273,7 @@ def exact_schedule(
     *,
     state_cap: int | None = None,
     timeout_s: float | None = None,
+    downlink_rates_bps: Mapping[int, float] | None = None,
 ) -> ExactScheduleResult:
     """Enumerate, close, and certify every small-instance radio assignment."""
     if not isinstance(max_heavy_tasks, int) or isinstance(max_heavy_tasks, bool):
@@ -274,6 +307,7 @@ def exact_schedule(
         channel,
         cfg,
         ChannelBasis.PLANNING,
+        downlink_rates_bps=downlink_rates_bps,
     )
     best_closed: ClosedExecutableSchedule | None = None
     best_objective: tuple[int, float, float] | None = None
@@ -282,7 +316,7 @@ def exact_schedule(
     cpu_nontrivial = False
     complete = False
     started = time.monotonic()
-    assignments = iter(_legal_raw_assignments(len(heavy), resource_blocks))
+    assignments = iter(_legal_raw_assignments(heavy, resource_blocks))
     while True:
         try:
             assignment = next(assignments)
@@ -307,14 +341,22 @@ def exact_schedule(
                 channel,
                 cfg,
                 channel_basis=ChannelBasis.PLANNING,
+                downlink_rates_bps=downlink_rates_bps,
+            )
+            closed = close_assignment(
+                snapshot,
+                rated,
+                channel,
+                cfg,
+                downlink_rates_bps=downlink_rates_bps,
             )
             if all(record.sic_feasible for record in rated.rates):
                 cpu_nontrivial = cpu_nontrivial or _proves_cpu_nontrivial(
                     snapshot,
                     rated,
                     cfg,
+                    downlink_rates_bps,
                 )
-            closed = close_assignment(snapshot, rated, channel, cfg)
         except (InfeasibleScheduleError, ScheduleValidationError):
             continue
         key = closed_semantic_key(closed)

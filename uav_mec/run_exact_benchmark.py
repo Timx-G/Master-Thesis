@@ -104,8 +104,12 @@ def run_exact_definition(
                 max_heavy_tasks=5,
             )
             exact_runtime_s = time.perf_counter() - started
+            if not exact.certificate.complete:
+                raise RuntimeError(
+                    "incomplete exact certificate cannot be reported"
+                )
             full_objective = network_objective(full)
-            if exact.certificate.complete and full_objective > exact.objective:
+            if full_objective > exact.objective:
                 raise AssertionError(
                     "heuristic objective exceeds complete enumeration"
                 )

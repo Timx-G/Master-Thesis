@@ -4,10 +4,15 @@ from dataclasses import replace
 from pathlib import Path
 
 import numpy as np
+import pytest
 
 from uav_mec.domain import SlotSnapshot, Task
 from uav_mec.evaluation import EvaluationConfig
-from uav_mec.exact import ExactScheduleResult, exact_schedule
+from uav_mec.exact import (
+    ExactScheduleCertificate,
+    ExactScheduleResult,
+    exact_schedule,
+)
 from uav_mec.experiment import load_definition
 from uav_mec.model import ChannelConfig, NOMAChannel
 from uav_mec.resource_allocation import AllocationPolicy, ExactAdmissionResult
@@ -86,6 +91,180 @@ def test_incomplete_exact_schedule_does_not_claim_schedule_nontriviality() -> No
     assert exhaustive.objective[0] == 2
     assert not exhaustive.certificate.schedule_nontrivial
     assert not capped.certificate.schedule_nontrivial
+
+
+def test_state_cap_at_iterator_exhaustion_is_complete() -> None:
+    base_snapshot, channel, cfg = _tiny_exact_case()
+    snapshot = SlotSnapshot(
+        0,
+        base_snapshot.tasks[:1],
+        base_snapshot.planning_channel_gains[:1],
+        1,
+    )
+
+    result = exact_schedule(snapshot, channel, cfg, state_cap=2)
+
+    assert result.certificate.raw_states_enumerated == 2
+    assert result.certificate.complete
+    assert result.certificate.gap_status == "exact"
+
+
+def test_timeout_returns_a_bounded_incomplete_certificate(monkeypatch) -> None:
+    snapshot, channel, cfg = _tiny_exact_case()
+    monotonic_values = iter((0.0, 1.0))
+    monkeypatch.setattr(
+        "uav_mec.exact.time.monotonic",
+        lambda: next(monotonic_values),
+    )
+
+    result = exact_schedule(snapshot, channel, cfg, timeout_s=0.5)
+
+    assert result.certificate.raw_states_enumerated == 1
+    assert not result.certificate.complete
+    assert result.certificate.gap_status == "bounded"
+    assert not result.certificate.schedule_nontrivial
+
+
+def test_exact_schedule_propagates_independent_downlink_rates() -> None:
+    base_snapshot, channel, cfg = _tiny_exact_case()
+    task = replace(base_snapshot.tasks[0], result_ratio=0.25)
+    snapshot = SlotSnapshot(
+        0,
+        (task,),
+        base_snapshot.planning_channel_gains[:1],
+        1,
+    )
+
+    result = exact_schedule(
+        snapshot,
+        channel,
+        replace(cfg, cpu_per_uav_hz=8_000_000_000.0),
+        downlink_rates_bps={task.task_id: 5_000_000.0},
+    )
+
+    assert result.certificate.complete
+    assert result.plan.schedule.task_ids == (task.task_id,)
+
+
+def test_exact_schedule_counts_only_unique_user_raw_assignments() -> None:
+    base_snapshot, channel, cfg = _tiny_exact_case()
+    tasks = (
+        replace(base_snapshot.tasks[0], user_id=7, job_index=0),
+        replace(base_snapshot.tasks[1], user_id=7, job_index=1),
+    )
+    snapshot = SlotSnapshot(
+        0,
+        tasks,
+        base_snapshot.planning_channel_gains[:2],
+        1,
+    )
+
+    result = exact_schedule(
+        snapshot,
+        channel,
+        replace(cfg, cpu_per_uav_hz=8_000_000_000.0),
+    )
+
+    assert result.certificate.complete
+    assert result.certificate.raw_states_enumerated == 3
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    (
+        ("best_bound", (1.5, 0.0, 0.0)),
+        ("lexicographic_gap", (0.5, 0.0, 0.0)),
+    ),
+)
+def test_exact_certificate_requires_integer_completion_components(
+    field: str,
+    value: tuple[float, float, float],
+) -> None:
+    snapshot, channel, cfg = _tiny_exact_case()
+    certificate = exact_schedule(
+        snapshot,
+        channel,
+        cfg,
+        state_cap=1,
+    ).certificate
+    assert isinstance(certificate, ExactScheduleCertificate)
+
+    with pytest.raises(ValueError, match="completion component"):
+        replace(certificate, **{field: value})
+
+
+def test_bounded_exact_certificate_cannot_be_below_incumbent() -> None:
+    snapshot, channel, cfg = _tiny_exact_case()
+    result = exact_schedule(snapshot, channel, cfg, state_cap=1)
+    invalid = replace(
+        result.certificate,
+        best_bound=(-1, 0.0, 0.0),
+        lexicographic_gap=(-1, 0.0, 0.0),
+    )
+
+    with pytest.raises(ValueError, match="bound.*objective"):
+        replace(result, certificate=invalid)
+
+
+def test_bounded_exact_certificate_gap_matches_bound_minus_objective() -> None:
+    snapshot, channel, cfg = _tiny_exact_case()
+    result = exact_schedule(snapshot, channel, cfg, state_cap=1)
+    invalid = replace(
+        result.certificate,
+        lexicographic_gap=(0, 0.0, 0.0),
+    )
+
+    with pytest.raises(ValueError, match="gap.*bound.*objective"):
+        replace(result, certificate=invalid)
+
+
+def test_exact_benchmark_rejects_an_incomplete_certificate(
+    tmp_path: Path,
+    development_seed_access,
+    monkeypatch,
+) -> None:
+    config_path = Path("configs/thesis/confirmatory_exact.toml")
+    base = load_definition(config_path)
+    definition = replace(
+        base,
+        seeds=(42,),
+        scenario=replace(
+            base.scenario,
+            num_slots=1,
+            num_users=1,
+            random_burst=False,
+            task=replace(
+                base.scenario.task,
+                arrival_prob=1.0,
+                data_min=2_000_000.0,
+                data_max=2_000_000.0,
+                comp_min=1_000.0,
+                comp_max=1_000.0,
+            ),
+        ),
+    )
+
+    def capped_exact(snapshot, channel, cfg, max_heavy_tasks):
+        return exact_schedule(
+            snapshot,
+            channel,
+            cfg,
+            max_heavy_tasks=max_heavy_tasks,
+            state_cap=1,
+        )
+
+    monkeypatch.setattr(
+        "uav_mec.run_exact_benchmark.exact_schedule",
+        capped_exact,
+    )
+
+    with pytest.raises(RuntimeError, match="incomplete exact certificate"):
+        run_exact_definition(
+            definition,
+            config_path,
+            tmp_path / "incomplete-exact",
+            seed_access=development_seed_access,
+        )
 
 
 def test_exact_benchmark_never_reports_heuristic_above_optimum(
