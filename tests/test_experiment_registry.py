@@ -6,7 +6,11 @@ from pathlib import Path
 
 import pytest
 
-from uav_mec.experiment import load_definition
+from uav_mec.experiment import (
+    load_definition,
+    method_spec_sha256,
+    thesis_method_specs,
+)
 from uav_mec.experiment_registry import (
     load_registry,
     registered_family,
@@ -51,6 +55,22 @@ def test_v2_registry_freezes_approved_candidate_pools_and_all_eight_families() -
         "robustness": (25_000, 30, 50, 7),
         "trace_driven": (29_000, 30, 50, 8),
     }
+
+
+def test_v2_registry_factor_hashes_match_the_authoritative_method_specs() -> None:
+    registry = load_registry(REGISTRY_PATH)
+    specs = thesis_method_specs()
+    registered_method_ids = {
+        method_id for family in registry.families for method_id in family.methods
+    }
+
+    assert set(registry.method_factor_hashes) == registered_method_ids
+    assert registry.method_factor_hashes == {
+        method_id: method_spec_sha256(specs[method_id])
+        for method_id in sorted(registered_method_ids)
+    }
+    with pytest.raises(TypeError):
+        registry.method_factor_hashes["full"] = "0" * 64
 
 
 def test_v2_registry_freezes_externality_descriptive_n_at_thirty() -> None:
@@ -215,8 +235,7 @@ def test_all_eight_registered_configs_load_and_validate_real_definitions() -> No
     registry = load_registry(REGISTRY_PATH)
 
     definitions = {
-        family.name: load_definition(family.config_path)
-        for family in registry.families
+        family.name: load_definition(family.config_path) for family in registry.families
     }
 
     assert len(definitions) == 8
@@ -227,8 +246,7 @@ def test_all_eight_registered_configs_load_and_validate_real_definitions() -> No
             (case.case_id, case.role, case.fixed_sample_size)
             for case in definition.cases
         ) == tuple(
-            (case.case_id, case.role, case.fixed_sample_size)
-            for case in family.cases
+            (case.case_id, case.role, case.fixed_sample_size) for case in family.cases
         )
         validate_registered_definition(registry, family.name, definition)
 

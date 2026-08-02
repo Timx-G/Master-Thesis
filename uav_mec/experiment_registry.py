@@ -11,7 +11,10 @@ import math
 import tomllib
 from dataclasses import dataclass
 from pathlib import Path
+from types import MappingProxyType
 from typing import Mapping, Sequence
+
+from .experiment import method_spec_sha256, thesis_method_specs
 
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
@@ -41,9 +44,7 @@ def _nonempty_string(value: object, field: str) -> str:
 
 
 def _string_tuple(value: object, field: str) -> tuple[str, ...]:
-    if not isinstance(value, Sequence) or isinstance(
-        value, (str, bytes, bytearray)
-    ):
+    if not isinstance(value, Sequence) or isinstance(value, (str, bytes, bytearray)):
         raise ValueError(f"{field} must be a string sequence")
     result = tuple(value)
     if not result:
@@ -56,9 +57,7 @@ def _string_tuple(value: object, field: str) -> tuple[str, ...]:
 
 
 def _seed_tuple(value: object, field: str) -> tuple[int, ...]:
-    if not isinstance(value, Sequence) or isinstance(
-        value, (str, bytes, bytearray)
-    ):
+    if not isinstance(value, Sequence) or isinstance(value, (str, bytes, bytearray)):
         raise ValueError(f"{field} must be an integer sequence")
     result = tuple(value)
     if not result:
@@ -79,9 +78,7 @@ class RegisteredCase:
     def __post_init__(self) -> None:
         _nonempty_string(self.case_id, "case_id")
         if self.role not in _CASE_ROLES:
-            raise ValueError(
-                "role must be primary, supporting, or correctness"
-            )
+            raise ValueError("role must be primary, supporting, or correctness")
         if self.fixed_sample_size is not None:
             _positive_int(self.fixed_sample_size, "fixed_sample_size")
 
@@ -147,9 +144,7 @@ class PrimaryHypothesis:
         _nonempty_string(self.treatment, f"{self.hypothesis_id}.treatment")
         _nonempty_string(self.control, f"{self.hypothesis_id}.control")
         if self.treatment == self.control:
-            raise ValueError(
-                f"{self.hypothesis_id}.treatment and control must differ"
-            )
+            raise ValueError(f"{self.hypothesis_id}.treatment and control must differ")
         for field, value in (
             ("outcome", self.outcome),
             ("estimand", self.estimand),
@@ -173,6 +168,7 @@ class ExperimentRegistry:
     pilot_seeds: tuple[int, ...]
     candidate_sample_sizes: tuple[int, ...]
     descriptive_externality_n: int
+    method_factor_hashes: Mapping[str, str]
     families: tuple[ExperimentFamily, ...]
     hypotheses: tuple[PrimaryHypothesis, ...]
 
@@ -187,11 +183,25 @@ class ExperimentRegistry:
         if pilot != self.pilot_seeds:
             raise ValueError("pilot_seeds must be stored as a tuple")
         if self.candidate_sample_sizes != (50, 100, 200):
-            raise ValueError(
-                "candidate_sample_sizes must be exactly (50, 100, 200)"
-            )
+            raise ValueError("candidate_sample_sizes must be exactly (50, 100, 200)")
         if self.descriptive_externality_n != 30:
             raise ValueError("descriptive_externality_n must be exactly 30")
+        if not isinstance(self.method_factor_hashes, Mapping):
+            raise ValueError("method_factor_hashes must be a mapping")
+        factor_hashes = dict(self.method_factor_hashes)
+        for method_id, factor_hash in factor_hashes.items():
+            _nonempty_string(method_id, "method_factor_hashes.method_id")
+            if (
+                not isinstance(factor_hash, str)
+                or len(factor_hash) != 64
+                or any(character not in "0123456789abcdef" for character in factor_hash)
+            ):
+                raise ValueError(f"method_factor_hashes.{method_id} must be a SHA-256")
+        object.__setattr__(
+            self,
+            "method_factor_hashes",
+            MappingProxyType(dict(sorted(factor_hashes.items()))),
+        )
         if not isinstance(self.families, tuple) or not self.families:
             raise ValueError("families must be a non-empty tuple")
         if not isinstance(self.hypotheses, tuple):
@@ -206,6 +216,20 @@ class ExperimentRegistry:
         config_paths = tuple(family.config_path for family in self.families)
         if len(set(config_paths)) != len(config_paths):
             raise ValueError("families.config_path values must be unique")
+        registered_method_ids = {
+            method_id for family in self.families for method_id in family.methods
+        }
+        if set(factor_hashes) != registered_method_ids:
+            raise ValueError(
+                "method_factor_hashes must cover every registered method exactly"
+            )
+        authoritative_specs = thesis_method_specs()
+        expected_hashes = {
+            method_id: method_spec_sha256(authoritative_specs[method_id])
+            for method_id in registered_method_ids
+        }
+        if factor_hashes != expected_hashes:
+            raise ValueError("registered method factor hash mismatch")
 
         pools: list[tuple[str, set[int]]] = [
             ("development_seeds", set(development)),
@@ -226,9 +250,7 @@ class ExperimentRegistry:
         hypothesis_ids = tuple(item.hypothesis_id for item in self.hypotheses)
         if len(set(hypothesis_ids)) != len(hypothesis_ids):
             raise ValueError("hypotheses.hypothesis_id values must be unique")
-        multiplicity = {
-            item.multiplicity_family for item in self.hypotheses
-        }
+        multiplicity = {item.multiplicity_family for item in self.hypotheses}
         if len(multiplicity) != 1:
             raise ValueError(
                 "hypotheses.multiplicity_family must be shared by all four rows"
@@ -237,9 +259,7 @@ class ExperimentRegistry:
         by_family = {family.name: family for family in self.families}
         for hypothesis in self.hypotheses:
             if hypothesis.family not in by_family:
-                raise ValueError(
-                    f"{hypothesis.hypothesis_id}.family is not registered"
-                )
+                raise ValueError(f"{hypothesis.hypothesis_id}.family is not registered")
             family = by_family[hypothesis.family]
             if hypothesis.case_id is not None and hypothesis.case_id not in {
                 case.case_id for case in family.cases
@@ -338,9 +358,24 @@ def load_registry(path: Path) -> ExperimentRegistry:
     if not isinstance(raw_candidates, list):
         raise ValueError("candidate_sample_sizes must be a list")
     candidates = tuple(
-        _positive_int(item, "candidate_sample_sizes")
-        for item in raw_candidates
+        _positive_int(item, "candidate_sample_sizes") for item in raw_candidates
     )
+
+    method_factor_hashes: dict[str, str] = {}
+    for index, value in enumerate(
+        _table_array(raw.get("method_specs"), "method_specs")
+    ):
+        field = f"method_specs[{index}]"
+        method_id = _nonempty_string(
+            value.get("method_id"),
+            f"{field}.method_id",
+        )
+        if method_id in method_factor_hashes:
+            raise ValueError(f"duplicate method_specs method_id {method_id}")
+        method_factor_hashes[method_id] = _nonempty_string(
+            value.get("factor_hash"),
+            f"{field}.factor_hash",
+        )
 
     families: list[ExperimentFamily] = []
     for index, value in enumerate(_table_array(raw.get("families"), "families")):
@@ -383,9 +418,7 @@ def load_registry(path: Path) -> ExperimentRegistry:
         )
 
     hypotheses: list[PrimaryHypothesis] = []
-    for index, value in enumerate(
-        _table_array(raw.get("hypotheses"), "hypotheses")
-    ):
+    for index, value in enumerate(_table_array(raw.get("hypotheses"), "hypotheses")):
         field = f"hypotheses[{index}]"
         hypothesis_id = _nonempty_string(
             value.get("hypothesis_id"),
@@ -405,9 +438,7 @@ def load_registry(path: Path) -> ExperimentRegistry:
         hypotheses.append(
             PrimaryHypothesis(
                 hypothesis_id=hypothesis_id,
-                family=_nonempty_string(
-                    value.get("family"), f"{hypothesis_id}.family"
-                ),
+                family=_nonempty_string(value.get("family"), f"{hypothesis_id}.family"),
                 case_id=case_id,
                 treatment=_nonempty_string(
                     value.get("treatment"), f"{hypothesis_id}.treatment"
@@ -445,6 +476,7 @@ def load_registry(path: Path) -> ExperimentRegistry:
             raw.get("descriptive_externality_n"),
             "descriptive_externality_n",
         ),
+        method_factor_hashes=method_factor_hashes,
         families=tuple(families),
         hypotheses=tuple(hypotheses),
     )
@@ -472,7 +504,9 @@ def _field(value: object, name: str) -> object:
         raise ValueError(f"definition.{name} is missing") from exc
 
 
-def _config_contract(family: ExperimentFamily) -> tuple[
+def _config_contract(
+    family: ExperimentFamily,
+) -> tuple[
     int,
     int,
     int,
@@ -569,8 +603,7 @@ def validate_registered_definition(
         for case in raw_cases
     )
     expected_cases = tuple(
-        (case.case_id, case.role, case.fixed_sample_size)
-        for case in family.cases
+        (case.case_id, case.role, case.fixed_sample_size) for case in family.cases
     )
     if cases != expected_cases:
         raise ValueError(f"{family.name}.cases mismatch")

@@ -10,6 +10,7 @@ from .experiment import (
     ExperimentDefinition,
     load_definition,
     run_definition,
+    thesis_method_specs,
 )
 from .seed_access import (
     SeedAccessRecorder,
@@ -25,7 +26,11 @@ class SuiteCase:
 
 
 BASE_PATH = Path("configs/thesis/confirmatory_main.toml")
-SWEEP_METHODS = ("greedy", "exchange_stable", "full")
+_METHOD_SPECS = thesis_method_specs()
+SWEEP_METHODS = tuple(
+    _METHOD_SPECS[method_id].method_id
+    for method_id in ("greedy", "exchange_stable", "full")
+)
 
 
 def _with_scenario(
@@ -171,9 +176,7 @@ def _robustness_suite(
         ("cpu4", 4e9),
         ("cpu8", 8e9),
     ):
-        cases.append(
-            _with_scenario(base, label, f_per_uav=cpu_hz)
-        )
+        cases.append(_with_scenario(base, label, f_per_uav=cpu_hz))
     for label, deadline_s in (
         ("t06", 0.6),
         ("t08", 0.8),

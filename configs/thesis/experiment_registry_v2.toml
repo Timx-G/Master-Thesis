@@ -6,6 +6,76 @@ pilot_seed_count = 100
 candidate_sample_sizes = [50, 100, 200]
 descriptive_externality_n = 30
 
+[[method_specs]]
+method_id = "cross_bilateral"
+factor_hash = "6430c2344b85fa22e5a31e56dfbee7d6da44326f64c63ae5067d1512e1f16427"
+[[method_specs]]
+method_id = "exact"
+factor_hash = "a1ea86cb7884358e03635d5193a95c97465f3ecd938e1aa1249818152c462c20"
+[[method_specs]]
+method_id = "exact_admission"
+factor_hash = "4150730a131d04cdde61e9523f11ad0c6956f8f6dac289f70c3b972cdfc09041"
+[[method_specs]]
+method_id = "exchange_dd"
+factor_hash = "07ed35c83f4feacd612ce5ad0bda757d9e3239a01c61638df3d98c4707d78b8d"
+[[method_specs]]
+method_id = "exchange_edf"
+factor_hash = "457ceeb89f4937d31121cf6132ef7b02306c3816e17cebba518059122ddf7899"
+[[method_specs]]
+method_id = "exchange_stable"
+factor_hash = "7cb9b5c2f27b4a1034443028cff5b05c8cfeb117f064f8b5ebd8b6c9200b7cae"
+[[method_specs]]
+method_id = "fair_ofdma"
+factor_hash = "847941a641955a7185a9ac03b0d006a1a668936804fd82685c14c799fb0efdbb"
+[[method_specs]]
+method_id = "fixed_radio_dd"
+factor_hash = "eb75ee38ee1ca55514f75f2ef937b8802b635d85a9519f213a132eda75d50e38"
+[[method_specs]]
+method_id = "fixed_radio_dd_deadline_generated"
+factor_hash = "f5b2196a30c0d0c94f3dea04416ce96694c9b7c75b22ded9583a2186e028c05e"
+[[method_specs]]
+method_id = "fixed_radio_dd_radio_neutral"
+factor_hash = "e13041ceb218ca50b216b8899a3dbdae9766411d3693b8ab915292ffb374374d"
+[[method_specs]]
+method_id = "fixed_radio_edf"
+factor_hash = "51d68f10269e84782c9f576158dc5d272b4eb67181fe80c6902587908124d354"
+[[method_specs]]
+method_id = "fixed_radio_edf_deadline_generated"
+factor_hash = "cef4b9252171194d5dfa8a0c739654e20cc566b4dfd0ec0880546e2fd16b180f"
+[[method_specs]]
+method_id = "fixed_radio_edf_radio_neutral"
+factor_hash = "0f0cf59f8e34012edf2cf1bc462199ed30a43e1bf0d3f62753af863cd2f67816"
+[[method_specs]]
+method_id = "full"
+factor_hash = "a64606644faf97fd313fd6d3c83a8bf30904ec3f71968888195dc24eb3942153"
+[[method_specs]]
+method_id = "greedy"
+factor_hash = "fb5f2273532ddb440fce0aa4be5b84b80bb3e8f06ea45e71af1294d0f8903b40"
+[[method_specs]]
+method_id = "guo_jagp_adapted"
+factor_hash = "a7cbdccf7bb9162482bd6bf16db8ba44b34bb860769ba561e073c6a3a162f1e2"
+[[method_specs]]
+method_id = "ia_greedy"
+factor_hash = "020a770109a4c09c8e14e543a9ac595d6260d29f397286e69b520113656b82e2"
+[[method_specs]]
+method_id = "iea_dd"
+factor_hash = "7254e074879296ac3bf63b602723959f06a1e58476f0bf9516f87644e6017388"
+[[method_specs]]
+method_id = "iea_edf"
+factor_hash = "9c2088ee7bca14940d7a4245e7308bdc77286cadf56a9115fa7e7777f6405ca0"
+[[method_specs]]
+method_id = "intra_global"
+factor_hash = "7e620ae49a5f04e8b96d6b403bd457c9b0925b9dec9e52f3afb4ba902c687edb"
+[[method_specs]]
+method_id = "local_only"
+factor_hash = "4b58b5870c8e5f7caf9102dc9c6c5d07c9ba92414c1dc67d94051c303c6111c9"
+[[method_specs]]
+method_id = "per_uav_ilp"
+factor_hash = "3aae737c80524cb4b15ed8ba91398658aaa1d8f9f1a89284540e2658de0d7e50"
+[[method_specs]]
+method_id = "single_start_first"
+factor_hash = "d6059effb8c47cea809d0be1b363654098302e48c50d5b06bd079091a9f475cd"
+
 [[families]]
 name = "resource"
 config_path = "configs/thesis/confirmatory_resource_fixed_v2.toml"

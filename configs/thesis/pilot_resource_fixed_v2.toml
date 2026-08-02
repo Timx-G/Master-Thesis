@@ -42,3 +42,11 @@ csi_error_std = 0.0
 [search]
 max_iterations = 50
 multistart_workers = 3
+
+[method_factor_hashes]
+fixed_radio_dd = "eb75ee38ee1ca55514f75f2ef937b8802b635d85a9519f213a132eda75d50e38"
+fixed_radio_edf = "51d68f10269e84782c9f576158dc5d272b4eb67181fe80c6902587908124d354"
+
+[fixed_radio_sources]
+fixed_radio_dd = "dd_generated"
+fixed_radio_edf = "dd_generated"

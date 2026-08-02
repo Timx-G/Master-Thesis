@@ -42,6 +42,7 @@ from .scheduler import (
     Acceptance,
     SearchConfig,
     build_initial_schedule,
+    network_objective,
     optimize_schedule,
     repair_sic,
 )
@@ -53,37 +54,389 @@ from .seed_access import (
 )
 from .trace import generate_trace
 
-KNOWN_METHODS = frozenset(
-    {
-        "cross_bilateral",
-        "exact",
-        "exact_admission",
-        "exchange_dd",
-        "exchange_edf",
-        "exchange_stable",
-        "fair_ofdma",
-        "fixed_radio_dd",
-        "fixed_radio_dd_deadline_generated",
-        "fixed_radio_dd_radio_neutral",
-        "fixed_radio_edf",
-        "fixed_radio_edf_deadline_generated",
-        "fixed_radio_edf_radio_neutral",
-        "full",
-        "full_crossing",
-        "full_fixed_half",
-        "greedy",
-        "guo_jagp_adapted",
-        "ia_greedy",
-        "iea_dd",
-        "iea_edf",
-        "ilp",
-        "intra_bilateral",
-        "intra_global",
-        "local_only",
-        "per_uav_ilp",
-        "single_start_first",
+_CANONICAL_PHYSICS = "canonical_noma_v2"
+_CANONICAL_LATENCY = "canonical_task_latency_v2"
+_POLICY_CLOSURE = "policy_closure"
+_FROZEN_RATE_ADMISSION = "frozen_rate_conditional_admission"
+_SHARED_INITIALIZERS = ("per_uav_ilp", "ia_greedy", "greedy")
+
+
+@dataclass(frozen=True, slots=True)
+class MethodSpec:
+    """Complete, immutable declaration of one auditable method."""
+
+    method_id: str
+    display_name: str
+    wireless_kernel: str
+    initializer_ids: tuple[str, ...]
+    neighborhood_scope: str
+    acceptance_rule: str
+    traversal_rule: str
+    allocation_policy: AllocationPolicy
+    fixed_radio_source: str | None
+    adaptation_id: str | None
+    physics_model_id: str
+    latency_model_id: str
+    closure_mode: str
+    realized_replay: bool
+
+    def __post_init__(self) -> None:
+        for field_name in (
+            "method_id",
+            "display_name",
+            "wireless_kernel",
+            "neighborhood_scope",
+            "acceptance_rule",
+            "traversal_rule",
+            "physics_model_id",
+            "latency_model_id",
+            "closure_mode",
+        ):
+            value = getattr(self, field_name)
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError(f"{field_name} must be a non-empty string")
+        if not isinstance(self.initializer_ids, tuple):
+            raise ValueError("initializer_ids must be stored as a tuple")
+        for initializer_id in self.initializer_ids:
+            if not isinstance(initializer_id, str) or not initializer_id.strip():
+                raise ValueError("initializer_ids must contain non-empty strings")
+        if len(set(self.initializer_ids)) != len(self.initializer_ids):
+            raise ValueError("initializer_ids must be unique and ordered")
+        if not isinstance(self.allocation_policy, AllocationPolicy):
+            raise ValueError("allocation_policy must be an AllocationPolicy")
+        for field_name in ("fixed_radio_source", "adaptation_id"):
+            value = getattr(self, field_name)
+            if value is not None and (not isinstance(value, str) or not value.strip()):
+                raise ValueError(f"{field_name} must be None or non-empty")
+        if not isinstance(self.realized_replay, bool):
+            raise ValueError("realized_replay must be bool")
+        if (self.fixed_radio_source is None) != (
+            self.closure_mode != _FROZEN_RATE_ADMISSION
+        ):
+            raise ValueError(
+                "fixed-radio sources require frozen-rate conditional admission"
+            )
+
+
+def _spec(
+    method_id: str,
+    display_name: str,
+    wireless_kernel: str,
+    initializer_ids: tuple[str, ...],
+    neighborhood_scope: str,
+    acceptance_rule: str,
+    traversal_rule: str,
+    allocation_policy: AllocationPolicy = AllocationPolicy.DEADLINE,
+    fixed_radio_source: str | None = None,
+    adaptation_id: str | None = None,
+    physics_model_id: str = _CANONICAL_PHYSICS,
+    latency_model_id: str = _CANONICAL_LATENCY,
+    closure_mode: str = _POLICY_CLOSURE,
+    realized_replay: bool = True,
+) -> MethodSpec:
+    return MethodSpec(
+        method_id,
+        display_name,
+        wireless_kernel,
+        initializer_ids,
+        neighborhood_scope,
+        acceptance_rule,
+        traversal_rule,
+        allocation_policy,
+        fixed_radio_source,
+        adaptation_id,
+        physics_model_id,
+        latency_model_id,
+        closure_mode,
+        realized_replay,
+    )
+
+
+def _fixed_radio_spec(
+    method_id: str,
+    display_name: str,
+    source: str,
+    policy: AllocationPolicy,
+) -> MethodSpec:
+    return _spec(
+        method_id,
+        display_name,
+        "frozen_radio_snapshot",
+        (),
+        "none",
+        "none",
+        "none",
+        policy,
+        source,
+        closure_mode=_FROZEN_RATE_ADMISSION,
+    )
+
+
+def thesis_method_specs() -> dict[str, MethodSpec]:
+    """Return the single validated method-factor registry."""
+    specs = (
+        _spec(
+            "local_only",
+            "Local-only",
+            "local_only",
+            (),
+            "none",
+            "none",
+            "direct",
+            physics_model_id="local_compute_v2",
+            closure_mode="local_execution",
+        ),
+        _spec(
+            "fair_ofdma",
+            "Fair-OFDMA",
+            "fair_ofdma",
+            (),
+            "none",
+            "none",
+            "direct",
+            physics_model_id="canonical_ofdma_v2",
+            closure_mode="direct_policy_allocation",
+        ),
+        _spec("greedy", "Greedy", "greedy", ("greedy",), "none", "none", "direct"),
+        _spec(
+            "ia_greedy",
+            "IA-Greedy",
+            "ia_greedy",
+            ("ia_greedy",),
+            "none",
+            "none",
+            "direct",
+        ),
+        _spec(
+            "per_uav_ilp",
+            "per-UAV ILP",
+            "per_uav_ilp",
+            ("per_uav_ilp",),
+            "none",
+            "none",
+            "direct",
+        ),
+        _spec(
+            "exchange_stable",
+            "Exchange-Stable",
+            "exchange_stable",
+            _SHARED_INITIALIZERS,
+            "intra_uav",
+            "bilateral",
+            "first_improvement",
+        ),
+        _spec(
+            "intra_global",
+            "Intra-Global",
+            "iea_cap",
+            _SHARED_INITIALIZERS,
+            "intra_uav",
+            "global_lexicographic",
+            "first_improvement",
+        ),
+        _spec(
+            "cross_bilateral",
+            "Cross-Bilateral",
+            "iea_cap",
+            _SHARED_INITIALIZERS,
+            "cross_uav",
+            "bilateral",
+            "first_improvement",
+        ),
+        _spec(
+            "single_start_first",
+            "single-start first-improvement",
+            "iea_cap",
+            ("per_uav_ilp",),
+            "cross_uav",
+            "global_lexicographic",
+            "first_improvement",
+        ),
+        _spec(
+            "full",
+            "full IEA-CAP",
+            "iea_cap",
+            _SHARED_INITIALIZERS,
+            "cross_uav",
+            "global_lexicographic",
+            "first_improvement",
+        ),
+        _spec(
+            "guo_jagp_adapted",
+            "Guo-JAGP adapted",
+            "guo_jagp_adapted",
+            ("guo_jagp_adapted",),
+            "none",
+            "none",
+            "direct",
+            adaptation_id="guo_jagp_to_canonical_noma_v2",
+        ),
+        _fixed_radio_spec(
+            "fixed_radio_dd",
+            "DD-MCAA (static share)",
+            "dd_generated",
+            AllocationPolicy.DEADLINE,
+        ),
+        _fixed_radio_spec(
+            "fixed_radio_edf",
+            "Deadline-First-MinCPU (static share)",
+            "dd_generated",
+            AllocationPolicy.EDF_MIN_CPU,
+        ),
+        _fixed_radio_spec(
+            "fixed_radio_dd_radio_neutral",
+            "DD-MCAA (radio-neutral static share)",
+            "radio_neutral",
+            AllocationPolicy.DEADLINE,
+        ),
+        _fixed_radio_spec(
+            "fixed_radio_edf_radio_neutral",
+            "Deadline-First-MinCPU (radio-neutral static share)",
+            "radio_neutral",
+            AllocationPolicy.EDF_MIN_CPU,
+        ),
+        _fixed_radio_spec(
+            "fixed_radio_dd_deadline_generated",
+            "DD-MCAA (deadline-first-generated static share)",
+            "deadline_first_generated",
+            AllocationPolicy.DEADLINE,
+        ),
+        _fixed_radio_spec(
+            "fixed_radio_edf_deadline_generated",
+            "Deadline-First-MinCPU (deadline-first-generated static share)",
+            "deadline_first_generated",
+            AllocationPolicy.EDF_MIN_CPU,
+        ),
+        _spec(
+            "iea_dd",
+            "IEA-CAP + DD-MCAA static-share admission",
+            "iea_cap",
+            _SHARED_INITIALIZERS,
+            "cross_uav",
+            "global_lexicographic",
+            "first_improvement",
+            AllocationPolicy.DEADLINE,
+        ),
+        _spec(
+            "iea_edf",
+            "IEA-CAP + non-preemptive Deadline-First-MinCPU static-share admission",
+            "iea_cap",
+            _SHARED_INITIALIZERS,
+            "cross_uav",
+            "global_lexicographic",
+            "first_improvement",
+            AllocationPolicy.EDF_MIN_CPU,
+        ),
+        _spec(
+            "exchange_dd",
+            "Exchange-Stable + DD-MCAA static-share admission",
+            "exchange_stable",
+            _SHARED_INITIALIZERS,
+            "cross_uav",
+            "global_lexicographic",
+            "first_improvement",
+            AllocationPolicy.DEADLINE,
+        ),
+        _spec(
+            "exchange_edf",
+            "Exchange-Stable + non-preemptive Deadline-First-MinCPU static-share admission",
+            "exchange_stable",
+            _SHARED_INITIALIZERS,
+            "cross_uav",
+            "global_lexicographic",
+            "first_improvement",
+            AllocationPolicy.EDF_MIN_CPU,
+        ),
+        _spec(
+            "exact_admission",
+            "Exact Admission",
+            "exact_admission",
+            (),
+            "none",
+            "none",
+            "exhaustive",
+            closure_mode="frozen_rate_exact_admission",
+        ),
+        _spec(
+            "exact",
+            "Exact Schedule",
+            "exact_schedule",
+            (),
+            "global",
+            "exact",
+            "exhaustive",
+        ),
+        # Compatibility controls retained for the original thesis suites.
+        _spec(
+            "ilp",
+            "per-UAV ILP",
+            "per_uav_ilp",
+            ("per_uav_ilp",),
+            "none",
+            "none",
+            "direct",
+        ),
+        _spec(
+            "intra_bilateral",
+            "Intra-Bilateral",
+            "iea_cap",
+            _SHARED_INITIALIZERS,
+            "intra_uav",
+            "bilateral",
+            "first_improvement",
+        ),
+        _spec(
+            "full_fixed_half",
+            "full IEA-CAP + fixed-half equal allocation",
+            "iea_cap_deadline_search",
+            _SHARED_INITIALIZERS,
+            "cross_uav",
+            "global_lexicographic",
+            "first_improvement",
+            AllocationPolicy.FIXED_HALF_EQUAL,
+        ),
+        _spec(
+            "full_crossing",
+            "full IEA-CAP + crossing equal allocation",
+            "iea_cap_deadline_search",
+            _SHARED_INITIALIZERS,
+            "cross_uav",
+            "global_lexicographic",
+            "first_improvement",
+            AllocationPolicy.CROSSING_EQUAL,
+        ),
+    )
+    result = {spec.method_id: spec for spec in specs}
+    if len(result) != len(specs):
+        raise RuntimeError("method registry contains duplicate method IDs")
+
+    ignored = {"method_id", "display_name"}
+
+    def differences(left: MethodSpec, right: MethodSpec) -> set[str]:
+        return {
+            field.name
+            for field in MethodSpec.__dataclass_fields__.values()
+            if field.name not in ignored
+            and getattr(left, field.name) != getattr(right, field.name)
+        }
+
+    if differences(result["full"], result["intra_global"]) != {"neighborhood_scope"}:
+        raise RuntimeError("H1 methods must isolate neighborhood_scope")
+    if differences(result["full"], result["cross_bilateral"]) != {"acceptance_rule"}:
+        raise RuntimeError("H2 methods must isolate acceptance_rule")
+    joint_ids = ("iea_dd", "iea_edf", "exchange_dd", "exchange_edf")
+    joint_differences = {
+        field.name
+        for field in MethodSpec.__dataclass_fields__.values()
+        if field.name not in ignored
+        and len({getattr(result[method_id], field.name) for method_id in joint_ids}) > 1
     }
-)
+    if joint_differences != {"wireless_kernel", "allocation_policy"}:
+        raise RuntimeError("joint methods must isolate the exact two factors")
+    return result
+
+
+KNOWN_METHODS = frozenset(thesis_method_specs())
 
 
 @dataclass(frozen=True, slots=True)
@@ -98,9 +451,7 @@ class ExperimentCase:
         if not isinstance(self.case_id, str) or not self.case_id.strip():
             raise ValueError("case_id must be a non-empty string")
         if self.role not in {"primary", "supporting", "correctness"}:
-            raise ValueError(
-                "case role must be primary, supporting, or correctness"
-            )
+            raise ValueError("case role must be primary, supporting, or correctness")
         if self.fixed_sample_size is not None and (
             not isinstance(self.fixed_sample_size, int)
             or isinstance(self.fixed_sample_size, bool)
@@ -132,14 +483,11 @@ def load_definition(path: Path) -> ExperimentDefinition:
     has_explicit_seeds = "seeds" in raw
     has_seed_range = "seed_start" in raw or "seed_count" in raw
     if has_explicit_seeds == has_seed_range:
-        raise ValueError(
-            "define seeds or seed_start/seed_count, but not both"
-        )
+        raise ValueError("define seeds or seed_start/seed_count, but not both")
     if has_explicit_seeds:
         raw_seeds = raw["seeds"]
         if not isinstance(raw_seeds, list) or any(
-            not isinstance(seed, int) or isinstance(seed, bool)
-            for seed in raw_seeds
+            not isinstance(seed, int) or isinstance(seed, bool) for seed in raw_seeds
         ):
             raise ValueError("seeds must be an integer list")
         seeds = tuple(raw_seeds)
@@ -162,8 +510,7 @@ def load_definition(path: Path) -> ExperimentDefinition:
 
     raw_methods = raw.get("methods")
     if not isinstance(raw_methods, list) or any(
-        not isinstance(method, str) or not method
-        for method in raw_methods
+        not isinstance(method, str) or not method for method in raw_methods
     ):
         raise ValueError("methods must be a string list")
     methods = tuple(raw_methods)
@@ -172,6 +519,27 @@ def load_definition(path: Path) -> ExperimentDefinition:
     unknown = sorted(set(methods) - KNOWN_METHODS)
     if unknown:
         raise ValueError(f"unknown method {unknown[0]}")
+    specs = thesis_method_specs()
+    declared_hashes = raw.get("method_factor_hashes")
+    if declared_hashes is not None:
+        if not isinstance(declared_hashes, dict):
+            raise ValueError("method_factor_hashes must be a table")
+        expected_hashes = {
+            method_id: method_spec_sha256(specs[method_id]) for method_id in methods
+        }
+        if declared_hashes != expected_hashes:
+            raise ValueError("method_factor_hashes mismatch")
+    declared_sources = raw.get("fixed_radio_sources")
+    if declared_sources is not None:
+        if not isinstance(declared_sources, dict):
+            raise ValueError("fixed_radio_sources must be a table")
+        expected_sources = {
+            method_id: specs[method_id].fixed_radio_source
+            for method_id in methods
+            if specs[method_id].fixed_radio_source is not None
+        }
+        if declared_sources != expected_sources:
+            raise ValueError("fixed_radio_sources mismatch")
 
     scenario_raw = raw.get("scenario")
     if not isinstance(scenario_raw, dict):
@@ -182,9 +550,7 @@ def load_definition(path: Path) -> ExperimentDefinition:
     if not isinstance(evaluation_raw, dict):
         raise ValueError("evaluation section is required")
     try:
-        allocation_policy = AllocationPolicy(
-            evaluation_raw["allocation_policy"]
-        )
+        allocation_policy = AllocationPolicy(evaluation_raw["allocation_policy"])
     except (KeyError, ValueError) as exc:
         raise ValueError("invalid evaluation allocation_policy") from exc
     evaluation = EvaluationConfig(
@@ -217,8 +583,7 @@ def load_definition(path: Path) -> ExperimentDefinition:
 
     sample_size_policy = raw.get("sample_size_policy")
     if sample_size_policy is not None and (
-        not isinstance(sample_size_policy, str)
-        or not sample_size_policy.strip()
+        not isinstance(sample_size_policy, str) or not sample_size_policy.strip()
     ):
         raise ValueError("sample_size_policy must be a non-empty string")
     raw_cases = raw.get("cases", [])
@@ -264,14 +629,25 @@ def _slot_method(
     max_iterations: int,
     event_sink: list[dict[str, object]],
 ):
-    if name not in KNOWN_METHODS:
+    specs = thesis_method_specs()
+    if name not in specs:
         raise ValueError(f"unknown method {name}")
-    if name == "exact":
+    spec = specs[name]
+    if spec.wireless_kernel == "exact_schedule":
         raise ValueError("exact requires the dedicated exact benchmark runner")
+    if spec.wireless_kernel in {
+        "exact_admission",
+        "frozen_radio_snapshot",
+    }:
+        raise ValueError(f"{name} requires the dedicated fixed-radio resource runner")
     channel = NOMAChannel(scenario.channel, scenario.uav.height)
-    search_evaluation = replace(
-        target_evaluation,
-        allocation_policy=AllocationPolicy.DEADLINE,
+    search_evaluation = (
+        replace(
+            target_evaluation,
+            allocation_policy=AllocationPolicy.DEADLINE,
+        )
+        if spec.wireless_kernel == "iea_cap_deadline_search"
+        else target_evaluation
     )
 
     def evaluate_noma(
@@ -300,15 +676,15 @@ def _slot_method(
 
     def method(snapshot: SlotSnapshot) -> SlotOutcome:
         planning = snapshot
-        if name == "local_only":
+        if spec.wireless_kernel == "local_only":
             return evaluate_noma(snapshot, local_only_schedule(planning))
-        if name == "fair_ofdma":
+        if spec.wireless_kernel == "fair_ofdma":
             return evaluate_fair_ofdma(
                 snapshot,
                 channel,
                 target_evaluation,
             )
-        if name == "greedy":
+        if spec.wireless_kernel == "greedy":
             schedule = repair_sic(
                 greedy_schedule(planning, scenario.n_subcarriers),
                 planning,
@@ -316,93 +692,118 @@ def _slot_method(
                 search_evaluation,
             )
             return evaluate_noma(snapshot, schedule)
-        if name == "ia_greedy":
+        if spec.wireless_kernel == "ia_greedy":
             schedule = ia_greedy_schedule(
                 planning,
                 channel,
                 search_evaluation,
             )
             return evaluate_noma(snapshot, schedule)
-        if name == "guo_jagp_adapted":
+        if spec.wireless_kernel == "guo_jagp_adapted":
             schedule = guo_jagp_adapted(
                 planning,
                 channel,
                 search_evaluation,
                 channel_basis=ChannelBasis.PLANNING,
-                qos_spectral_efficiency=(
-                    GUO_DEFAULT_QOS_SPECTRAL_EFFICIENCY
-                ),
+                qos_spectral_efficiency=(GUO_DEFAULT_QOS_SPECTRAL_EFFICIENCY),
             )
             return evaluate_noma(snapshot, schedule)
 
-        initialization = build_initial_schedule(
-            planning,
-            channel,
-            search_evaluation,
+        if spec.wireless_kernel == "per_uav_ilp":
+            initialization = build_initial_schedule(
+                planning,
+                channel,
+                search_evaluation,
+            )
+            return evaluate_noma(snapshot, initialization.schedule)
+
+        def initialize(initializer_id: str) -> tuple[Schedule, str]:
+            if initializer_id == "per_uav_ilp":
+                initialization = build_initial_schedule(
+                    planning,
+                    channel,
+                    search_evaluation,
+                )
+                return initialization.schedule, initialization.solver_status
+            if initializer_id == "ia_greedy":
+                return (
+                    ia_greedy_schedule(
+                        planning,
+                        channel,
+                        search_evaluation,
+                    ),
+                    "deterministic",
+                )
+            if initializer_id == "greedy":
+                return (
+                    repair_sic(
+                        greedy_schedule(
+                            planning,
+                            scenario.n_subcarriers,
+                        ),
+                        planning,
+                        channel,
+                        search_evaluation,
+                    ),
+                    "deterministic",
+                )
+            raise ValueError(f"unknown initializer {initializer_id}")
+
+        if not spec.initializer_ids:
+            raise ValueError(f"{name} requires at least one initializer")
+        if spec.wireless_kernel == "exchange_stable":
+            allow_cross_uav = False
+            acceptance = Acceptance.BILATERAL
+        else:
+            if spec.neighborhood_scope not in {"intra_uav", "cross_uav"}:
+                raise ValueError(
+                    f"unsupported neighborhood_scope {spec.neighborhood_scope}"
+                )
+            allow_cross_uav = spec.neighborhood_scope == "cross_uav"
+            if spec.acceptance_rule == "global_lexicographic":
+                acceptance = Acceptance.GLOBAL
+            elif spec.acceptance_rule == "bilateral":
+                acceptance = Acceptance.BILATERAL
+            else:
+                raise ValueError(f"unsupported acceptance_rule {spec.acceptance_rule}")
+        if spec.traversal_rule != "first_improvement":
+            raise ValueError(f"unsupported traversal_rule {spec.traversal_rule}")
+        search = SearchConfig(
+            allow_cross_uav,
+            acceptance,
+            max_iterations,
+        )
+        candidates = []
+        for initializer_id in spec.initializer_ids:
+            schedule, solver_status = initialize(initializer_id)
+            result = optimize_schedule(
+                schedule,
+                planning,
+                channel,
+                search_evaluation,
+                search,
+            )
+            if not result.converged:
+                raise RuntimeError(
+                    f"search hit max_iterations={max_iterations} "
+                    f"at slot {snapshot.slot_index}"
+                )
+            candidates.append((initializer_id, solver_status, schedule, result))
+        initializer_id, solver_status, initial_schedule, result = max(
+            candidates,
+            key=lambda candidate: network_objective(candidate[3].outcome),
         )
         event_sink.append(
             {
                 "slot": snapshot.slot_index,
                 "move_type": "initialization",
                 "accepted": True,
-                "reason": initialization.solver_status,
+                "reason": f"{initializer_id}:{solver_status}",
                 "before": None,
                 "after": None,
-                "schedule_key": initialization.schedule.stable_key(),
+                "schedule_key": initial_schedule.stable_key(),
             }
         )
-        if name == "ilp":
-            return evaluate_noma(snapshot, initialization.schedule)
-
-        search_map = {
-            "exchange_stable": SearchConfig(
-                False,
-                Acceptance.BILATERAL,
-                max_iterations,
-            ),
-            "intra_bilateral": SearchConfig(
-                False,
-                Acceptance.BILATERAL,
-                max_iterations,
-            ),
-            "cross_bilateral": SearchConfig(
-                True,
-                Acceptance.BILATERAL,
-                max_iterations,
-            ),
-            "intra_global": SearchConfig(
-                False,
-                Acceptance.GLOBAL,
-                max_iterations,
-            ),
-            "full": SearchConfig(
-                True,
-                Acceptance.GLOBAL,
-                max_iterations,
-            ),
-            "full_fixed_half": SearchConfig(
-                True,
-                Acceptance.GLOBAL,
-                max_iterations,
-            ),
-            "full_crossing": SearchConfig(
-                True,
-                Acceptance.GLOBAL,
-                max_iterations,
-            ),
-        }
-        result = optimize_schedule(
-            initialization.schedule,
-            planning,
-            channel,
-            search_evaluation,
-            search_map[name],
-        )
-        if not result.converged:
-            raise RuntimeError(
-                f"search hit max_iterations={max_iterations} "
-                f"at slot {snapshot.slot_index}"
-            )
         event_sink.extend(
             {
                 "slot": snapshot.slot_index,
@@ -435,12 +836,31 @@ def _jsonable(value: object) -> object:
     if isinstance(value, Enum):
         return value.value
     if isinstance(value, dict):
-        return {
-            str(key): _jsonable(item) for key, item in value.items()
-        }
+        return {str(key): _jsonable(item) for key, item in value.items()}
     if isinstance(value, (tuple, list)):
         return [_jsonable(item) for item in value]
     return value
+
+
+def method_spec_to_dict(spec: MethodSpec) -> dict[str, object]:
+    """Serialize every declared factor in a deterministic JSON shape."""
+    if not isinstance(spec, MethodSpec):
+        raise TypeError("spec must be a MethodSpec")
+    value = _jsonable(asdict(spec))
+    if not isinstance(value, dict):
+        raise TypeError("serialized method spec must be a mapping")
+    return value
+
+
+def method_spec_sha256(spec: MethodSpec) -> str:
+    """Hash the complete canonical serialization of one method spec."""
+    payload = json.dumps(
+        method_spec_to_dict(spec),
+        allow_nan=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
 
 
 def definition_to_dict(
@@ -470,6 +890,8 @@ def run_definition(
         },
     )
     writer = RunArtifactWriter(output_dir)
+    all_specs = thesis_method_specs()
+    selected_specs = {name: all_specs[name] for name in definition.methods}
     task_rows: list[dict[str, object]] = []
     slot_rows: list[dict[str, object]] = []
     event_rows: list[dict[str, object]] = []
@@ -484,22 +906,14 @@ def run_definition(
             seed_access=seed_access,
         )
         task_by_id = {
-            task.task_id: task
-            for snapshot in trace.slots
-            for task in snapshot.tasks
+            task.task_id: task for snapshot in trace.slots for task in snapshot.tasks
         }
         for name in definition.methods:
-            target = definition.evaluation
-            if name == "full_fixed_half":
-                target = replace(
-                    target,
-                    allocation_policy=AllocationPolicy.FIXED_HALF_EQUAL,
-                )
-            elif name == "full_crossing":
-                target = replace(
-                    target,
-                    allocation_policy=AllocationPolicy.CROSSING_EQUAL,
-                )
+            spec = selected_specs[name]
+            target = replace(
+                definition.evaluation,
+                allocation_policy=spec.allocation_policy,
+            )
 
             events: list[dict[str, object]] = []
             episode = run_outcome_episode(
@@ -521,9 +935,7 @@ def run_definition(
                 / max(len(episode.outcomes), 1)
             )
             for outcome in episode.outcomes:
-                aggregate_exposure_w = aggregate_victim_link_exposure(
-                    outcome.rates
-                )
+                aggregate_exposure_w = aggregate_victim_link_exposure(outcome.rates)
                 plan_key_json = json.dumps(
                     _jsonable(outcome.plan_key),
                     allow_nan=False,
@@ -535,12 +947,9 @@ def run_definition(
                     separators=(",", ":"),
                 )
                 decision_by_id = {
-                    decision.task_id: decision
-                    for decision in outcome.decisions
+                    decision.task_id: decision for decision in outcome.decisions
                 }
-                rate_by_id = {
-                    record.task_id: record for record in outcome.rates
-                }
+                rate_by_id = {record.task_id: record for record in outcome.rates}
                 for task_id in outcome.arrived_task_ids:
                     task = task_by_id[task_id]
                     decision = decision_by_id[task_id]
@@ -567,21 +976,13 @@ def run_definition(
                                 None if rate is None else rate.sic_feasible
                             ),
                             "cross_interference_w": (
-                                None
-                                if rate is None
-                                else rate.cross_interference_w
+                                None if rate is None else rate.cross_interference_w
                             ),
-                            "serving_uav": (
-                                None if rate is None else rate.serving_uav
-                            ),
-                            "subcarrier": (
-                                None if rate is None else rate.subcarrier
-                            ),
+                            "serving_uav": (None if rate is None else rate.serving_uav),
+                            "subcarrier": (None if rate is None else rate.subcarrier),
                             "reason": decision.reason,
                             "plan_key": plan_key_json,
-                            "sic_outage": (
-                                task_id in outcome.sic_outage_task_ids
-                            ),
+                            "sic_outage": (task_id in outcome.sic_outage_task_ids),
                         }
                     )
                 slot_rows.append(
@@ -592,15 +993,10 @@ def run_definition(
                         "arrivals": len(outcome.arrived_task_ids),
                         "completed": outcome.completed_count,
                         "slack_s": outcome.total_slack_s,
-                        "cross_interference_w": (
-                            outcome.total_cross_interference_w
-                        ),
-                        "aggregate_victim_link_exposure_w": (
-                            aggregate_exposure_w
-                        ),
+                        "cross_interference_w": (outcome.total_cross_interference_w),
+                        "aggregate_victim_link_exposure_w": (aggregate_exposure_w),
                         "sic_violations": sum(
-                            not record.sic_feasible
-                            for record in outcome.rates
+                            not record.sic_feasible for record in outcome.rates
                         ),
                         "plan_key": plan_key_json,
                         "sic_outage_task_ids": outage_ids_json,
@@ -608,8 +1004,7 @@ def run_definition(
                     }
                 )
             event_rows.extend(
-                {"method": name, "seed": seed, **event}
-                for event in events
+                {"method": name, "seed": seed, **event} for event in events
             )
 
     initializer_statuses = sorted(
@@ -631,29 +1026,25 @@ def run_definition(
         "seeds": list(definition.seeds),
         "initializer_status_counts": {
             status: sum(
-                row.get("move_type") == "initialization"
-                and row.get("reason") == status
+                row.get("move_type") == "initialization" and row.get("reason") == status
                 for row in event_rows
             )
             for status in initializer_statuses
         },
         "search_termination_counts": {
             status: sum(
-                row.get("move_type") == "termination"
-                and row.get("reason") == status
+                row.get("move_type") == "termination" and row.get("reason") == status
                 for row in event_rows
             )
             for status in termination_statuses
         },
         "methods": {
             name: {
+                "method_spec": method_spec_to_dict(selected_specs[name]),
+                "method_spec_sha256": method_spec_sha256(selected_specs[name]),
                 "on_time_rate_by_seed": values,
                 "mean": float(np.mean(values)),
-                "std": (
-                    float(np.std(values, ddof=1))
-                    if len(values) > 1
-                    else 0.0
-                ),
+                "std": (float(np.std(values, ddof=1)) if len(values) > 1 else 0.0),
                 "mean_aggregate_victim_link_exposure_w_by_seed": (
                     method_exposure_summary[name]
                 ),
@@ -724,12 +1115,17 @@ def run_definition(
             "run_id": definition.run_id,
             "git_sha": _git_sha(),
             "config_path": str(config_path),
-            "config_sha256": hashlib.sha256(
-                config_path.read_bytes()
-            ).hexdigest(),
+            "config_sha256": hashlib.sha256(config_path.read_bytes()).hexdigest(),
             "seeds": list(definition.seeds),
             "csi_error_std": definition.csi_error_std,
             "resolved_definition": definition_to_dict(definition),
+            "method_specs": {
+                name: {
+                    "factor_hash": method_spec_sha256(selected_specs[name]),
+                    "spec": method_spec_to_dict(selected_specs[name]),
+                }
+                for name in definition.methods
+            },
             "python": sys.version,
             "platform": platform.platform(),
             "numpy": np.__version__,

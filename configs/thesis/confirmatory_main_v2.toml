@@ -48,3 +48,16 @@ multistart_workers = 3
 [[cases]]
 case_id = "main_k3_n45"
 role = "primary"
+
+[method_factor_hashes]
+local_only = "4b58b5870c8e5f7caf9102dc9c6c5d07c9ba92414c1dc67d94051c303c6111c9"
+fair_ofdma = "847941a641955a7185a9ac03b0d006a1a668936804fd82685c14c799fb0efdbb"
+greedy = "fb5f2273532ddb440fce0aa4be5b84b80bb3e8f06ea45e71af1294d0f8903b40"
+ia_greedy = "020a770109a4c09c8e14e543a9ac595d6260d29f397286e69b520113656b82e2"
+per_uav_ilp = "3aae737c80524cb4b15ed8ba91398658aaa1d8f9f1a89284540e2658de0d7e50"
+exchange_stable = "7cb9b5c2f27b4a1034443028cff5b05c8cfeb117f064f8b5ebd8b6c9200b7cae"
+intra_global = "7e620ae49a5f04e8b96d6b403bd457c9b0925b9dec9e52f3afb4ba902c687edb"
+cross_bilateral = "6430c2344b85fa22e5a31e56dfbee7d6da44326f64c63ae5067d1512e1f16427"
+single_start_first = "d6059effb8c47cea809d0be1b363654098302e48c50d5b06bd079091a9f475cd"
+full = "a64606644faf97fd313fd6d3c83a8bf30904ec3f71968888195dc24eb3942153"
+guo_jagp_adapted = "a7cbdccf7bb9162482bd6bf16db8ba44b34bb860769ba561e073c6a3a162f1e2"

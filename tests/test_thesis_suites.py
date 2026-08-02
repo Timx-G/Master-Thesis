@@ -7,7 +7,14 @@ import pytest
 
 from uav_mec.domain import SlotSnapshot, Task
 from uav_mec.evaluation import EvaluationConfig
-from uav_mec.experiment import _slot_method, load_definition, run_definition
+from uav_mec.experiment import (
+    _slot_method,
+    load_definition,
+    method_spec_sha256,
+    method_spec_to_dict,
+    run_definition,
+    thesis_method_specs,
+)
 from uav_mec.model import ScenarioConfig
 from uav_mec.resource_allocation import AllocationPolicy
 from uav_mec.run_thesis_suite import BASE_PATH, build_suite
@@ -16,9 +23,7 @@ from uav_mec.trace import generate_trace
 
 def test_confirmatory_seed_range_is_frozen_and_unseen():
     exploratory = load_definition(Path("configs/thesis/exploratory.toml"))
-    confirmatory = load_definition(
-        Path("configs/thesis/confirmatory_main.toml")
-    )
+    confirmatory = load_definition(Path("configs/thesis/confirmatory_main.toml"))
 
     assert exploratory.seeds == tuple(range(42, 62))
     assert confirmatory.seeds == tuple(range(1000, 1050))
@@ -26,9 +31,7 @@ def test_confirmatory_seed_range_is_frozen_and_unseen():
 
 
 def test_pairing_ablation_changes_only_topology_and_acceptance():
-    definition = load_definition(
-        Path("configs/thesis/confirmatory_pairing.toml")
-    )
+    definition = load_definition(Path("configs/thesis/confirmatory_pairing.toml"))
 
     assert definition.methods == (
         "intra_bilateral",
@@ -41,9 +44,7 @@ def test_pairing_ablation_changes_only_topology_and_acceptance():
 def test_resource_ablation_freezes_schedule_search_policy(
     development_seed_access,
 ):
-    definition = load_definition(
-        Path("configs/thesis/confirmatory_resource.toml")
-    )
+    definition = load_definition(Path("configs/thesis/confirmatory_resource.toml"))
     assert definition.methods == (
         "full_fixed_half",
         "full_crossing",
@@ -78,30 +79,20 @@ def test_resource_ablation_freezes_schedule_search_policy(
             events,
         )(snapshot)
         search_traces.append(events)
-        termination = [
-            event
-            for event in events
-            if event["move_type"] == "termination"
-        ]
+        termination = [event for event in events if event["move_type"] == "termination"]
         assert len(termination) == 1
         search_signatures.append(termination[0]["schedule_key"])
-        executable_signatures[method] = (
-            tuple(
-                (record.task_id, record.serving_uav, record.subcarrier)
-                for record in outcome.rates
-            )
+        executable_signatures[method] = tuple(
+            (record.task_id, record.serving_uav, record.subcarrier)
+            for record in outcome.rates
         )
 
-    assert search_traces[1:] == [search_traces[0]] * (
-        len(search_traces) - 1
-    )
+    assert search_traces[1:] == [search_traces[0]] * (len(search_traces) - 1)
     assert len(set(search_signatures)) == 1
 
     searched_assignment = {
         (task_id, serving_uav, subcarrier)
-        for serving_uav, subcarrier, _user_id, task_id, _role in (
-            search_signatures[0]
-        )
+        for serving_uav, subcarrier, _user_id, task_id, _role in (search_signatures[0])
     }
     assert all(
         set(signature) <= searched_assignment
@@ -110,16 +101,12 @@ def test_resource_ablation_freezes_schedule_search_policy(
     assert set(executable_signatures["full_fixed_half"]) < set(
         executable_signatures["full"]
     )
-    assert (
-        executable_signatures["full_crossing"]
-        == executable_signatures["full"]
-    )
+    assert executable_signatures["full_crossing"] == executable_signatures["full"]
 
 
 def test_guo_adaptation_uses_the_common_closure_and_replay_path() -> None:
     tasks = tuple(
-        Task(index, index, 0, 600_000.0, 1.2e9, 0.8, 0.4e9)
-        for index in range(4)
+        Task(index, index, 0, 600_000.0, 1.2e9, 0.8, 0.4e9) for index in range(4)
     )
     snapshot = SlotSnapshot(
         0,
@@ -234,9 +221,8 @@ def test_suite_case_executes_with_resolved_manifest(
         seed_access=development_seed_access,
     )
 
-    manifest = json.loads(
-        (output / "manifest.json").read_text(encoding="utf-8")
-    )
+    manifest = json.loads((output / "manifest.json").read_text(encoding="utf-8"))
+    summary = json.loads((output / "summary.json").read_text(encoding="utf-8"))
     resolved = manifest["resolved_definition"]
     assert resolved["seeds"] == [42, 43]
     assert resolved["scenario"]["num_slots"] == 2
@@ -244,3 +230,13 @@ def test_suite_case_executes_with_resolved_manifest(
     for key in value_path:
         value = value[key]
     assert value == expected
+    specs = thesis_method_specs()
+    for method_id in definition.methods:
+        serialized = method_spec_to_dict(specs[method_id])
+        factor_hash = method_spec_sha256(specs[method_id])
+        assert manifest["method_specs"][method_id] == {
+            "factor_hash": factor_hash,
+            "spec": serialized,
+        }
+        assert summary["methods"][method_id]["method_spec"] == serialized
+        assert summary["methods"][method_id]["method_spec_sha256"] == factor_hash

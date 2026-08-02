@@ -24,3 +24,8 @@ allocation_policy = "deadline"
 
 [search]
 max_iterations = 20
+
+[method_factor_hashes]
+local_only = "4b58b5870c8e5f7caf9102dc9c6c5d07c9ba92414c1dc67d94051c303c6111c9"
+greedy = "fb5f2273532ddb440fce0aa4be5b84b80bb3e8f06ea45e71af1294d0f8903b40"
+full = "a64606644faf97fd313fd6d3c83a8bf30904ec3f71968888195dc24eb3942153"

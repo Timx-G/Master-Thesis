@@ -42,3 +42,7 @@ csi_error_std = 0.0
 [search]
 max_iterations = 50
 multistart_workers = 3
+
+[method_factor_hashes]
+iea_dd = "7254e074879296ac3bf63b602723959f06a1e58476f0bf9516f87644e6017388"
+exchange_edf = "457ceeb89f4937d31121cf6132ef7b02306c3816e17cebba518059122ddf7899"

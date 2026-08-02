@@ -42,3 +42,7 @@ csi_error_std = 0.0
 [search]
 max_iterations = 50
 multistart_workers = 3
+
+[method_factor_hashes]
+full = "a64606644faf97fd313fd6d3c83a8bf30904ec3f71968888195dc24eb3942153"
+intra_global = "7e620ae49a5f04e8b96d6b403bd457c9b0925b9dec9e52f3afb4ba902c687edb"

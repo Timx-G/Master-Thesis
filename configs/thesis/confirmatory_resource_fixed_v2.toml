@@ -59,3 +59,20 @@ generator = "radio_neutral"
 case_id = "deadline_first_generated"
 role = "supporting"
 generator = "deadline_first_generated"
+
+[method_factor_hashes]
+fixed_radio_dd = "eb75ee38ee1ca55514f75f2ef937b8802b635d85a9519f213a132eda75d50e38"
+fixed_radio_edf = "51d68f10269e84782c9f576158dc5d272b4eb67181fe80c6902587908124d354"
+fixed_radio_dd_radio_neutral = "e13041ceb218ca50b216b8899a3dbdae9766411d3693b8ab915292ffb374374d"
+fixed_radio_edf_radio_neutral = "0f0cf59f8e34012edf2cf1bc462199ed30a43e1bf0d3f62753af863cd2f67816"
+fixed_radio_dd_deadline_generated = "f5b2196a30c0d0c94f3dea04416ce96694c9b7c75b22ded9583a2186e028c05e"
+fixed_radio_edf_deadline_generated = "cef4b9252171194d5dfa8a0c739654e20cc566b4dfd0ec0880546e2fd16b180f"
+exact_admission = "4150730a131d04cdde61e9523f11ad0c6956f8f6dac289f70c3b972cdfc09041"
+
+[fixed_radio_sources]
+fixed_radio_dd = "dd_generated"
+fixed_radio_edf = "dd_generated"
+fixed_radio_dd_radio_neutral = "radio_neutral"
+fixed_radio_edf_radio_neutral = "radio_neutral"
+fixed_radio_dd_deadline_generated = "deadline_first_generated"
+fixed_radio_edf_deadline_generated = "deadline_first_generated"
