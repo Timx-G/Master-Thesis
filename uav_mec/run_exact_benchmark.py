@@ -14,10 +14,14 @@ from .artifacts import RunArtifactWriter
 from .exact import exact_schedule
 from .experiment import (
     ExperimentDefinition,
+    MethodSpec,
     _git_sha,
     _slot_method,
     definition_to_dict,
     load_definition,
+    method_spec_sha256,
+    method_spec_to_dict,
+    thesis_method_specs,
 )
 from .model import NOMAChannel
 from .scheduler import network_objective
@@ -29,6 +33,30 @@ from .seed_access import (
 from .trace import generate_trace
 
 
+def _validated_exact_method_specs(
+    definition: ExperimentDefinition,
+) -> tuple[MethodSpec, MethodSpec]:
+    specs = thesis_method_specs()
+    if definition.methods != ("full", "exact"):
+        raise ValueError("exact benchmark methods must be ('full', 'exact')")
+    full_spec = specs[definition.methods[0]]
+    exact_spec = specs[definition.methods[1]]
+    if full_spec.wireless_kernel != "iea_cap":
+        raise ValueError("full exact-benchmark method must use iea_cap")
+    if exact_spec.wireless_kernel != "exact_schedule":
+        raise ValueError("exact method must use the exact_schedule kernel")
+    if exact_spec.traversal_rule != "exhaustive":
+        raise ValueError("exact method must use exhaustive traversal")
+    if {
+        full_spec.allocation_policy,
+        exact_spec.allocation_policy,
+    } != {definition.evaluation.allocation_policy}:
+        raise ValueError(
+            "exact benchmark evaluation allocation_policy must match MethodSpec"
+        )
+    return full_spec, exact_spec
+
+
 def run_exact_definition(
     definition: ExperimentDefinition,
     config_path: Path,
@@ -36,8 +64,7 @@ def run_exact_definition(
     *,
     seed_access: SeedAccessRecorder,
 ) -> None:
-    if definition.methods != ("full", "exact"):
-        raise ValueError("exact benchmark methods must be ('full', 'exact')")
+    full_spec, exact_spec = _validated_exact_method_specs(definition)
     if definition.scenario.num_users > 5:
         raise ValueError(
             "complete benchmark is frozen at no more than five users"
@@ -78,7 +105,7 @@ def run_exact_definition(
             events: list[dict[str, object]] = []
             started = time.perf_counter()
             full = _slot_method(
-                "full",
+                full_spec.method_id,
                 definition.scenario,
                 definition.evaluation,
                 definition.max_iterations,
@@ -209,6 +236,13 @@ def run_exact_definition(
             status: search_terminations.count(status)
             for status in sorted(set(search_terminations))
         },
+        "methods": {
+            spec.method_id: {
+                "method_spec": method_spec_to_dict(spec),
+                "method_spec_sha256": method_spec_sha256(spec),
+            }
+            for spec in (full_spec, exact_spec)
+        },
         "optimal_slot_fraction": float(np.mean(gaps == 0.0)),
         "mean_completion_gap": float(np.mean(gaps)),
         "max_completion_gap": int(np.max(gaps)),
@@ -255,6 +289,13 @@ def run_exact_definition(
                 config_path.read_bytes()
             ).hexdigest(),
             "resolved_definition": definition_to_dict(definition),
+            "method_specs": {
+                spec.method_id: {
+                    "factor_hash": method_spec_sha256(spec),
+                    "spec": method_spec_to_dict(spec),
+                }
+                for spec in (full_spec, exact_spec)
+            },
             "search_space": (
                 "all unscheduled or UAV/subcarrier assignments "
                 "with block capacity two, normalized and admission-closed"

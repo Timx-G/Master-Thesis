@@ -13,7 +13,12 @@ from uav_mec.exact import (
     ExactScheduleResult,
     exact_schedule,
 )
-from uav_mec.experiment import load_definition
+from uav_mec.experiment import (
+    load_definition,
+    method_spec_sha256,
+    method_spec_to_dict,
+    thesis_method_specs,
+)
 from uav_mec.model import ChannelConfig, NOMAChannel
 from uav_mec.resource_allocation import AllocationPolicy, ExactAdmissionResult
 from uav_mec.run_exact_benchmark import run_exact_definition
@@ -310,3 +315,37 @@ def test_exact_benchmark_never_reports_heuristic_above_optimum(
     assert summary["certificate_label"] == "Exact"
     manifest = json.loads((output / "manifest.json").read_text(encoding="utf-8"))
     assert manifest["resolved_definition"]["methods"] == ["full", "exact"]
+    specs = thesis_method_specs()
+    for method_id in ("full", "exact"):
+        serialized = method_spec_to_dict(specs[method_id])
+        factor_hash = method_spec_sha256(specs[method_id])
+        assert summary["methods"][method_id] == {
+            "method_spec": serialized,
+            "method_spec_sha256": factor_hash,
+        }
+        assert manifest["method_specs"][method_id] == {
+            "factor_hash": factor_hash,
+            "spec": serialized,
+        }
+
+
+def test_exact_benchmark_rejects_allocation_factor_drift_before_seed_access(
+    tmp_path: Path,
+) -> None:
+    config_path = Path("configs/thesis/confirmatory_exact.toml")
+    base = load_definition(config_path)
+    incompatible = replace(
+        base,
+        evaluation=replace(
+            base.evaluation,
+            allocation_policy=AllocationPolicy.EDF_MIN_CPU,
+        ),
+    )
+
+    with pytest.raises(ValueError, match="allocation_policy"):
+        run_exact_definition(
+            incompatible,
+            config_path,
+            tmp_path / "incompatible-exact",
+            seed_access=object(),  # type: ignore[arg-type]
+        )

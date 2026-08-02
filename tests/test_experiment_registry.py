@@ -304,6 +304,27 @@ def test_registry_primary_hypotheses_freeze_test_estimand_and_holm_family() -> N
     }
 
 
+def test_registry_rejects_primary_contrast_order_pair_or_stratum_drift() -> None:
+    registry = load_registry(REGISTRY_PATH)
+    hypotheses = registry.hypotheses
+
+    reversed_h1 = replace(
+        hypotheses[0],
+        treatment=hypotheses[0].control,
+        control=hypotheses[0].treatment,
+    )
+    wrong_h3_stratum = replace(hypotheses[2], case_id="radio_neutral")
+
+    invalid_hypotheses = (
+        (hypotheses[1], hypotheses[0], *hypotheses[2:]),
+        (reversed_h1, *hypotheses[1:]),
+        (*hypotheses[:2], wrong_h3_stratum, hypotheses[3]),
+    )
+    for invalid in invalid_hypotheses:
+        with pytest.raises(ValueError, match="primary contrast mapping/order"):
+            replace(registry, hypotheses=invalid)
+
+
 def test_registry_rejects_config_seed_method_or_slot_drift() -> None:
     registry = load_registry(REGISTRY_PATH)
     family = registered_family(registry, "main")

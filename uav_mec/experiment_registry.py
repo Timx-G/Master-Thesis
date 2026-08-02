@@ -19,6 +19,17 @@ from .experiment import method_spec_sha256, thesis_method_specs
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 _CASE_ROLES = frozenset({"primary", "supporting", "correctness"})
+_AUTHORITATIVE_PRIMARY_CONTRASTS = (
+    ("H1", "full", "intra_global", "main_k3_n45"),
+    (
+        "H2",
+        "full",
+        "cross_bilateral",
+        "overlap_high_coupling1_load12",
+    ),
+    ("H3", "fixed_radio_dd", "fixed_radio_edf", "dd_generated"),
+    ("H4", "iea_dd", "exchange_edf", "joint_k3_n45"),
+)
 
 
 def _is_int(value: object) -> bool:
@@ -250,6 +261,17 @@ class ExperimentRegistry:
         hypothesis_ids = tuple(item.hypothesis_id for item in self.hypotheses)
         if len(set(hypothesis_ids)) != len(hypothesis_ids):
             raise ValueError("hypotheses.hypothesis_id values must be unique")
+        primary_contrasts = tuple(
+            (
+                item.hypothesis_id,
+                item.treatment,
+                item.control,
+                item.case_id or item.family,
+            )
+            for item in self.hypotheses
+        )
+        if primary_contrasts != _AUTHORITATIVE_PRIMARY_CONTRASTS:
+            raise ValueError("primary contrast mapping/order mismatch")
         multiplicity = {item.multiplicity_family for item in self.hypotheses}
         if len(multiplicity) != 1:
             raise ValueError(
