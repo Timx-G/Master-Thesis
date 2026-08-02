@@ -347,7 +347,11 @@ def exact_schedule(
         lexicographic_gap=gap,
         gap_status=gap_status,
         cpu_nontrivial=cpu_nontrivial,
-        schedule_nontrivial=(len(unique_closed) >= 2 and best_objective[0] < len(snapshot.tasks)),
+        schedule_nontrivial=(
+            complete
+            and len(unique_closed) >= 2
+            and best_objective[0] < len(snapshot.tasks)
+        ),
         semantic_fingerprint=fingerprint,
     )
     return ExactScheduleResult(

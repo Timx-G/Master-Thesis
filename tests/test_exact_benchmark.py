@@ -68,6 +68,26 @@ def test_capped_exact_schedule_has_a_bounded_incomplete_certificate() -> None:
     assert all(component is not None for component in result.certificate.lexicographic_gap)
 
 
+def test_incomplete_exact_schedule_does_not_claim_schedule_nontriviality() -> None:
+    base_snapshot, channel, cfg = _tiny_exact_case()
+    snapshot = SlotSnapshot(
+        0,
+        base_snapshot.tasks[:2],
+        base_snapshot.planning_channel_gains[:2],
+        1,
+    )
+    cfg = replace(cfg, cpu_per_uav_hz=8_000_000_000.0)
+
+    capped = exact_schedule(snapshot, channel, cfg, state_cap=2)
+    exhaustive = exact_schedule(snapshot, channel, cfg)
+
+    assert not capped.certificate.complete
+    assert capped.objective[0] == 1
+    assert exhaustive.objective[0] == 2
+    assert not exhaustive.certificate.schedule_nontrivial
+    assert not capped.certificate.schedule_nontrivial
+
+
 def test_exact_benchmark_never_reports_heuristic_above_optimum(
     tmp_path: Path,
     development_seed_access,
