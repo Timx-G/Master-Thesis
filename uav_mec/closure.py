@@ -73,6 +73,16 @@ class ClosedExecutableSchedule:
         )
 
 
+def closed_semantic_key(closed: ClosedExecutableSchedule) -> tuple:
+    """Return the complete identity used to deduplicate closed radio states."""
+    if not isinstance(closed, ClosedExecutableSchedule):
+        raise TypeError("closed must be a ClosedExecutableSchedule")
+    return (
+        closed.stable_key(),
+        closed.rate_snapshot.semantic_fingerprint,
+    )
+
+
 def freeze_plan(closed: ClosedExecutableSchedule) -> FrozenSlotPlan:
     """Seal one planning-basis executable schedule for realized replay."""
     if not isinstance(closed, ClosedExecutableSchedule):

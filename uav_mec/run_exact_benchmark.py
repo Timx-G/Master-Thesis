@@ -104,30 +104,67 @@ def run_exact_definition(
                 max_heavy_tasks=5,
             )
             exact_runtime_s = time.perf_counter() - started
-            if network_objective(full) > network_objective(exact.outcome):
+            full_objective = network_objective(full)
+            if exact.certificate.complete and full_objective > exact.objective:
                 raise AssertionError(
                     "heuristic objective exceeds complete enumeration"
                 )
 
             slot_arrivals = len(full.arrived_task_ids)
+            exact_slot_completed = exact.objective[0]
             arrivals += slot_arrivals
             full_completed += full.completed_count
-            exact_completed += exact.outcome.completed_count
+            exact_completed += exact_slot_completed
             rows.append(
                 {
                     "seed": seed,
                     "slot": snapshot.slot_index,
+                    "result_schema": "exact_schedule",
+                    "certificate_label": (
+                        "Exact"
+                        if exact.certificate.complete
+                        else "Incomplete"
+                    ),
                     "arrivals": slot_arrivals,
                     "full_completed": full.completed_count,
-                    "exact_completed": exact.outcome.completed_count,
+                    "exact_completed": exact_slot_completed,
                     "completion_gap": (
-                        exact.outcome.completed_count
-                        - full.completed_count
+                        exact_slot_completed - full.completed_count
                     ),
                     "full_runtime_s": full_runtime_s,
                     "exact_runtime_s": exact_runtime_s,
-                    "evaluated_schedules": exact.evaluated_schedules,
-                    "complete_search": exact.complete_search,
+                    "evaluated_schedules": (
+                        exact.certificate.raw_states_enumerated
+                    ),
+                    "complete_search": exact.certificate.complete,
+                    "raw_states_enumerated": (
+                        exact.certificate.raw_states_enumerated
+                    ),
+                    "unique_closed_states": (
+                        exact.certificate.unique_closed_states
+                    ),
+                    "gap_status": exact.certificate.gap_status,
+                    "best_bound_completed": exact.certificate.best_bound[0],
+                    "best_bound_cpu": exact.certificate.best_bound[1],
+                    "best_bound_interference": (
+                        exact.certificate.best_bound[2]
+                    ),
+                    "completion_bound_gap": (
+                        exact.certificate.lexicographic_gap[0]
+                    ),
+                    "cpu_bound_gap": (
+                        exact.certificate.lexicographic_gap[1]
+                    ),
+                    "interference_bound_gap": (
+                        exact.certificate.lexicographic_gap[2]
+                    ),
+                    "cpu_nontrivial": exact.certificate.cpu_nontrivial,
+                    "schedule_nontrivial": (
+                        exact.certificate.schedule_nontrivial
+                    ),
+                    "semantic_fingerprint": (
+                        exact.certificate.semantic_fingerprint
+                    ),
                 }
             )
         seed_rows.append(
@@ -152,6 +189,12 @@ def run_exact_definition(
         raise ValueError("exact benchmark produced no slot outcomes")
     summary = {
         "run_id": definition.run_id,
+        "result_schema": "exact_schedule",
+        "certificate_label": (
+            "Exact"
+            if all(bool(row["complete_search"]) for row in rows)
+            else "Incomplete"
+        ),
         "seeds": list(definition.seeds),
         "optimality_metric": "completed task count per slot",
         "initializer_status_counts": {
@@ -173,6 +216,8 @@ def run_exact_definition(
         fieldnames=(
             "seed",
             "slot",
+            "result_schema",
+            "certificate_label",
             "arrivals",
             "full_completed",
             "exact_completed",
@@ -181,6 +226,18 @@ def run_exact_definition(
             "exact_runtime_s",
             "evaluated_schedules",
             "complete_search",
+            "raw_states_enumerated",
+            "unique_closed_states",
+            "gap_status",
+            "best_bound_completed",
+            "best_bound_cpu",
+            "best_bound_interference",
+            "completion_bound_gap",
+            "cpu_bound_gap",
+            "interference_bound_gap",
+            "cpu_nontrivial",
+            "schedule_nontrivial",
+            "semantic_fingerprint",
         ),
     )
     writer.write_json("summary.json", summary)
@@ -196,11 +253,13 @@ def run_exact_definition(
             "resolved_definition": definition_to_dict(definition),
             "search_space": (
                 "all unscheduled or UAV/subcarrier assignments "
-                "with block capacity two"
+                "with block capacity two, normalized and admission-closed"
             ),
+            "result_schema": "exact_schedule",
+            "certificate_label": summary["certificate_label"],
             "optimality_metric": "completed task count per slot",
             "solver": {
-                "name": "scipy.optimize.milp/HiGHS",
+                "name": "closure-complete enumeration",
                 "package_version": scipy.__version__,
             },
         }

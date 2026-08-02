@@ -2,39 +2,262 @@
 
 from __future__ import annotations
 
+import math
+import time
+from collections.abc import Iterator
 from dataclasses import dataclass
 from itertools import product
 
-from .domain import ChannelBasis, Schedule, ScheduleEntry, SlotOutcome, SlotSnapshot
+from .closure import (
+    ClosedExecutableSchedule,
+    close_assignment,
+    closed_semantic_key,
+    freeze_plan,
+    rate_raw_assignment,
+)
+from .domain import (
+    ChannelBasis,
+    FrozenSlotPlan,
+    Schedule,
+    ScheduleEntry,
+    SlotSnapshot,
+)
 from .evaluation import (
     EvaluationConfig,
     InfeasibleScheduleError,
-    evaluate_schedule,
+    build_outcome_from_closed,
+    semantic_fingerprint,
 )
+from .externality import aggregate_victim_link_exposure
 from .model import NOMAChannel
-from .schedule import normalize_roles
+from .resource_allocation import required_resources
+from .schedule import ScheduleValidationError
 from .scheduler import network_objective
 
 
 @dataclass(frozen=True, slots=True)
-class ExactResult:
-    schedule: Schedule
-    outcome: SlotOutcome
-    evaluated_schedules: int
-    complete_search: bool
+class ExactScheduleCertificate:
+    complete: bool
+    raw_states_enumerated: int
+    unique_closed_states: int
+    best_bound: tuple[int | None, float | None, float | None]
+    lexicographic_gap: tuple[int | None, float | None, float | None]
+    gap_status: str
+    cpu_nontrivial: bool
+    schedule_nontrivial: bool
+    semantic_fingerprint: str
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.complete, bool):
+            raise ValueError("complete must be bool")
+        for name, value in (
+            ("raw_states_enumerated", self.raw_states_enumerated),
+            ("unique_closed_states", self.unique_closed_states),
+        ):
+            if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+                raise ValueError(f"{name} must be a non-negative integer")
+        if self.unique_closed_states > self.raw_states_enumerated:
+            raise ValueError("unique closed states cannot exceed raw states")
+        if self.gap_status not in {"exact", "bounded", "unknown"}:
+            raise ValueError("gap_status must be exact, bounded, or unknown")
+        if not isinstance(self.cpu_nontrivial, bool) or not isinstance(
+            self.schedule_nontrivial,
+            bool,
+        ):
+            raise ValueError("nontriviality flags must be bool")
+        if not isinstance(self.semantic_fingerprint, str) or not self.semantic_fingerprint:
+            raise ValueError("semantic_fingerprint must be a non-empty string")
+
+        _validate_certificate_tuple("best_bound", self.best_bound)
+        _validate_certificate_tuple("lexicographic_gap", self.lexicographic_gap)
+        if self.complete:
+            if self.gap_status != "exact":
+                raise ValueError("a complete certificate must have exact gap status")
+            if self.lexicographic_gap != (0, 0.0, 0.0):
+                raise ValueError("a complete certificate must have zero gap")
+        elif self.gap_status == "exact":
+            raise ValueError("an incomplete certificate cannot be exact")
+        if self.gap_status == "bounded" and any(
+            value is None for value in self.best_bound + self.lexicographic_gap
+        ):
+            raise ValueError("a bounded certificate requires finite components")
+
+
+@dataclass(frozen=True, slots=True)
+class _ExactOutcomeView:
+    """Compatibility projection for callers predating frozen exact plans."""
+
+    completed_count: int
+    decisions: tuple
+    aggregate_victim_link_exposure_w: float
+
+
+@dataclass(frozen=True, slots=True)
+class ExactScheduleResult:
+    plan: FrozenSlotPlan
+    objective: tuple[int, float, float]
+    certificate: ExactScheduleCertificate
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.plan, FrozenSlotPlan):
+            raise TypeError("plan must be a FrozenSlotPlan")
+        _validate_certificate_tuple("objective", self.objective)
+        if any(value is None for value in self.objective):
+            raise ValueError("objective components must be finite")
+        if not isinstance(self.certificate, ExactScheduleCertificate):
+            raise TypeError("certificate must be an ExactScheduleCertificate")
+        if self.plan.semantic_fingerprint != self.certificate.semantic_fingerprint:
+            raise ValueError("plan and certificate fingerprints must agree")
+        if self.certificate.complete and self.certificate.best_bound != self.objective:
+            raise ValueError("a complete certificate bound must equal objective")
+
+    @property
+    def schedule(self) -> Schedule:
+        """Compatibility view of the certified frozen schedule."""
+        return self.plan.schedule
+
+    @property
+    def outcome(self) -> _ExactOutcomeView:
+        """Compatibility objective view without reopening the frozen plan."""
+        return _ExactOutcomeView(
+            self.objective[0],
+            self.plan.allocation.decisions,
+            aggregate_victim_link_exposure(self.plan.planning_rates),
+        )
+
+    @property
+    def evaluated_schedules(self) -> int:
+        """Compatibility alias for the number of legal raw states visited."""
+        return self.certificate.raw_states_enumerated
+
+    @property
+    def complete_search(self) -> bool:
+        """Compatibility alias for certificate completeness."""
+        return self.certificate.complete
+
+
+def _validate_certificate_tuple(
+    name: str,
+    values: tuple[int | None, float | None, float | None],
+) -> None:
+    if not isinstance(values, tuple) or len(values) != 3:
+        raise ValueError(f"{name} must contain three components")
+    for value in values:
+        if value is not None and (
+            isinstance(value, bool)
+            or not isinstance(value, (int, float))
+            or not math.isfinite(value)
+        ):
+            raise ValueError(f"{name} components must be finite or None")
+
+
+def _legal_raw_assignments(
+    task_count: int,
+    resource_blocks: int,
+) -> Iterator[tuple[int, ...]]:
+    choices = range(-1, resource_blocks)
+    for assignment in product(choices, repeat=task_count):
+        counts = [0] * resource_blocks
+        legal = True
+        for block in assignment:
+            if block < 0:
+                continue
+            counts[block] += 1
+            if counts[block] > 2:
+                legal = False
+                break
+        if legal:
+            yield assignment
+
+
+def _raw_schedule(
+    tasks: tuple,
+    assignment: tuple[int, ...],
+    n_subcarriers: int,
+) -> Schedule:
+    entries = []
+    for task, block in zip(tasks, assignment, strict=True):
+        if block < 0:
+            continue
+        uav, subcarrier = divmod(block, n_subcarriers)
+        entries.append(
+            ScheduleEntry(
+                task.task_id,
+                task.user_id,
+                uav,
+                subcarrier,
+                "solo",
+            )
+        )
+    return Schedule(tuple(entries))
+
+
+def _proves_cpu_nontrivial(
+    snapshot: SlotSnapshot,
+    rated,
+    cfg: EvaluationConfig,
+) -> bool:
+    task_by_id = {task.task_id: task for task in snapshot.tasks}
+    requirements_by_uav: dict[int, list[float]] = {}
+    for record in rated.rates:
+        requirement = required_resources(
+            task_by_id[record.task_id],
+            record.rate_bps,
+        )
+        if not requirement.feasible:
+            continue
+        requirements_by_uav.setdefault(record.serving_uav, []).append(requirement.cpu_hz)
+    return any(
+        math.fsum(cpu_requirements) > cfg.cpu_per_uav_hz
+        for cpu_requirements in requirements_by_uav.values()
+    )
+
+
+def _certificate_bound(
+    snapshot: SlotSnapshot,
+    objective: tuple[int, float, float],
+    complete: bool,
+) -> tuple[
+    tuple[int, float, float],
+    tuple[int, float, float],
+    str,
+]:
+    if complete:
+        return objective, (0, 0.0, 0.0), "exact"
+    bound = (len(snapshot.tasks), 0.0, 0.0)
+    gap = (
+        bound[0] - objective[0],
+        bound[1] - objective[1],
+        bound[2] - objective[2],
+    )
+    return bound, gap, "bounded"
 
 
 def exact_schedule(
     snapshot: SlotSnapshot,
     channel: NOMAChannel,
     cfg: EvaluationConfig,
-    max_heavy_tasks: int,
-) -> ExactResult:
-    """Enumerate unserved and every UAV-subcarrier assignment completely."""
+    max_heavy_tasks: int = 5,
+    *,
+    state_cap: int | None = None,
+    timeout_s: float | None = None,
+) -> ExactScheduleResult:
+    """Enumerate, close, and certify every small-instance radio assignment."""
     if not isinstance(max_heavy_tasks, int) or isinstance(max_heavy_tasks, bool):
         raise ValueError("max_heavy_tasks must be an integer")
     if max_heavy_tasks < 0:
         raise ValueError("max_heavy_tasks must be non-negative")
+    if state_cap is not None and (
+        not isinstance(state_cap, int) or isinstance(state_cap, bool) or state_cap < 1
+    ):
+        raise ValueError("state_cap must be a positive integer or None")
+    if timeout_s is not None and (
+        isinstance(timeout_s, bool)
+        or not isinstance(timeout_s, (int, float))
+        or not math.isfinite(timeout_s)
+        or timeout_s <= 0.0
+    ):
+        raise ValueError("timeout_s must be finite and positive or None")
 
     heavy = tuple(
         sorted(
@@ -43,61 +266,92 @@ def exact_schedule(
         )
     )
     if len(heavy) > max_heavy_tasks:
-        raise ValueError(
-            f"exact search limited to {max_heavy_tasks} heavy tasks"
-        )
+        raise ValueError(f"exact search limited to {max_heavy_tasks} heavy tasks")
 
     resource_blocks = snapshot.num_uavs * cfg.n_subcarriers
-    choices = range(-1, resource_blocks)
-    best_schedule: Schedule | None = None
-    best_outcome: SlotOutcome | None = None
-    evaluated = 0
-
-    for assignment in product(choices, repeat=len(heavy)):
-        counts = {
-            block: assignment.count(block)
-            for block in range(resource_blocks)
-        }
-        if any(count > 2 for count in counts.values()):
-            continue
-
-        entries = []
-        for task, block in zip(heavy, assignment, strict=True):
-            if block < 0:
-                continue
-            uav, subcarrier = divmod(block, cfg.n_subcarriers)
-            entries.append(
-                ScheduleEntry(
-                    task.task_id,
-                    task.user_id,
-                    uav,
-                    subcarrier,
-                    "solo",
-                )
-            )
-        schedule = normalize_roles(Schedule(tuple(entries)), snapshot, channel_basis=ChannelBasis.PLANNING)
-        evaluated += 1
+    fingerprint = semantic_fingerprint(
+        snapshot,
+        channel,
+        cfg,
+        ChannelBasis.PLANNING,
+    )
+    best_closed: ClosedExecutableSchedule | None = None
+    best_objective: tuple[int, float, float] | None = None
+    unique_closed: dict[tuple, ClosedExecutableSchedule] = {}
+    raw_states_enumerated = 0
+    cpu_nontrivial = False
+    complete = False
+    started = time.monotonic()
+    assignments = iter(_legal_raw_assignments(len(heavy), resource_blocks))
+    while True:
         try:
-            outcome = evaluate_schedule(snapshot, schedule, channel, cfg)
-        except InfeasibleScheduleError:
-            continue
-
-        if best_schedule is None or best_outcome is None:
-            best_schedule = schedule
-            best_outcome = outcome
-            continue
-        candidate = (network_objective(outcome), schedule.stable_key())
-        incumbent = (
-            network_objective(best_outcome),
-            best_schedule.stable_key(),
-        )
-        if candidate[0] > incumbent[0] or (
-            candidate[0] == incumbent[0]
-            and candidate[1] < incumbent[1]
+            assignment = next(assignments)
+        except StopIteration:
+            complete = True
+            break
+        if state_cap is not None and raw_states_enumerated >= state_cap:
+            break
+        if (
+            timeout_s is not None
+            and raw_states_enumerated > 0
+            and time.monotonic() - started >= timeout_s
         ):
-            best_schedule = schedule
-            best_outcome = outcome
+            break
 
-    if best_schedule is None or best_outcome is None:
+        raw_states_enumerated += 1
+        raw = _raw_schedule(heavy, assignment, cfg.n_subcarriers)
+        try:
+            rated = rate_raw_assignment(
+                snapshot,
+                raw,
+                channel,
+                cfg,
+                channel_basis=ChannelBasis.PLANNING,
+            )
+            if all(record.sic_feasible for record in rated.rates):
+                cpu_nontrivial = cpu_nontrivial or _proves_cpu_nontrivial(
+                    snapshot,
+                    rated,
+                    cfg,
+                )
+            closed = close_assignment(snapshot, rated, channel, cfg)
+        except (InfeasibleScheduleError, ScheduleValidationError):
+            continue
+        key = closed_semantic_key(closed)
+        if key in unique_closed:
+            continue
+        unique_closed[key] = closed
+        outcome = build_outcome_from_closed(snapshot, closed)
+        objective = network_objective(outcome)
+        if (
+            best_closed is None
+            or best_objective is None
+            or objective > best_objective
+            or (objective == best_objective and closed.stable_key() < best_closed.stable_key())
+        ):
+            best_closed = closed
+            best_objective = objective
+
+    if best_closed is None or best_objective is None:
         raise RuntimeError("exact search found no feasible schedule")
-    return ExactResult(best_schedule, best_outcome, evaluated, True)
+    best_bound, gap, gap_status = _certificate_bound(
+        snapshot,
+        best_objective,
+        complete,
+    )
+    certificate = ExactScheduleCertificate(
+        complete=complete,
+        raw_states_enumerated=raw_states_enumerated,
+        unique_closed_states=len(unique_closed),
+        best_bound=best_bound,
+        lexicographic_gap=gap,
+        gap_status=gap_status,
+        cpu_nontrivial=cpu_nontrivial,
+        schedule_nontrivial=(len(unique_closed) >= 2 and best_objective[0] < len(snapshot.tasks)),
+        semantic_fingerprint=fingerprint,
+    )
+    return ExactScheduleResult(
+        plan=freeze_plan(best_closed),
+        objective=best_objective,
+        certificate=certificate,
+    )

@@ -6,6 +6,7 @@ import numpy as np
 import pytest
 
 from uav_mec.domain import Task
+from uav_mec.exact import ExactScheduleResult
 from uav_mec.resource_allocation import (
     ExactAdmissionResult,
     exact_admission,
@@ -128,6 +129,7 @@ def test_exact_admission_local_task_does_not_require_unused_downlink_rate() -> N
 
     result = exact_admission((local,), {}, 0.0)
 
+    assert not isinstance(result, ExactScheduleResult)
     assert result.admitted_task_ids == (local.task_id,)
     assert result.total_cpu_hz == 0.0
     assert result.requirements[local.task_id].local_only

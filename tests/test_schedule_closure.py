@@ -5,6 +5,7 @@ import pytest
 
 from uav_mec.closure import (
     ClosedExecutableSchedule,
+    closed_semantic_key,
     close_assignment,
     freeze_plan,
     rate_raw_assignment,
@@ -97,6 +98,27 @@ def test_closure_is_idempotent_and_deletion_only() -> None:
     assert second.stable_key() == first.stable_key()
     assert first.closure_rounds <= len(raw.entries)
     assert set(first.schedule.task_ids) <= set(raw.task_ids)
+
+
+def test_closed_semantic_key_binds_stable_state_and_fingerprint() -> None:
+    snapshot, raw, channel, cfg = _overloaded_case()
+    closed = close_assignment(
+        snapshot,
+        rate_raw_assignment(
+            snapshot,
+            raw,
+            channel,
+            cfg,
+            channel_basis=ChannelBasis.PLANNING,
+        ),
+        channel,
+        cfg,
+    )
+
+    assert closed_semantic_key(closed) == (
+        closed.stable_key(),
+        closed.rate_snapshot.semantic_fingerprint,
+    )
 
 
 def test_closure_rejects_a_semantic_fingerprint_mismatch() -> None:
