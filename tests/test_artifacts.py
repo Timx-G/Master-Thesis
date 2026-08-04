@@ -69,3 +69,32 @@ def test_empty_csv_requires_explicit_fieldnames(tmp_path: Path):
     writer.write_csv("valid-empty.csv", [], fieldnames=["task_id"])
 
     assert (tmp_path / "run/valid-empty.csv").read_text() == "task_id\n"
+
+
+def test_artifact_writer_stream_copies_bytes_without_json_reserialization(
+    tmp_path: Path,
+) -> None:
+    source = tmp_path / "source.bin"
+    source.write_bytes(b"\x00raw\xffbytes\n")
+    writer = RunArtifactWriter(tmp_path / "run", bundle_version=2)
+
+    writer.copy_file("nested/source.bin", source)
+    writer.finalize({"schema": "v2"})
+
+    assert (tmp_path / "run/nested/source.bin").read_bytes() == source.read_bytes()
+
+
+def test_v2_artifact_writer_uses_uppercase_manifest_and_sha256sums_closure_names(
+    tmp_path: Path,
+) -> None:
+    writer = RunArtifactWriter(tmp_path / "run", bundle_version=2)
+    writer.write_json("summary.json", {"value": 1})
+    writer.finalize({"schema": "v2"})
+
+    assert (tmp_path / "run/MANIFEST.json").is_file()
+    assert (tmp_path / "run/SHA256SUMS").is_file()
+    assert not (tmp_path / "run/manifest.json").exists()
+    assert not (tmp_path / "run/checksums.sha256").exists()
+    sums = (tmp_path / "run/SHA256SUMS").read_text(encoding="utf-8")
+    assert "MANIFEST.json" in sums
+    assert "summary.json" in sums
