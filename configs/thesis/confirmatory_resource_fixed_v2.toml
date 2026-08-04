@@ -6,6 +6,7 @@ seed_count = 200
 methods = ["fixed_radio_dd", "fixed_radio_edf", "fixed_radio_dd_radio_neutral", "fixed_radio_edf_radio_neutral", "fixed_radio_dd_deadline_generated", "fixed_radio_edf_deadline_generated", "exact_admission"]
 sample_size_policy = "power_selected"
 method_metadata_required = true
+resource_response_policies = ["fixed_half", "crossing_alpha_min", "deadline_first_min_cpu", "min_slack_min_cpu", "dd_mcaa", "exact_admission"]
 
 [scenario]
 num_users = 45

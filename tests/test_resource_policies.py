@@ -122,6 +122,23 @@ def test_deadline_first_min_cpu_is_distinct_from_dd_mcaa_cpu_order() -> None:
     assert AllocationPolicy.EDF_MIN_CPU.value == "edf_min_cpu"
 
 
+def test_min_slack_min_cpu_is_an_explicit_resource_policy() -> None:
+    tasks = (
+        Task(1, 1, 0, 1e6, 1.4e9, 0.75, 1e9),
+        Task(2, 2, 0, 1e6, 1.8e9, 0.90, 1e9),
+    )
+    result = allocate_with_policy(
+        AllocationPolicy.MIN_SLACK_MIN_CPU,
+        tasks,
+        {1: 4e6, 2: 4e6},
+        1.5e9,
+    )
+
+    assert AllocationPolicy.MIN_SLACK_MIN_CPU.value == "min_slack_min_cpu"
+    assert set(result.completed_task_ids) <= {1, 2}
+    assert result.total_cpu_hz <= 1.5e9
+
+
 @pytest.mark.parametrize("invalid_rate", [0.0, -1.0, float("nan")])
 def test_equal_policy_rejects_invalid_rates_without_nan_decisions(invalid_rate):
     task = Task(1, 0, 0, 1e6, 1.2e9, 0.8, 1e9)

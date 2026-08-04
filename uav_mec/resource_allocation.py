@@ -26,6 +26,7 @@ class RequirementReason(str, Enum):
 class AllocationPolicy(str, Enum):
     DEADLINE = "deadline"
     EDF_MIN_CPU = "edf_min_cpu"
+    MIN_SLACK_MIN_CPU = "min_slack_min_cpu"
     CROSSING_EQUAL = "crossing_equal"
     FIXED_HALF_EQUAL = "fixed_half_equal"
 
@@ -167,13 +168,10 @@ def _crossing_alpha(
 
     scale_exponent = max(exponent for _, exponent in terms)
     scaled_denominator = math.fsum(
-        math.ldexp(significand, exponent - scale_exponent)
-        for significand, exponent in terms
+        math.ldexp(significand, exponent - scale_exponent) for significand, exponent in terms
     )
     local_significand, local_exponent = terms[0]
-    ratio_significand, ratio_exponent = math.frexp(
-        local_significand / scaled_denominator
-    )
+    ratio_significand, ratio_exponent = math.frexp(local_significand / scaled_denominator)
     return math.ldexp(
         ratio_significand,
         local_exponent - scale_exponent + ratio_exponent,
@@ -191,10 +189,7 @@ def _cpu_sum(cpu_costs: Sequence[float]) -> float:
 def _validate_downlink_rates_bps(
     downlink_rates_bps: Mapping[int, float] | None,
 ) -> None:
-    if (
-        downlink_rates_bps is not None
-        and not isinstance(downlink_rates_bps, Mapping)
-    ):
+    if downlink_rates_bps is not None and not isinstance(downlink_rates_bps, Mapping):
         raise TypeError("downlink_rates_bps must be a mapping or None")
 
 
@@ -339,12 +334,9 @@ def required_resources(
             RequirementReason.INVALID_RATE,
         )
     if task.result_ratio > 0.0 and downlink_rate_bps is None:
-        raise ValueError(
-            "downlink_rate_bps is required for positive result_ratio"
-        )
+        raise ValueError("downlink_rate_bps is required for positive result_ratio")
     if task.result_ratio > 0.0 and (
-        not math.isfinite(float(downlink_rate_bps))
-        or float(downlink_rate_bps) <= 0.0
+        not math.isfinite(float(downlink_rate_bps)) or float(downlink_rate_bps) <= 0.0
     ):
         return ResourceRequirement(
             task.task_id,
@@ -358,9 +350,7 @@ def required_resources(
         selected_alpha, local_branch_feasible = _deadline_feasible_alpha(task)
     else:
         selected_alpha = float(alpha)
-        local_branch_feasible = (
-            _local_branch_delay(task, selected_alpha) <= task.remaining_time_s
-        )
+        local_branch_feasible = _local_branch_delay(task, selected_alpha) <= task.remaining_time_s
     alpha = selected_alpha
     if not local_branch_feasible:
         return _link_infeasible(task, alpha)
@@ -387,11 +377,13 @@ def required_resources(
                 (task.data_bits,),
                 (rate_bps,),
             ),
-            0.0
-            if task.result_ratio == 0.0
-            else _positive_product_ratio(
-                (task.result_ratio, task.data_bits),
-                (float(downlink_rate_bps),),
+            (
+                0.0
+                if task.result_ratio == 0.0
+                else _positive_product_ratio(
+                    (task.result_ratio, task.data_bits),
+                    (float(downlink_rate_bps),),
+                )
             ),
         )
     )
@@ -436,7 +428,7 @@ def _static_virtual_cpu_admission(
     cpu_budget_hz: float,
     downlink_rates_bps: Mapping[int, float] | None,
     *,
-    deadline_first: bool,
+    ordering: str,
 ) -> AllocationResult:
     """Allocate persistent virtual CPU shares in one frozen radio snapshot.
 
@@ -470,16 +462,10 @@ def _static_virtual_cpu_admission(
         for task in task_list
         if task.requires_offload
         and task.result_ratio > 0.0
-        and (
-            downlink_rates_bps is None
-            or task.task_id not in downlink_rates_bps
-        )
+        and (downlink_rates_bps is None or task.task_id not in downlink_rates_bps)
     )
     if missing_downlink_task_ids:
-        raise KeyError(
-            "missing downlink_rate_bps for task "
-            f"{missing_downlink_task_ids[0]}"
-        )
+        raise KeyError("missing downlink_rate_bps for task " f"{missing_downlink_task_ids[0]}")
 
     local_decisions: list[AllocationDecision] = []
     mec_requirements: list[ResourceRequirement] = []
@@ -525,7 +511,7 @@ def _static_virtual_cpu_admission(
         else:
             rejected[task.task_id] = requirement
 
-    if deadline_first:
+    if ordering == "deadline_first":
         mec_requirements.sort(
             key=lambda requirement: (
                 task_by_id[requirement.task_id].absolute_deadline_s,
@@ -533,10 +519,25 @@ def _static_virtual_cpu_admission(
                 requirement.task_id,
             )
         )
+    elif ordering == "minimum_slack":
+
+        def slack_key(requirement: ResourceRequirement) -> tuple[float, float, int]:
+            task = task_by_id[requirement.task_id]
+            delay_s = completion_delay_s(
+                task,
+                requirement.alpha,
+                rates_bps[requirement.task_id],
+                cpu_budget_hz,
+                None if task.result_ratio == 0.0 else downlink_rates_bps[requirement.task_id],
+            )
+            slack_s = task.deadline_s - delay_s
+            return (slack_s, requirement.cpu_hz, requirement.task_id)
+
+        mec_requirements.sort(key=slack_key)
+    elif ordering == "minimum_cpu":
+        mec_requirements.sort(key=lambda requirement: (requirement.cpu_hz, requirement.task_id))
     else:
-        mec_requirements.sort(
-            key=lambda requirement: (requirement.cpu_hz, requirement.task_id)
-        )
+        raise ValueError(f"unsupported static admission ordering {ordering}")
     chosen: set[int] = set()
     chosen_cpu_costs: list[float] = []
     for requirement in mec_requirements:
@@ -557,9 +558,7 @@ def _static_virtual_cpu_admission(
                 requirement.alpha,
                 rate_bps,
                 requirement.cpu_hz,
-                None
-                if task.result_ratio == 0.0
-                else downlink_rates_bps[task_id],
+                None if task.result_ratio == 0.0 else downlink_rates_bps[task_id],
             )
             if not math.isfinite(delay_s) or delay_s > task.deadline_s:
                 raise RuntimeError(f"selected task {task_id} violates its deadline requirement")
@@ -630,7 +629,7 @@ def minimum_cpu_prefix_admission(
         uplink_rates_bps,
         cpu_budget_hz,
         downlink_rates_bps,
-        deadline_first=False,
+        ordering="minimum_cpu",
     )
 
 
@@ -651,7 +650,28 @@ def deadline_first_minimum_cpu_admission(
         uplink_rates_bps,
         cpu_budget_hz,
         downlink_rates_bps,
-        deadline_first=True,
+        ordering="deadline_first",
+    )
+
+
+def minimum_slack_minimum_cpu_admission(
+    tasks: Sequence[Task],
+    uplink_rates_bps: Mapping[int, float],
+    cpu_budget_hz: float,
+    downlink_rates_bps: Mapping[int, float] | None = None,
+) -> AllocationResult:
+    """Admit the most urgent full-budget-laxity tasks, then minimum CPU.
+
+    Laxity is evaluated on the frozen radio state with the task temporarily
+    receiving the full per-UAV CPU budget.  The policy then reserves each
+    selected task's analytical minimum static CPU share.
+    """
+    return _static_virtual_cpu_admission(
+        tasks,
+        uplink_rates_bps,
+        cpu_budget_hz,
+        downlink_rates_bps,
+        ordering="minimum_slack",
     )
 
 
@@ -706,25 +726,15 @@ def exact_admission(
         for task in task_list
         if task.requires_offload
         and task.result_ratio > 0.0
-        and (
-            downlink_rates_bps is None
-            or task.task_id not in downlink_rates_bps
-        )
+        and (downlink_rates_bps is None or task.task_id not in downlink_rates_bps)
     )
     if missing_downlink_task_ids:
-        raise KeyError(
-            "missing downlink_rate_bps for task "
-            f"{missing_downlink_task_ids[0]}"
-        )
+        raise KeyError("missing downlink_rate_bps for task " f"{missing_downlink_task_ids[0]}")
 
     requirements = {
         task.task_id: required_resources(
             task,
-            (
-                uplink_rates_bps[task.task_id]
-                if task.requires_offload
-                else math.nan
-            ),
+            (uplink_rates_bps[task.task_id] if task.requires_offload else math.nan),
             downlink_rate_bps=(
                 None
                 if not task.requires_offload or task.result_ratio == 0.0
@@ -758,9 +768,7 @@ def exact_admission(
 
     admitted = tuple(best_task_ids)
     admitted_set = set(admitted)
-    rejected = tuple(
-        task_id for task_id in ordered_task_ids if task_id not in admitted_set
-    )
+    rejected = tuple(task_id for task_id in ordered_task_ids if task_id not in admitted_set)
     return ExactAdmissionResult(
         admitted_task_ids=admitted,
         rejected_task_ids=rejected,
@@ -795,16 +803,10 @@ def _equal_cpu_allocation(
         for task in ordered_tasks
         if task.requires_offload
         and task.result_ratio > 0.0
-        and (
-            downlink_rates_bps is None
-            or task.task_id not in downlink_rates_bps
-        )
+        and (downlink_rates_bps is None or task.task_id not in downlink_rates_bps)
     )
     if missing_downlink_task_ids:
-        raise KeyError(
-            "missing downlink_rate_bps for task "
-            f"{missing_downlink_task_ids[0]}"
-        )
+        raise KeyError("missing downlink_rate_bps for task " f"{missing_downlink_task_ids[0]}")
 
     cpu_hz = cpu_budget_hz / len(ordered_tasks)
     if cpu_hz == 0.0:
@@ -825,20 +827,13 @@ def _equal_cpu_allocation(
     decisions: list[AllocationDecision] = []
     for task in ordered_tasks:
         rate_bps = rates_bps.get(task.task_id, 0.0)
-        downlink_rate_bps = (
-            None
-            if task.result_ratio == 0.0
-            else downlink_rates_bps[task.task_id]
-        )
+        downlink_rate_bps = None if task.result_ratio == 0.0 else downlink_rates_bps[task.task_id]
         if (
             not math.isfinite(rate_bps)
             or rate_bps <= 0.0
             or (
                 task.result_ratio > 0.0
-                and (
-                    not math.isfinite(downlink_rate_bps)
-                    or downlink_rate_bps <= 0.0
-                )
+                and (not math.isfinite(downlink_rate_bps) or downlink_rate_bps <= 0.0)
             )
         ):
             decisions.append(
@@ -904,12 +899,8 @@ def _equal_cpu_allocation(
         )
 
     ordered = tuple(decisions)
-    completed_ids = tuple(
-        decision.task_id for decision in ordered if decision.completed
-    )
-    total_cpu_hz = _cpu_sum(
-        tuple(decision.cpu_hz for decision in ordered if decision.cpu_hz > 0.0)
-    )
+    completed_ids = tuple(decision.task_id for decision in ordered if decision.completed)
+    total_cpu_hz = _cpu_sum(tuple(decision.cpu_hz for decision in ordered if decision.cpu_hz > 0.0))
     if total_cpu_hz > cpu_budget_hz:
         raise RuntimeError("equal allocation exceeds cpu_budget_hz")
     return AllocationResult(ordered, completed_ids, total_cpu_hz)
@@ -935,6 +926,13 @@ def allocate_with_policy(
         )
     if policy is AllocationPolicy.EDF_MIN_CPU:
         return deadline_first_minimum_cpu_admission(
+            tasks,
+            rates_bps,
+            cpu_budget_hz,
+            downlink_rates_bps,
+        )
+    if policy is AllocationPolicy.MIN_SLACK_MIN_CPU:
+        return minimum_slack_minimum_cpu_admission(
             tasks,
             rates_bps,
             cpu_budget_hz,
