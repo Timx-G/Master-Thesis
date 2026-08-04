@@ -20,7 +20,9 @@ from uav_mec.resource_snapshots import (
 from uav_mec.schedule import validate_schedule
 from uav_mec.run_resource_experiment import (
     RESOURCE_POLICIES,
+    evaluate_resource_generator,
     evaluate_resource_slot,
+    materialize_resource_generator_slot,
     materialize_resource_slot,
     run_resource_definition,
 )
@@ -158,6 +160,36 @@ def test_resource_runner_searches_each_generator_once_per_seed_slot(monkeypatch)
     assert calls == list(RadioGenerator)
     assert rate_bases.count(ChannelBasis.PLANNING) == len(RadioGenerator)
     assert rate_bases.count(ChannelBasis.REALIZED) == len(RadioGenerator)
+
+
+def test_resource_calibration_materializes_one_generator_once_and_replays_six_responses(
+    monkeypatch,
+):
+    snapshot, schedule, channel, cfg = _fixture()
+    calls = []
+    events = []
+
+    def fake_schedule(generator, *_args, event_sink=None, **_kwargs):
+        calls.append(generator)
+        event_sink.append({"move_type": "termination", "raw_move_count": 7, "cache_hits": 2})
+        return schedule
+
+    monkeypatch.setattr("uav_mec.run_resource_experiment._schedule_for_generator", fake_schedule)
+    raw = materialize_resource_generator_slot(
+        42,
+        snapshot,
+        RadioGenerator.DD_GENERATED,
+        channel,
+        cfg,
+        5,
+        event_sink=events,
+    )
+    rows = evaluate_resource_generator(snapshot, raw, cfg)
+
+    assert calls == [RadioGenerator.DD_GENERATED]
+    assert events[0]["raw_move_count"] == 7
+    assert len(rows) == len(RESOURCE_POLICIES)
+    assert {row.generator for row in rows} == {RadioGenerator.DD_GENERATED}
 
 
 def test_resource_runner_emits_fixed_half_and_crossing_alpha_min_for_each_generator(

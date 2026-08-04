@@ -1040,6 +1040,12 @@ def _slot_method(
                 channel_basis=ChannelBasis.PLANNING,
                 qos_spectral_efficiency=(GUO_DEFAULT_QOS_SPECTRAL_EFFICIENCY),
             )
+            schedule = repair_sic(
+                schedule,
+                planning,
+                channel,
+                search_evaluation,
+            )
             return evaluate_noma(snapshot, schedule)
 
         if spec.wireless_kernel == "per_uav_ilp":
@@ -1142,6 +1148,11 @@ def _slot_method(
                 "before": None,
                 "after": result.iterations,
                 "schedule_key": result.schedule.stable_key(),
+                "raw_move_count": result.raw_move_count,
+                "unique_closed_candidate_count": (
+                    result.unique_closed_candidate_count
+                ),
+                "cache_hits": result.cache_hits,
             }
         )
         return evaluate_noma(snapshot, result.schedule)

@@ -243,7 +243,7 @@ def _cpu_requirement_audit(
         for uav, requirements in sorted(requirements_by_uav.items())
         if all(requirement.feasible for requirement in requirements)
         and math.fsum(requirement.cpu_hz for requirement in requirements)
-        > cfg.cpu_per_uav_hz
+        > cfg.cpu_budget_for(uav, snapshot.num_uavs)
     )
     all_requirements = tuple(
         requirement

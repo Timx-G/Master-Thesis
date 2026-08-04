@@ -159,6 +159,33 @@ def test_channel_uses_urban_parameters_and_db_averaged_loss():
     assert channel.path_loss(400.0) == pytest.approx(1.7976945235825014e-11, rel=1e-12)
 
 
+def test_3gpp_uma_av_audited_pathloss_matches_tr_36777_annex_b_at_100m():
+    cfg = ChannelConfig(pathloss_model="3gpp_uma_av_audited")
+    channel = NOMAChannel(cfg, 100.0)
+    horizontal_m = 400.0
+    distance_3d_m = math.hypot(horizontal_m, 100.0)
+    p1_m = 4300.0 * math.log10(100.0) - 3800.0
+    d1_m = max(460.0 * math.log10(100.0) - 700.0, 18.0)
+    p_los = d1_m / horizontal_m + math.exp(-horizontal_m / p1_m) * (
+        1.0 - d1_m / horizontal_m
+    )
+    los_db = 28.0 + 22.0 * math.log10(distance_3d_m) + 20.0 * math.log10(2.0)
+    nlos_db = (
+        -17.5
+        + (46.0 - 7.0 * math.log10(100.0)) * math.log10(distance_3d_m)
+        + 20.0 * math.log10(40.0 * math.pi * 2.0 / 3.0)
+    )
+    expected_gain = 10.0 ** (-(p_los * los_db + (1.0 - p_los) * nlos_db) / 10.0)
+
+    assert channel.path_loss(horizontal_m) == pytest.approx(expected_gain, rel=1e-12)
+
+
+@pytest.mark.parametrize("model", ("", "3gpp", "invented"))
+def test_channel_config_rejects_unregistered_pathloss_model(model):
+    with pytest.raises(ValueError, match="pathloss_model"):
+        ChannelConfig(pathloss_model=model)
+
+
 def test_ofdma_uses_noise_for_each_users_bandwidth():
     channel = NOMAChannel(ChannelConfig(), 100.0)
     uav_pos = np.array([0.0, 0.0, 100.0])

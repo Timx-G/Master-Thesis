@@ -8,8 +8,7 @@ from uav_mec.domain import ExperimentTrace, SlotSnapshot
 from uav_mec.experiment import load_definition
 from uav_mec.experiment_registry import load_registry, registered_family
 from uav_mec.model import ScenarioConfig, TaskConfig
-from uav_mec.trace import generate_trace
-
+from uav_mec.trace import _centers, generate_trace
 
 REGISTRY_PATH = Path("configs/thesis/experiment_registry_v2.toml")
 
@@ -59,6 +58,44 @@ def test_trace_rejects_unsupported_nonfixed_cluster_layout(development_seed_acce
     cfg = ScenarioConfig(fixed_cluster_centers=False)
 
     with pytest.raises(ValueError, match="fixed_cluster_centers"):
+        generate_trace(cfg, 1, seed_access=development_seed_access)
+
+
+def test_pairwise_overlap_centers_are_pairwise_uav_midpoints() -> None:
+    cfg = ScenarioConfig(
+        num_uavs=3,
+        num_clusters=3,
+        cluster_layout="pairwise_overlap",
+    )
+    np.testing.assert_array_equal(
+        _centers(cfg),
+        np.array(((400.0, 200.0), (300.0, 400.0), (500.0, 400.0))),
+    )
+
+
+def test_pairwise_overlap_materially_changes_same_seed_channels(
+    development_seed_access,
+) -> None:
+    overlap = ScenarioConfig(
+        num_users=12,
+        num_slots=3,
+        num_uavs=3,
+        num_clusters=3,
+        cluster_layout="pairwise_overlap",
+        cluster_std=5.0,
+    )
+    fixed = replace(overlap, cluster_layout="fixed")
+    overlap_trace = generate_trace(overlap, 31, seed_access=development_seed_access)
+    fixed_trace = generate_trace(fixed, 31, seed_access=development_seed_access)
+    assert any(
+        not np.array_equal(left.channel_gains, right.channel_gains)
+        for left, right in zip(overlap_trace.slots, fixed_trace.slots, strict=True)
+    )
+
+
+def test_trace_rejects_unknown_named_cluster_layout(development_seed_access) -> None:
+    cfg = ScenarioConfig(cluster_layout="invented")
+    with pytest.raises(ValueError, match="cluster_layout"):
         generate_trace(cfg, 1, seed_access=development_seed_access)
 
 
@@ -126,9 +163,7 @@ def test_periodic_jitter_is_seed_stable_and_keeps_positive_intervals(
     first = generate_trace(cfg, 23, seed_access=development_seed_access)
     second = generate_trace(cfg, 23, seed_access=development_seed_access)
 
-    assert [slot.tasks for slot in first.slots] == [
-        slot.tasks for slot in second.slots
-    ]
+    assert [slot.tasks for slot in first.slots] == [slot.tasks for slot in second.slots]
     intervals = []
     for tasks in _arrivals_by_user(first).values():
         slots = [task.arrival_slot for task in tasks]
@@ -138,11 +173,7 @@ def test_periodic_jitter_is_seed_stable_and_keeps_positive_intervals(
         intervals.extend(user_intervals)
     assert any(interval != 3 for interval in intervals)
 
-    deadlines = [
-        task.deadline_s
-        for snapshot in first.slots
-        for task in snapshot.tasks
-    ]
+    deadlines = [task.deadline_s for snapshot in first.slots for task in snapshot.tasks]
     assert all(0.5 <= deadline <= 0.9 for deadline in deadlines)
     assert len(set(deadlines)) > 1
 
@@ -161,9 +192,7 @@ def test_registered_periodic_and_deadline_fields_change_materialized_traces(
     development_seed_access,
 ) -> None:
     registry = load_registry(REGISTRY_PATH)
-    definition = load_definition(
-        registered_family(registry, family_name).config_path
-    )
+    definition = load_definition(registered_family(registry, family_name).config_path)
 
     trace = generate_trace(
         definition.scenario,
@@ -183,11 +212,7 @@ def test_registered_periodic_and_deadline_fields_change_materialized_traces(
         for tasks in tasks_by_user.values()
     )
 
-    deadlines = {
-        task.deadline_s
-        for tasks in tasks_by_user.values()
-        for task in tasks
-    }
+    deadlines = {task.deadline_s for tasks in tasks_by_user.values() for task in tasks}
     assert min(deadlines) >= definition.scenario.task.t_min
     assert max(deadlines) <= definition.scenario.task.t_max
     assert len(deadlines) > 1
@@ -211,11 +236,7 @@ def test_deadline_is_exact_when_no_range_is_requested(
 
     trace = generate_trace(cfg, 29, seed_access=development_seed_access)
 
-    deadlines = {
-        task.deadline_s
-        for snapshot in trace.slots
-        for task in snapshot.tasks
-    }
+    deadlines = {task.deadline_s for snapshot in trace.slots for task in snapshot.tasks}
     assert deadlines == {0.7}
 
 

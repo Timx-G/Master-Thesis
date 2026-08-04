@@ -15,7 +15,6 @@ from .resource_allocation import AllocationPolicy
 from .resource_snapshots import (
     RadioGenerator,
     RawRadioSnapshot,
-    build_deadline_first_schedule,
     build_radio_neutral_schedule,
     evaluate_frozen_resource_snapshot,
     freeze_radio_snapshot,
@@ -78,6 +77,8 @@ def _schedule_for_generator(
     evaluation: EvaluationConfig,
     scenario: ScenarioConfig,
     max_iterations: int,
+    *,
+    event_sink: list[dict[str, object]] | None = None,
 ) -> Schedule:
     if generator is RadioGenerator.RADIO_NEUTRAL:
         return build_radio_neutral_schedule(snapshot, channel, evaluation)
@@ -87,8 +88,50 @@ def _schedule_for_generator(
         target = replace(evaluation, allocation_policy=AllocationPolicy.DEADLINE)
     else:
         raise ValueError(f"unsupported radio generator {generator}")
-    outcome = _slot_method("full", scenario, target, max_iterations, [])(snapshot)
+    outcome = _slot_method(
+        "full",
+        scenario,
+        target,
+        max_iterations,
+        [] if event_sink is None else event_sink,
+    )(snapshot)
     return _schedule_from_outcome(snapshot, outcome)
+
+
+def materialize_resource_generator_slot(
+    seed: int,
+    snapshot: SlotSnapshot,
+    generator: RadioGenerator,
+    channel: NOMAChannel,
+    evaluation: EvaluationConfig,
+    max_iterations: int,
+    scenario: ScenarioConfig | None = None,
+    *,
+    event_sink: list[dict[str, object]] | None = None,
+) -> RawRadioSnapshot:
+    """Search one generator once and freeze its policy-independent radio state."""
+
+    resolved_scenario = scenario or ScenarioConfig(
+        num_users=max(len(snapshot.tasks), 1),
+        num_uavs=snapshot.num_uavs,
+        n_subcarriers=evaluation.n_subcarriers,
+    )
+    return freeze_radio_snapshot(
+        seed,
+        snapshot,
+        generator,
+        _schedule_for_generator(
+            generator,
+            snapshot,
+            channel,
+            evaluation,
+            resolved_scenario,
+            max_iterations,
+            event_sink=event_sink,
+        ),
+        channel,
+        evaluation,
+    )
 
 
 def materialize_resource_slot(
@@ -100,28 +143,40 @@ def materialize_resource_slot(
     scenario: ScenarioConfig | None = None,
 ) -> tuple[RawRadioSnapshot, ...]:
     """Search each generator once and freeze exactly one radio snapshot."""
-    resolved_scenario = scenario or ScenarioConfig(
-        num_users=max(len(snapshot.tasks), 1),
-        num_uavs=snapshot.num_uavs,
-        n_subcarriers=evaluation.n_subcarriers,
-    )
     return tuple(
-        freeze_radio_snapshot(
+        materialize_resource_generator_slot(
             seed,
             snapshot,
             generator,
-            _schedule_for_generator(
-                generator,
-                snapshot,
-                channel,
-                evaluation,
-                resolved_scenario,
-                max_iterations,
-            ),
             channel,
             evaluation,
+            max_iterations,
+            scenario,
         )
         for generator in RadioGenerator
+    )
+
+
+def evaluate_resource_generator(
+    snapshot: SlotSnapshot,
+    raw_snapshot: RawRadioSnapshot,
+    evaluation: EvaluationConfig,
+) -> tuple[ResourcePolicyOutcome, ...]:
+    """Replay all six CPU responses on one byte-identical radio snapshot."""
+
+    return tuple(
+        ResourcePolicyOutcome(
+            raw_snapshot.generator,
+            policy_name,
+            raw_snapshot.snapshot_id,
+            evaluate_frozen_resource_snapshot(
+                snapshot,
+                raw_snapshot,
+                policy,
+                evaluation,
+            ),
+        )
+        for policy_name, policy in RESOURCE_POLICIES.items()
     )
 
 
@@ -136,19 +191,9 @@ def evaluate_resource_slot(
     if len(raw_snapshots) != len(RadioGenerator):
         raise ValueError("raw_snapshots contains a duplicate generator")
     return tuple(
-        ResourcePolicyOutcome(
-            raw.generator,
-            policy_name,
-            raw.snapshot_id,
-            evaluate_frozen_resource_snapshot(
-                snapshot,
-                raw,
-                policy,
-                evaluation,
-            ),
-        )
+        row
         for raw in raw_snapshots
-        for policy_name, policy in RESOURCE_POLICIES.items()
+        for row in evaluate_resource_generator(snapshot, raw, evaluation)
     )
 
 

@@ -104,6 +104,20 @@ def _is_true(value: str) -> bool:
     return _parse_bool(value, "CSV value")
 
 
+def _resolved_cpu_budgets(resolved: dict, num_uavs: int) -> tuple[float, ...]:
+    value = resolved["evaluation"]["cpu_per_uav_hz"]
+    if isinstance(value, list):
+        if len(value) != num_uavs:
+            raise ValueError("CPU budget vector length does not match num_uavs")
+        budgets = tuple(float(item) for item in value)
+    else:
+        budget = float(value)
+        budgets = (budget,) * num_uavs
+    if any(not math.isfinite(budget) or budget <= 0.0 for budget in budgets):
+        raise ValueError("CPU budgets must be finite and positive")
+    return budgets
+
+
 def validate_bundle(bundle: Bundle) -> dict[str, object]:
     summary_methods = bundle.summary.get("methods")
     if not isinstance(summary_methods, dict) or not summary_methods:
@@ -222,7 +236,7 @@ def validate_bundle(bundle: Bundle) -> dict[str, object]:
         raise ValueError("manifest lacks resolved_definition")
     scenario = resolved["scenario"]
     num_uavs = int(scenario["num_uavs"])
-    cpu_budget = float(resolved["evaluation"]["cpu_per_uav_hz"])
+    cpu_budgets = _resolved_cpu_budgets(resolved, num_uavs)
 
     for row in bundle.tasks:
         method = row["method"]
@@ -296,7 +310,7 @@ def validate_bundle(bundle: Bundle) -> dict[str, object]:
     exceeded = {
         key: value
         for key, value in cpu_by_pool.items()
-        if value > cpu_budget + 1e-6
+        if value > cpu_budgets[key[3]] + 1e-6
     }
     if exceeded:
         raise ValueError(f"CPU budget exceeded: {exceeded}")
@@ -400,7 +414,8 @@ def bundle_metrics(bundle: Bundle) -> dict[str, dict[str, float]]:
     seeds = tuple(int(seed) for seed in bundle.summary["seeds"])
     resolved = bundle.manifest["resolved_definition"]
     scenario = resolved["scenario"]
-    cpu_budget = float(resolved["evaluation"]["cpu_per_uav_hz"])
+    num_uavs = int(scenario["num_uavs"])
+    cpu_budgets = _resolved_cpu_budgets(resolved, num_uavs)
     metrics: dict[str, dict[str, float]] = {}
     for method in methods:
         seed_metrics = []
@@ -432,8 +447,7 @@ def bundle_metrics(bundle: Bundle) -> dict[str, dict[str, float]]:
             )
             denominator = (
                 int(scenario["num_slots"])
-                * int(scenario["num_uavs"])
-                * cpu_budget
+                * math.fsum(cpu_budgets)
             )
             on_time_rate = (
                 sum(completed) / len(completed) if completed else 0.0

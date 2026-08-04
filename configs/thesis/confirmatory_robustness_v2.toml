@@ -33,129 +33,163 @@ role = "supporting"
 fixed_sample_size = 30
 factor = "csi_error_std"
 value = 0.0
+csi_error_std = 0.0
 [[cases]]
 case_id = "csi05"
 role = "supporting"
 fixed_sample_size = 30
 factor = "csi_error_std"
 value = 0.05
+csi_error_std = 0.05
 [[cases]]
 case_id = "csi10"
 role = "supporting"
 fixed_sample_size = 30
 factor = "csi_error_std"
 value = 0.10
+csi_error_std = 0.10
 [[cases]]
 case_id = "csi20"
 role = "supporting"
 fixed_sample_size = 30
 factor = "csi_error_std"
 value = 0.20
+csi_error_std = 0.20
 [[cases]]
 case_id = "sic_residual0"
 role = "supporting"
 fixed_sample_size = 30
 factor = "sic_residual"
 value = 0.0
+sic_residual = 0.0
 [[cases]]
 case_id = "sic_residual02"
 role = "supporting"
 fixed_sample_size = 30
 factor = "sic_residual"
 value = 0.02
+sic_residual = 0.02
 [[cases]]
 case_id = "sic_residual05"
 role = "supporting"
 fixed_sample_size = 30
 factor = "sic_residual"
 value = 0.05
+sic_residual = 0.05
 [[cases]]
 case_id = "sic_residual10"
 role = "supporting"
 fixed_sample_size = 30
 factor = "sic_residual"
 value = 0.10
+sic_residual = 0.10
 [[cases]]
 case_id = "sic_threshold_m3"
 role = "supporting"
 fixed_sample_size = 30
 factor = "sic_threshold_db"
 value = -3.0
+gamma_sic_min = 0.5011872336272722
 [[cases]]
 case_id = "sic_threshold0"
 role = "supporting"
 fixed_sample_size = 30
 factor = "sic_threshold_db"
 value = 0.0
+gamma_sic_min = 1.0
 [[cases]]
 case_id = "sic_threshold3"
 role = "supporting"
 fixed_sample_size = 30
 factor = "sic_threshold_db"
 value = 3.0
+gamma_sic_min = 1.9952623149688795
 [[cases]]
 case_id = "sic_threshold5"
 role = "supporting"
 fixed_sample_size = 30
 factor = "sic_threshold_db"
 value = 5.0
+gamma_sic_min = 3.1622776601683795
 [[cases]]
 case_id = "cpu_homogeneous"
 role = "supporting"
 fixed_sample_size = 30
 factor = "cpu_layout"
 value = "homogeneous"
+cpu_per_uav_hz = [4e9, 4e9, 4e9]
 [[cases]]
 case_id = "cpu_heterogeneous"
 role = "supporting"
 fixed_sample_size = 30
 factor = "cpu_layout"
 value = "heterogeneous"
+cpu_per_uav_hz = [2e9, 4e9, 6e9]
 [[cases]]
 case_id = "deadline_light"
 role = "supporting"
 fixed_sample_size = 30
 factor = "deadline_pressure"
 value = "light"
+t_max = 1.0
 [[cases]]
 case_id = "deadline_default"
 role = "supporting"
 fixed_sample_size = 30
 factor = "deadline_pressure"
 value = "default"
+t_max = 0.8
 [[cases]]
 case_id = "deadline_heavy"
 role = "supporting"
 fixed_sample_size = 30
 factor = "deadline_pressure"
 value = "heavy"
+t_max = 0.6
 [[cases]]
 case_id = "arrival_periodic"
 role = "supporting"
 fixed_sample_size = 30
 factor = "arrival_mode"
 value = "periodic"
+arrival_mode = "periodic"
+period_choices = [2, 2, 3]
+period_jitter_slots = 0
+random_burst = false
 [[cases]]
 case_id = "arrival_jitter"
 role = "supporting"
 fixed_sample_size = 30
 factor = "arrival_mode"
 value = "jitter"
+arrival_mode = "periodic"
+period_choices = [2, 2, 3]
+period_jitter_slots = 1
+random_burst = false
 [[cases]]
 case_id = "arrival_burst"
 role = "supporting"
 fixed_sample_size = 30
 factor = "arrival_mode"
 value = "burst"
+arrival_mode = "bernoulli"
+arrival_prob = 0.8
+random_burst = true
+burst_rate = 0.9
+cool_rate = 0.2
+burst_period_min = 8
+burst_period_max = 15
 [[cases]]
 case_id = "pathloss_al_hourani"
 role = "supporting"
 fixed_sample_size = 30
 factor = "pathloss_model"
 value = "al_hourani"
+pathloss_model = "al_hourani"
 [[cases]]
 case_id = "pathloss_3gpp_uma_av_audited"
 role = "supporting"
 fixed_sample_size = 30
 factor = "pathloss_model"
 value = "3gpp_uma_av_audited"
+pathloss_model = "3gpp_uma_av_audited"

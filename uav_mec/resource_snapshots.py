@@ -276,7 +276,11 @@ def _exact_outcome(
             for task_id, serving_uav in sorted(uav_by_task.items())
             if serving_uav == uav
         )
-        result = exact_admission(tasks, rate_by_id, evaluation.cpu_per_uav_hz)
+        result = exact_admission(
+            tasks,
+            rate_by_id,
+            evaluation.cpu_budget_for(uav, snapshot.num_uavs),
+        )
         admitted = set(result.admitted_task_ids)
         for task in tasks:
             requirement = result.requirements[task.task_id]

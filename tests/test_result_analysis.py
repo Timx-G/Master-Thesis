@@ -5,6 +5,7 @@ import pytest
 
 from uav_mec.analyze_results import (
     Bundle,
+    bundle_metrics,
     comparison_report,
     validate_bundle,
     verify_checksums,
@@ -116,6 +117,29 @@ def test_cpu_budget_violation_is_a_hard_validation_failure():
                 value.slots,
             )
         )
+
+
+def test_bundle_validation_and_metrics_respect_heterogeneous_cpu_pools():
+    value = bundle()
+    tasks = copy.deepcopy(value.tasks)
+    manifest = copy.deepcopy(value.manifest)
+    manifest["resolved_definition"]["scenario"]["num_uavs"] = 2
+    manifest["resolved_definition"]["evaluation"]["cpu_per_uav_hz"] = [2e9, 6e9]
+    for row in tasks:
+        if row["method"] == "full" and row["task_id"] == "2":
+            row["serving_uav"] = "1"
+            row["cpu_hz"] = "5000000000"
+    heterogeneous = Bundle(
+        value.name,
+        value.path,
+        manifest,
+        value.summary,
+        tasks,
+        value.slots,
+    )
+
+    assert validate_bundle(heterogeneous)["cpu_budget_violations"] == 0
+    assert bundle_metrics(heterogeneous)["full"]["cpu_utilization"] == pytest.approx(0.75)
 
 
 def test_positive_paired_effect_has_ci_and_holm_fields():

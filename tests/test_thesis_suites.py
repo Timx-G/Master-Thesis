@@ -17,7 +17,11 @@ from uav_mec.experiment import (
 )
 from uav_mec.model import ScenarioConfig
 from uav_mec.resource_allocation import AllocationPolicy
-from uav_mec.run_thesis_suite import BASE_PATH, build_suite
+from uav_mec.run_thesis_suite import (
+    BASE_PATH,
+    build_registered_case_definitions,
+    build_suite,
+)
 from uav_mec.trace import generate_trace
 
 
@@ -81,10 +85,13 @@ def test_resource_ablation_freezes_schedule_search_policy(
         search_traces.append(events)
         termination = [event for event in events if event["move_type"] == "termination"]
         assert len(termination) == 1
+        assert termination[0]["raw_move_count"] >= 0
+        assert termination[0]["unique_closed_candidate_count"] >= 0
+        assert termination[0]["cache_hits"] >= 0
+        assert termination[0]["cache_hits"] <= termination[0]["raw_move_count"]
         search_signatures.append(termination[0]["schedule_key"])
         executable_signatures[method] = tuple(
-            (record.task_id, record.serving_uav, record.subcarrier)
-            for record in outcome.rates
+            (record.task_id, record.serving_uav, record.subcarrier) for record in outcome.rates
         )
 
     assert search_traces[1:] == [search_traces[0]] * (len(search_traces) - 1)
@@ -95,19 +102,14 @@ def test_resource_ablation_freezes_schedule_search_policy(
         for serving_uav, subcarrier, _user_id, task_id, _role in (search_signatures[0])
     }
     assert all(
-        set(signature) <= searched_assignment
-        for signature in executable_signatures.values()
+        set(signature) <= searched_assignment for signature in executable_signatures.values()
     )
-    assert set(executable_signatures["full_fixed_half"]) < set(
-        executable_signatures["full"]
-    )
+    assert set(executable_signatures["full_fixed_half"]) < set(executable_signatures["full"])
     assert executable_signatures["full_crossing"] == executable_signatures["full"]
 
 
 def test_guo_adaptation_uses_the_common_closure_and_replay_path() -> None:
-    tasks = tuple(
-        Task(index, index, 0, 600_000.0, 1.2e9, 0.8, 0.4e9) for index in range(4)
-    )
+    tasks = tuple(Task(index, index, 0, 600_000.0, 1.2e9, 0.8, 0.4e9) for index in range(4))
     snapshot = SlotSnapshot(
         0,
         tasks,
@@ -143,6 +145,25 @@ def test_guo_adaptation_uses_the_common_closure_and_replay_path() -> None:
     assert outcome.slot_index == snapshot.slot_index
     assert outcome.plan_key is not None
     assert events == []
+
+
+def test_guo_adaptation_projects_raw_grouping_through_canonical_sic_repair(
+    development_seed_access,
+) -> None:
+    definition = load_definition(Path("configs/thesis/confirmatory_main_v2.toml"))
+    snapshot = generate_trace(
+        replace(definition.scenario, num_slots=1),
+        0,
+        seed_access=development_seed_access,
+    ).slots[0]
+    outcome = _slot_method(
+        "guo_jagp_adapted",
+        definition.scenario,
+        definition.evaluation,
+        definition.max_iterations,
+        [],
+    )(snapshot)
+    assert all(record.sic_feasible for record in outcome.rates)
 
 
 def test_scalability_and_robustness_cases_are_complete():
@@ -185,6 +206,118 @@ def test_scalability_and_robustness_cases_are_complete():
         "load_default",
         "load_heavy",
     }.issubset({case.name for case in robustness})
+
+
+def test_registered_externality_cases_resolve_explicit_overlap_load_and_coupling() -> None:
+    cases = {
+        case.name: case.definition for case in build_registered_case_definitions("externality")
+    }
+    assert len(cases) == 9
+    low = cases["overlap_low_coupling0_load08"]
+    assert low.scenario.cluster_layout == "pairwise_overlap"
+    assert low.scenario.cluster_std == 150.0
+    assert low.scenario.task.period_choices == (3,)
+    assert low.evaluation.cross_interference_scale == 0.0
+    center = cases["overlap_medium_coupling05_load10"]
+    assert center.scenario.cluster_std == 30.0
+    assert center.scenario.task.period_choices == (2, 3, 3)
+    assert center.evaluation.cross_interference_scale == 0.5
+    primary = cases["overlap_high_coupling1_load12"]
+    assert primary.scenario.cluster_std == 5.0
+    assert primary.scenario.task.period_choices == (2,)
+    assert primary.evaluation.cross_interference_scale == 1.0
+
+
+def test_registered_scaling_cases_resolve_exact_k_n_matrix() -> None:
+    cases = {case.name: case.definition for case in build_registered_case_definitions("scaling")}
+    assert tuple(cases) == (
+        "load_k3_n30",
+        "load_k3_n45",
+        "load_k3_n60",
+        "equal_k2_n30",
+        "equal_k3_n45",
+        "equal_k4_n60",
+        "equal_k5_n75",
+    )
+    assert (cases["equal_k5_n75"].scenario.num_uavs, cases["equal_k5_n75"].scenario.num_users) == (
+        5,
+        75,
+    )
+
+
+def test_registered_robustness_cases_resolve_locked_one_axis_parameters() -> None:
+    cases = {
+        case.name: case.definition for case in build_registered_case_definitions("robustness")
+    }
+
+    assert tuple(cases) == (
+        "csi0",
+        "csi05",
+        "csi10",
+        "csi20",
+        "sic_residual0",
+        "sic_residual02",
+        "sic_residual05",
+        "sic_residual10",
+        "sic_threshold_m3",
+        "sic_threshold0",
+        "sic_threshold3",
+        "sic_threshold5",
+        "cpu_homogeneous",
+        "cpu_heterogeneous",
+        "deadline_light",
+        "deadline_default",
+        "deadline_heavy",
+        "arrival_periodic",
+        "arrival_jitter",
+        "arrival_burst",
+        "pathloss_al_hourani",
+        "pathloss_3gpp_uma_av_audited",
+    )
+    assert [cases[name].csi_error_std for name in ("csi0", "csi05", "csi10", "csi20")] == [
+        0.0,
+        0.05,
+        0.10,
+        0.20,
+    ]
+    assert cases["sic_residual10"].evaluation.sic_residual == 0.10
+    assert cases["sic_threshold_m3"].evaluation.gamma_sic_min == pytest.approx(10**-0.3)
+    assert cases["sic_threshold5"].evaluation.gamma_sic_min == pytest.approx(10**0.5)
+    assert cases["cpu_homogeneous"].evaluation.cpu_per_uav_hz == (4e9, 4e9, 4e9)
+    assert cases["cpu_heterogeneous"].evaluation.cpu_per_uav_hz == (2e9, 4e9, 6e9)
+    assert sum(cases["cpu_homogeneous"].evaluation.cpu_per_uav_hz) == sum(
+        cases["cpu_heterogeneous"].evaluation.cpu_per_uav_hz
+    )
+    assert [
+        cases[name].scenario.task.t_max
+        for name in ("deadline_light", "deadline_default", "deadline_heavy")
+    ] == [1.0, 0.8, 0.6]
+    periodic = cases["arrival_periodic"].scenario
+    jitter = cases["arrival_jitter"].scenario
+    burst = cases["arrival_burst"].scenario
+    assert (periodic.task.arrival_mode, periodic.task.period_choices, periodic.task.period_jitter_slots) == (
+        "periodic",
+        (2, 2, 3),
+        0,
+    )
+    assert (jitter.task.arrival_mode, jitter.task.period_choices, jitter.task.period_jitter_slots) == (
+        "periodic",
+        (2, 2, 3),
+        1,
+    )
+    assert burst.task.arrival_mode == "bernoulli"
+    assert burst.random_burst
+    assert (burst.burst_rate, burst.cool_rate, burst.burst_period_min, burst.burst_period_max) == (
+        0.9,
+        0.2,
+        8,
+        15,
+    )
+    assert cases["pathloss_al_hourani"].scenario.channel.pathloss_model == "al_hourani"
+    assert (
+        cases["pathloss_3gpp_uma_av_audited"].scenario.channel.pathloss_model
+        == "3gpp_uma_av_audited"
+    )
 
 
 @pytest.mark.parametrize(

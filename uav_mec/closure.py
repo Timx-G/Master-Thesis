@@ -214,7 +214,7 @@ def _allocate_per_serving_uav(
             cfg.allocation_policy,
             tasks,
             rate_by_id,
-            cfg.cpu_per_uav_hz,
+            cfg.cpu_budget_for(uav, snapshot.num_uavs),
             downlink_rates_bps,
         )
         decisions.extend(allocation.decisions)

@@ -22,6 +22,21 @@ from .seed_access import SeedAccessRecorder
 
 
 def _centers(cfg: ScenarioConfig) -> np.ndarray:
+    if cfg.cluster_layout == "pairwise_overlap":
+        if cfg.num_uavs != 3 or cfg.num_clusters != 3:
+            raise ValueError(
+                "pairwise_overlap cluster_layout requires exactly three UAVs " "and three clusters"
+            )
+        uav_positions = np.asarray(UAV_HOVER_POSITIONS[3], dtype=float)
+        return np.asarray(
+            (
+                (uav_positions[0] + uav_positions[1]) / 2.0,
+                (uav_positions[0] + uav_positions[2]) / 2.0,
+                (uav_positions[1] + uav_positions[2]) / 2.0,
+            )
+        )
+    if cfg.cluster_layout != "fixed":
+        raise ValueError("cluster_layout must be 'fixed' or 'pairwise_overlap'")
     known = {
         3: FIXED_CLUSTER_CENTERS_3,
         4: FIXED_CLUSTER_CENTERS_4,
@@ -59,14 +74,8 @@ def _periodic_arrival_state(
     rng: np.random.Generator,
 ) -> tuple[list[int], list[int]]:
     """Freeze one weighted period and initial phase for every user."""
-    periods = [
-        int(rng.choice(cfg.task.period_choices))
-        for _ in range(cfg.num_users)
-    ]
-    next_arrivals = [
-        int(rng.integers(0, period))
-        for period in periods
-    ]
+    periods = [int(rng.choice(cfg.task.period_choices)) for _ in range(cfg.num_users)]
+    next_arrivals = [int(rng.integers(0, period)) for period in periods]
     return periods, next_arrivals
 
 
@@ -129,9 +138,7 @@ def generate_trace(
     uav_positions = np.asarray(UAV_HOVER_POSITIONS[cfg.num_uavs], dtype=float)
     channel = NOMAChannel(cfg.channel, cfg.uav.height)
     burst_cluster = int(rng.integers(0, cfg.num_clusters))
-    next_switch = int(
-        rng.integers(cfg.burst_period_min, cfg.burst_period_max + 1)
-    )
+    next_switch = int(rng.integers(cfg.burst_period_min, cfg.burst_period_max + 1))
 
     slots: list[SlotSnapshot] = []
     next_job_index = [0 for _ in range(cfg.num_users)]
@@ -153,9 +160,7 @@ def generate_trace(
 
         if cfg.random_burst and slot >= next_switch:
             burst_cluster = int(rng.integers(0, cfg.num_clusters))
-            next_switch = slot + int(
-                rng.integers(cfg.burst_period_min, cfg.burst_period_max + 1)
-            )
+            next_switch = slot + int(rng.integers(cfg.burst_period_min, cfg.burst_period_max + 1))
 
         tasks: list[Task] = []
         for user in range(cfg.num_users):
@@ -171,9 +176,7 @@ def generate_trace(
                 probability = cfg.task.arrival_prob
                 if cfg.random_burst:
                     probability = (
-                        cfg.burst_rate
-                        if cluster_ids[user] == burst_cluster
-                        else cfg.cool_rate
+                        cfg.burst_rate if cluster_ids[user] == burst_cluster else cfg.cool_rate
                     )
                 if rng.random() >= probability:
                     continue
@@ -201,9 +204,7 @@ def generate_trace(
         gains = np.zeros((len(tasks), cfg.num_uavs), dtype=float)
         for row, task in enumerate(tasks):
             for uav in range(cfg.num_uavs):
-                horizontal_m = float(
-                    np.linalg.norm(positions[task.user_id] - uav_positions[uav])
-                )
+                horizontal_m = float(np.linalg.norm(positions[task.user_id] - uav_positions[uav]))
                 gains[row, uav] = channel.path_loss(horizontal_m)
         estimated = None
         if csi_error_std > 0.0:

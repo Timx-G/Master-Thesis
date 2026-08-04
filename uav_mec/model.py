@@ -85,10 +85,15 @@ class ChannelConfig:
     eta_nlos: float = 20.0          # additional NLoS loss (dB)
     # NOMA power
     p_max: float = 0.2              # max device transmit power (W, 23 dBm)
+    pathloss_model: str = "al_hourani"
 
     def __post_init__(self) -> None:
         if not isinstance(self.environment, str) or not self.environment.strip():
             raise ValueError("environment must be a non-empty string")
+        if self.pathloss_model not in {"al_hourani", "3gpp_uma_av_audited"}:
+            raise ValueError(
+                "pathloss_model must be al_hourani or 3gpp_uma_av_audited"
+            )
 
 
 @dataclass
@@ -346,12 +351,53 @@ class NOMAChannel:
                         math.exp(-self.cfg.b_los * (theta_deg - self.cfg.a_los)))
         return p_los
 
+    def _uma_av_los_probability(self, d_horizontal: float) -> float:
+        """TR 36.777 Annex B UMa-AV LOS probability for 22.5--100 m."""
+        if not 22.5 < self.H <= 100.0:
+            raise ValueError(
+                "3gpp_uma_av_audited LOS probability requires 22.5 < height <= 100 m"
+            )
+        if d_horizontal <= 0.0:
+            return 1.0
+        log_height = math.log10(self.H)
+        p1_m = 4300.0 * log_height - 3800.0
+        d1_m = max(460.0 * log_height - 700.0, 18.0)
+        if d_horizontal <= d1_m:
+            return 1.0
+        return d1_m / d_horizontal + math.exp(-d_horizontal / p1_m) * (
+            1.0 - d1_m / d_horizontal
+        )
+
+    def _uma_av_mean_loss_db(self, d_horizontal: float, d_3d: float) -> float:
+        """Probability-weighted TR 36.777 Annex B UMa-AV large-scale loss."""
+        if not 10.0 < self.H <= 100.0:
+            raise ValueError(
+                "3gpp_uma_av_audited NLOS pathloss requires 10 < height <= 100 m"
+            )
+        if d_horizontal > 4_000.0:
+            raise ValueError(
+                "3gpp_uma_av_audited pathloss requires horizontal distance <= 4 km"
+            )
+        fc_ghz = self.cfg.fc / 1e9
+        los_db = 28.0 + 22.0 * math.log10(d_3d) + 20.0 * math.log10(fc_ghz)
+        nlos_db = (
+            -17.5
+            + (46.0 - 7.0 * math.log10(self.H)) * math.log10(d_3d)
+            + 20.0 * math.log10(40.0 * math.pi * fc_ghz / 3.0)
+        )
+        p_los = self._uma_av_los_probability(d_horizontal)
+        return p_los * los_db + (1.0 - p_los) * nlos_db
+
     def path_loss(self, d_horizontal: float) -> float:
         """Return channel power gain using dB-averaged LoS/NLoS loss."""
         if not math.isfinite(d_horizontal) or d_horizontal < 0:
             raise ValueError("d_horizontal must be finite and non-negative")
         self._validate_carrier_frequency()
         d_3d = math.hypot(d_horizontal, self.H)
+        if self.cfg.pathloss_model == "3gpp_uma_av_audited":
+            return 10.0 ** (-self._uma_av_mean_loss_db(d_horizontal, d_3d) / 10.0)
+        if self.cfg.pathloss_model != "al_hourani":
+            raise ValueError("unsupported pathloss_model")
         fspl_db = 20.0 * math.log10(
             4.0 * math.pi * self.cfg.fc * d_3d / self.c
         )

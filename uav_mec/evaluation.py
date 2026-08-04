@@ -52,7 +52,7 @@ class EvaluationConfig:
     transmit_power_w: float
     sic_residual: float
     gamma_sic_min: float
-    cpu_per_uav_hz: float
+    cpu_per_uav_hz: float | tuple[float, ...]
     allocation_policy: AllocationPolicy = AllocationPolicy.DEADLINE
     cross_interference_scale: float = 1.0
 
@@ -64,7 +64,15 @@ class EvaluationConfig:
         self._require_positive("bandwidth_hz", self.bandwidth_hz)
         self._require_positive("transmit_power_w", self.transmit_power_w)
         self._require_positive("gamma_sic_min", self.gamma_sic_min)
-        self._require_positive("cpu_per_uav_hz", self.cpu_per_uav_hz)
+        if isinstance(self.cpu_per_uav_hz, tuple):
+            if not self.cpu_per_uav_hz:
+                raise ValueError("cpu_per_uav_hz must be non-empty")
+            budgets = tuple(float(value) for value in self.cpu_per_uav_hz)
+            for value in budgets:
+                self._require_positive("cpu_per_uav_hz", value)
+            object.__setattr__(self, "cpu_per_uav_hz", budgets)
+        else:
+            self._require_positive("cpu_per_uav_hz", self.cpu_per_uav_hz)
         if not math.isfinite(self.sic_residual) or not 0.0 <= self.sic_residual <= 1.0:
             raise ValueError("sic_residual must be finite and in [0, 1]")
         if not isinstance(self.allocation_policy, AllocationPolicy):
@@ -79,6 +87,18 @@ class EvaluationConfig:
     def _require_positive(name: str, value: float) -> None:
         if not math.isfinite(value) or value <= 0.0:
             raise ValueError(f"{name} must be finite and positive")
+
+    def cpu_budget_for(self, uav: int, num_uavs: int) -> float:
+        """Resolve one UAV's CPU pool and validate vector dimensionality."""
+        if not 0 <= uav < num_uavs:
+            raise ValueError("uav index must be inside the snapshot")
+        if isinstance(self.cpu_per_uav_hz, tuple):
+            if len(self.cpu_per_uav_hz) != num_uavs:
+                raise ValueError(
+                    "CPU budget vector length must match the number of UAVs"
+                )
+            return self.cpu_per_uav_hz[uav]
+        return float(self.cpu_per_uav_hz)
 
 
 def _fingerprint_part(digest: object, value: str | bytes) -> None:
@@ -152,7 +172,7 @@ def semantic_fingerprint(
     _fingerprint_part(digest, str(snapshot.num_uavs))
     for uav in range(snapshot.num_uavs):
         _fingerprint_part(digest, str(uav))
-        _fingerprint_float(digest, cfg.cpu_per_uav_hz)
+        _fingerprint_float(digest, cfg.cpu_budget_for(uav, snapshot.num_uavs))
     _fingerprint_part(digest, cfg.allocation_policy.value)
 
     if downlink_rates_bps is None:
@@ -423,7 +443,7 @@ def build_outcome_from_rates(
             cfg.allocation_policy,
             scheduled_tasks,
             rate_by_id,
-            cfg.cpu_per_uav_hz,
+            cfg.cpu_budget_for(uav, snapshot.num_uavs),
             downlink_rates_bps,
         )
         decisions.update(
