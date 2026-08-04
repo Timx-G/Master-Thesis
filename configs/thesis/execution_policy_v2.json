@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "families": [
+    {"family": "resource", "concurrency": 2, "shard_size": 1},
+    {"family": "exact", "concurrency": 1, "shard_size": 1},
+    {"family": "externality", "concurrency": 2, "shard_size": 1},
+    {"family": "main", "concurrency": 2, "shard_size": 1},
+    {"family": "joint", "concurrency": 2, "shard_size": 1},
+    {"family": "scaling", "concurrency": 2, "shard_size": 1},
+    {"family": "robustness", "concurrency": 2, "shard_size": 1},
+    {"family": "trace_driven", "concurrency": 2, "shard_size": 1}
+  ]
+}

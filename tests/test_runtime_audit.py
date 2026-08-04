@@ -2,10 +2,61 @@ from dataclasses import FrozenInstanceError, fields
 
 import pytest
 
-from uav_mec.runtime_audit import AlgorithmAuditRecord, validate_algorithm_claim_gate
-
+from uav_mec.runtime_audit import (
+    AlgorithmAuditRecord,
+    DescriptiveRuntimeAudit,
+    descriptive_runtime_audit_to_dict,
+    validate_algorithm_claim_gate,
+)
 
 VALID_DIGEST = "a" * 64
+
+
+def _valid_runtime_audit(**overrides: object) -> DescriptiveRuntimeAudit:
+    values = {
+        "reference_hardware": "AMD Ryzen 7 7840HS; 5.4 GiB limit",
+        "python_environment_sha256": VALID_DIGEST,
+        "p50_runtime_s": 0.12,
+        "p95_runtime_s": 0.23,
+        "mean_runtime_s": 0.14,
+        "candidate_count_p50": 18.0,
+        "candidate_count_p95": 31.0,
+        "candidate_count_total": 240,
+        "cache_hit_rate": 0.25,
+        "peak_memory_bytes": 12_345_678,
+        "log_bytes": 4_321,
+        "measured_cpu_seconds": 2.8,
+    }
+    values.update(overrides)
+    return DescriptiveRuntimeAudit(**values)
+
+
+def test_runtime_audit_is_descriptive_without_fixed_realtime_gate() -> None:
+    audit = _valid_runtime_audit(p95_runtime_s=1000.0)
+    payload = descriptive_runtime_audit_to_dict(audit)
+    assert "runtime_gate_pass" not in payload
+    assert "runtime_limit_s" not in payload
+    assert not hasattr(audit, "runtime_gate_pass")
+
+
+def test_runtime_audit_reports_reference_hardware_p50_p95_candidates_cache_memory_and_cpu_time() -> (
+    None
+):
+    payload = descriptive_runtime_audit_to_dict(_valid_runtime_audit())
+    assert tuple(payload) == (
+        "reference_hardware",
+        "python_environment_sha256",
+        "p50_runtime_s",
+        "p95_runtime_s",
+        "mean_runtime_s",
+        "candidate_count_p50",
+        "candidate_count_p95",
+        "candidate_count_total",
+        "cache_hit_rate",
+        "peak_memory_bytes",
+        "log_bytes",
+        "measured_cpu_seconds",
+    )
 
 
 def _valid_record(**overrides: object) -> AlgorithmAuditRecord:

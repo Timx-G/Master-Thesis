@@ -2,11 +2,72 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
+import math
 import re
-
+from typing import Any
 
 _LOWER_HEX_SHA256 = re.compile(r"[0-9a-f]{64}")
+
+
+@dataclass(frozen=True, slots=True)
+class DescriptiveRuntimeAudit:
+    """Hardware-bound measurements without a universal pass/fail threshold."""
+
+    reference_hardware: str
+    python_environment_sha256: str
+    p50_runtime_s: float
+    p95_runtime_s: float
+    mean_runtime_s: float
+    candidate_count_p50: float
+    candidate_count_p95: float
+    candidate_count_total: int
+    cache_hit_rate: float
+    peak_memory_bytes: int
+    log_bytes: int
+    measured_cpu_seconds: float
+
+    def __post_init__(self) -> None:
+        if not self.reference_hardware.strip():
+            raise ValueError("reference_hardware must be non-empty")
+        if not _is_sha256_digest(self.python_environment_sha256):
+            raise ValueError("python_environment_sha256 must be a SHA-256 digest")
+        for field_name in (
+            "p50_runtime_s",
+            "p95_runtime_s",
+            "mean_runtime_s",
+            "candidate_count_p50",
+            "candidate_count_p95",
+            "cache_hit_rate",
+            "measured_cpu_seconds",
+        ):
+            value = getattr(self, field_name)
+            if isinstance(value, bool) or not isinstance(value, (int, float)):
+                raise ValueError(f"{field_name} must be numeric")
+            if not math.isfinite(float(value)) or value < 0:
+                raise ValueError(f"{field_name} must be finite and nonnegative")
+        if self.p95_runtime_s < self.p50_runtime_s:
+            raise ValueError("p95_runtime_s must be at least p50_runtime_s")
+        if self.candidate_count_p95 < self.candidate_count_p50:
+            raise ValueError("candidate_count_p95 must be at least candidate_count_p50")
+        if self.cache_hit_rate > 1:
+            raise ValueError("cache_hit_rate must be at most one")
+        for field_name in (
+            "candidate_count_total",
+            "peak_memory_bytes",
+            "log_bytes",
+        ):
+            value = getattr(self, field_name)
+            if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+                raise ValueError(f"{field_name} must be a nonnegative integer")
+
+
+def descriptive_runtime_audit_to_dict(
+    audit: DescriptiveRuntimeAudit,
+) -> dict[str, Any]:
+    """Return the stable JSON field order used by calibration and budgeting."""
+
+    return asdict(audit)
 
 
 @dataclass(frozen=True)
@@ -33,9 +94,7 @@ def validate_algorithm_claim_gate(record: AlgorithmAuditRecord) -> tuple[str, ..
     if "iteration_cap" in record.search_stop_reasons:
         errors.append("iteration_cap")
 
-    pairs_match = len(record.search_stop_reasons) == len(
-        record.local_optimum_certified
-    ) and all(
+    pairs_match = len(record.search_stop_reasons) == len(record.local_optimum_certified) and all(
         certified == (stop_reason == "no_improving_move")
         for stop_reason, certified in zip(
             record.search_stop_reasons,
