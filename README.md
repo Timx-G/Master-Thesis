@@ -43,6 +43,12 @@ make semantic-gate PYTHON=/home/link/miniconda/envs/llm-ops-torch26/bin/python
 
 A canonical-v1 checksum check cannot validate thesis-v2 semantics.
 
+## Algorithm Claim Gate
+
+The static algorithm checks are implementation-correctness gates only. They do
+not establish an empirical effect, exact-gap distribution, runtime claim,
+thesis conclusion, or submission result. Pilot and formal execution belong to later approved plans.
+
 ## Quick Verification
 
 ```bash

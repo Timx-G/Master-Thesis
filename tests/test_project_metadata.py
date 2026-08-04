@@ -91,3 +91,18 @@ def test_semantic_gate_is_the_documented_v2_pre_run_boundary():
     )
     assert "### Canonical thesis-v2 semantics" in policy
     assert "legacy-v1 only" in policy
+
+
+def test_readme_limits_algorithm_gate_to_implementation_correctness():
+    readme = Path("README.md").read_text(encoding="utf-8")
+
+    assert "implementation-correctness gates only" in readme
+    for unsupported_claim in (
+        "empirical effect",
+        "exact-gap distribution",
+        "runtime claim",
+        "thesis conclusion",
+        "submission result",
+    ):
+        assert unsupported_claim in readme
+    assert "Pilot and formal execution belong to later approved plans." in readme
