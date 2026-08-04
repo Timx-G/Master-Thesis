@@ -34,6 +34,10 @@ csi_error_std = 0.0
 [search]
 max_iterations = 50
 
+[nontriviality]
+cpu_claim_threshold = 0.30
+schedule_claim_threshold = 0.30
+
 [[cases]]
 case_id = "exact_schedule"
 role = "correctness"

@@ -218,31 +218,44 @@ def _raw_schedule(
     return Schedule(tuple(entries))
 
 
-def _proves_cpu_nontrivial(
+def _cpu_requirement_audit(
     snapshot: SlotSnapshot,
     rated,
     cfg: EvaluationConfig,
     downlink_rates_bps: Mapping[int, float] | None,
-) -> bool:
+) -> tuple[tuple[int, ...], float | None]:
     task_by_id = {task.task_id: task for task in snapshot.tasks}
-    requirements_by_uav: dict[int, list[float]] = {}
+    requirements_by_uav: dict[int, list] = {}
     for record in rated.rates:
+        task = task_by_id[record.task_id]
         requirement = required_resources(
-            task_by_id[record.task_id],
+            task,
             record.rate_bps,
             downlink_rate_bps=(
                 None
-                if downlink_rates_bps is None
-                else downlink_rates_bps.get(record.task_id)
+                if task.result_ratio == 0.0
+                else downlink_rates_bps[record.task_id]
             ),
         )
-        if not requirement.feasible:
-            continue
-        requirements_by_uav.setdefault(record.serving_uav, []).append(requirement.cpu_hz)
-    return any(
-        math.fsum(cpu_requirements) > cfg.cpu_per_uav_hz
-        for cpu_requirements in requirements_by_uav.values()
+        requirements_by_uav.setdefault(record.serving_uav, []).append(requirement)
+    overloaded = tuple(
+        uav
+        for uav, requirements in sorted(requirements_by_uav.items())
+        if all(requirement.feasible for requirement in requirements)
+        and math.fsum(requirement.cpu_hz for requirement in requirements)
+        > cfg.cpu_per_uav_hz
     )
+    all_requirements = tuple(
+        requirement
+        for requirements in requirements_by_uav.values()
+        for requirement in requirements
+    )
+    total_cpu_hz = (
+        math.fsum(requirement.cpu_hz for requirement in all_requirements)
+        if all(requirement.feasible for requirement in all_requirements)
+        else None
+    )
+    return overloaded, total_cpu_hz
 
 
 def _certificate_bound(
@@ -274,6 +287,7 @@ def exact_schedule(
     state_cap: int | None = None,
     timeout_s: float | None = None,
     downlink_rates_bps: Mapping[int, float] | None = None,
+    audit: dict[str, object] | None = None,
 ) -> ExactScheduleResult:
     """Enumerate, close, and certify every small-instance radio assignment."""
     if not isinstance(max_heavy_tasks, int) or isinstance(max_heavy_tasks, bool):
@@ -291,6 +305,8 @@ def exact_schedule(
         or timeout_s <= 0.0
     ):
         raise ValueError("timeout_s must be finite and positive or None")
+    if audit is not None and not isinstance(audit, dict):
+        raise TypeError("audit must be a dict or None")
 
     heavy = tuple(
         sorted(
@@ -313,7 +329,10 @@ def exact_schedule(
     best_objective: tuple[int, float, float] | None = None
     unique_closed: dict[tuple, ClosedExecutableSchedule] = {}
     raw_states_enumerated = 0
-    cpu_nontrivial = False
+    cpu_overloaded_uav_ids: set[int] = set()
+    wireless_feasible_states = 0
+    full_service_wireless_state_exists = False
+    full_service_secondary_objectives: set[tuple[float, float]] = set()
     complete = False
     started = time.monotonic()
     assignments = iter(_legal_raw_assignments(heavy, resource_blocks))
@@ -343,6 +362,30 @@ def exact_schedule(
                 channel_basis=ChannelBasis.PLANNING,
                 downlink_rates_bps=downlink_rates_bps,
             )
+            if not all(record.sic_feasible for record in rated.rates):
+                continue
+            wireless_feasible_states += 1
+            overloaded_uavs, raw_minimum_cpu_hz = _cpu_requirement_audit(
+                snapshot,
+                rated,
+                cfg,
+                downlink_rates_bps,
+            )
+            cpu_overloaded_uav_ids.update(overloaded_uavs)
+            if set(rated.assignment.task_ids) == {
+                task.task_id for task in heavy
+            }:
+                full_service_wireless_state_exists = True
+                if raw_minimum_cpu_hz is not None:
+                    full_service_secondary_objectives.add(
+                        (
+                            round(raw_minimum_cpu_hz, 6),
+                            round(
+                                aggregate_victim_link_exposure(rated.rates),
+                                18,
+                            ),
+                        )
+                    )
             closed = close_assignment(
                 snapshot,
                 rated,
@@ -350,13 +393,6 @@ def exact_schedule(
                 cfg,
                 downlink_rates_bps=downlink_rates_bps,
             )
-            if all(record.sic_feasible for record in rated.rates):
-                cpu_nontrivial = cpu_nontrivial or _proves_cpu_nontrivial(
-                    snapshot,
-                    rated,
-                    cfg,
-                    downlink_rates_bps,
-                )
         except (InfeasibleScheduleError, ScheduleValidationError):
             continue
         key = closed_semantic_key(closed)
@@ -381,6 +417,41 @@ def exact_schedule(
         best_objective,
         complete,
     )
+    schedule_nontrivial = (
+        complete
+        and wireless_feasible_states >= 2
+        and (
+            not full_service_wireless_state_exists
+            or len(full_service_secondary_objectives) > 1
+        )
+    )
+    reasons: list[str] = []
+    if cpu_overloaded_uav_ids:
+        reasons.append("cpu_budget_overload")
+    if schedule_nontrivial and not full_service_wireless_state_exists:
+        reasons.append("no_full_service_wireless_state")
+    if schedule_nontrivial and len(full_service_secondary_objectives) > 1:
+        reasons.append("distinct_full_service_secondary_objectives")
+    if not complete:
+        reasons.append("incomplete_enumeration")
+    if audit is not None:
+        audit.clear()
+        audit.update(
+            {
+                "cpu_overloaded_uav_ids": tuple(sorted(cpu_overloaded_uav_ids)),
+                "wireless_feasible_states": wireless_feasible_states,
+                "full_service_wireless_state_exists": (
+                    full_service_wireless_state_exists
+                ),
+                "full_service_closed_state_exists": (
+                    full_service_wireless_state_exists
+                ),
+                "distinct_full_service_secondary_objectives": len(
+                    full_service_secondary_objectives
+                ),
+                "nontriviality_reason": ";".join(reasons) if reasons else "none",
+            }
+        )
     certificate = ExactScheduleCertificate(
         complete=complete,
         raw_states_enumerated=raw_states_enumerated,
@@ -388,12 +459,8 @@ def exact_schedule(
         best_bound=best_bound,
         lexicographic_gap=gap,
         gap_status=gap_status,
-        cpu_nontrivial=cpu_nontrivial,
-        schedule_nontrivial=(
-            complete
-            and len(unique_closed) >= 2
-            and best_objective[0] < len(snapshot.tasks)
-        ),
+        cpu_nontrivial=bool(cpu_overloaded_uav_ids),
+        schedule_nontrivial=schedule_nontrivial,
         semantic_fingerprint=fingerprint,
     )
     return ExactScheduleResult(

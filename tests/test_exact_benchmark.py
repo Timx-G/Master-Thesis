@@ -1,4 +1,5 @@
 import csv
+import dataclasses
 import json
 from dataclasses import replace
 from pathlib import Path
@@ -21,7 +22,11 @@ from uav_mec.experiment import (
 )
 from uav_mec.model import ChannelConfig, NOMAChannel
 from uav_mec.resource_allocation import AllocationPolicy, ExactAdmissionResult
-from uav_mec.run_exact_benchmark import run_exact_definition
+from uav_mec.run_exact_benchmark import (
+    _conditional_gap_layers,
+    exact_claim_gate,
+    run_exact_definition,
+)
 
 
 def _tiny_exact_case() -> tuple[SlotSnapshot, NOMAChannel, EvaluationConfig]:
@@ -50,6 +55,205 @@ def _tiny_exact_case() -> tuple[SlotSnapshot, NOMAChannel, EvaluationConfig]:
         allocation_policy=AllocationPolicy.DEADLINE,
     )
     return snapshot, NOMAChannel(ChannelConfig(), 100.0), cfg
+
+
+def _audited_exact(snapshot, channel, cfg):
+    audit = {}
+    result = exact_schedule(snapshot, channel, cfg, audit=audit)
+    return result, audit
+
+
+def test_exact_classifies_cpu_and_schedule_nontriviality_independently() -> None:
+    snapshot, channel, cfg = _tiny_exact_case()
+    result, audit = _audited_exact(snapshot, channel, cfg)
+
+    assert result.certificate.cpu_nontrivial == bool(
+        audit["cpu_overloaded_uav_ids"]
+    )
+    assert result.certificate.schedule_nontrivial == (
+        not audit["full_service_wireless_state_exists"]
+        or audit["distinct_full_service_secondary_objectives"] > 1
+    )
+
+
+def test_cpu_only_pressure_is_not_schedule_nontrivial() -> None:
+    tasks = tuple(
+        Task(index, index, 0, 0.2e6, 1.2e9, 0.8, 0.4e9)
+        for index in (1, 2)
+    )
+    snapshot = SlotSnapshot(0, tasks, np.array([[9e-8], [5e-8]]), 1)
+    channel = NOMAChannel(ChannelConfig(), 100.0)
+    cfg = EvaluationConfig(1, 5e6, 0.2, 0.02, 0.01, 1.3e9)
+
+    result, audit = _audited_exact(snapshot, channel, cfg)
+
+    assert audit["full_service_wireless_state_exists"]
+    assert result.certificate.cpu_nontrivial
+    assert not result.certificate.schedule_nontrivial
+
+
+def test_radio_capacity_pressure_is_schedule_nontrivial_without_cpu_pressure() -> None:
+    tasks = tuple(
+        Task(index, index, 0, 0.2e6, 1.2e9, 0.8, 0.4e9)
+        for index in (1, 2, 3)
+    )
+    snapshot = SlotSnapshot(0, tasks, np.array([[9e-8], [6e-8], [3e-8]]), 1)
+    channel = NOMAChannel(ChannelConfig(), 100.0)
+    cfg = EvaluationConfig(1, 5e6, 0.2, 0.02, 0.01, 20e9)
+
+    result, audit = _audited_exact(snapshot, channel, cfg)
+
+    assert not audit["full_service_wireless_state_exists"]
+    assert not result.certificate.cpu_nontrivial
+    assert result.certificate.schedule_nontrivial
+
+
+def test_multiple_wireless_states_with_distinct_secondary_objectives_are_schedule_nontrivial() -> None:
+    tasks = tuple(
+        Task(index, index, 0, 0.2e6, 1.2e9, 0.8, 0.4e9)
+        for index in (1, 2)
+    )
+    snapshot = SlotSnapshot(
+        0,
+        tasks,
+        np.array([[9e-8, 2e-8], [3e-8, 8e-8]]),
+        2,
+    )
+    channel = NOMAChannel(ChannelConfig(), 100.0)
+    cfg = EvaluationConfig(1, 5e6, 0.2, 0.02, 0.01, 20e9)
+
+    result, audit = _audited_exact(snapshot, channel, cfg)
+
+    assert audit["full_service_wireless_state_exists"]
+    assert audit["distinct_full_service_secondary_objectives"] > 1
+    assert result.certificate.schedule_nontrivial
+
+
+def test_exact_claim_gate_requires_thirty_percent_for_each_claim_type() -> None:
+    assert exact_claim_gate(0.30, 0.30) == {
+        "dd_optimality_interpretation": True,
+        "iea_near_optimality_interpretation": True,
+    }
+    assert exact_claim_gate(0.29, 0.30)["dd_optimality_interpretation"] is False
+    assert (
+        exact_claim_gate(0.30, 0.29)["iea_near_optimality_interpretation"]
+        is False
+    )
+
+
+def _run_audited_exact_bundle(tmp_path, development_seed_access):
+    config_path = Path("configs/thesis/confirmatory_exact.toml")
+    base = load_definition(config_path)
+    definition = replace(
+        base,
+        seeds=(42,),
+        scenario=replace(base.scenario, num_slots=1, num_users=3),
+    )
+    output = tmp_path / "audited-exact"
+    run_exact_definition(
+        definition,
+        config_path,
+        output,
+        seed_access=development_seed_access,
+    )
+    return output
+
+
+def test_exact_benchmark_writes_two_nontriviality_flags_and_reasons(
+    tmp_path, development_seed_access
+) -> None:
+    output = _run_audited_exact_bundle(tmp_path, development_seed_access)
+    with (output / "exact_slots.csv").open(encoding="utf-8", newline="") as handle:
+        rows = list(csv.DictReader(handle))
+
+    assert rows
+    for row in rows:
+        assert row["cpu_nontrivial"] in {"True", "False"}
+        assert row["schedule_nontrivial"] in {"True", "False"}
+        assert row["nontriviality_reason"]
+        assert row["certificate_complete"] == "True"
+
+
+def test_exact_summary_reports_cpu_and_schedule_nontrivial_fractions(
+    tmp_path, development_seed_access
+) -> None:
+    output = _run_audited_exact_bundle(tmp_path, development_seed_access)
+    summary = json.loads((output / "summary.json").read_text(encoding="utf-8"))
+
+    assert 0.0 <= summary["cpu_nontrivial_fraction"] <= 1.0
+    assert 0.0 <= summary["schedule_nontrivial_fraction"] <= 1.0
+    assert summary["nontriviality_thresholds"] == {
+        "cpu": 0.30,
+        "schedule": 0.30,
+    }
+    assert set(summary["claim_gates"]) == {
+        "dd_optimality_interpretation",
+        "iea_near_optimality_interpretation",
+    }
+
+
+def test_exact_rows_keep_all_three_conditional_gap_layers(
+    tmp_path, development_seed_access
+) -> None:
+    assert _conditional_gap_layers((2, -3.0, -4.0), (1, -2.0, -3.0)) == (
+        1,
+        None,
+        None,
+    )
+    assert _conditional_gap_layers((2, -2.0, -4.0), (2, -3.0, -3.0)) == (
+        0,
+        1.0,
+        None,
+    )
+    assert _conditional_gap_layers((2, -2.0, -2.0), (2, -2.0, -3.0)) == (
+        0,
+        0.0,
+        1.0,
+    )
+    output = _run_audited_exact_bundle(tmp_path, development_seed_access)
+    with (output / "exact_slots.csv").open(encoding="utf-8", newline="") as handle:
+        rows = list(csv.DictReader(handle))
+
+    assert rows
+    assert all(
+        {"completion_gap", "cpu_gap_hz", "interference_gap_w"} <= set(row)
+        for row in rows
+    )
+
+
+def test_exact_schedule_uses_plan2_result_and_certificate_types() -> None:
+    assert tuple(field.name for field in dataclasses.fields(ExactScheduleResult)) == (
+        "plan",
+        "objective",
+        "certificate",
+    )
+    assert tuple(field.name for field in dataclasses.fields(ExactScheduleCertificate)) == (
+        "complete",
+        "raw_states_enumerated",
+        "unique_closed_states",
+        "best_bound",
+        "lexicographic_gap",
+        "gap_status",
+        "cpu_nontrivial",
+        "schedule_nontrivial",
+        "semantic_fingerprint",
+    )
+
+
+def test_exact_schedule_never_serializes_as_exact_admission(
+    tmp_path, development_seed_access
+) -> None:
+    output = _run_audited_exact_bundle(tmp_path, development_seed_access)
+    payload = (output / "exact_slots.csv").read_text(encoding="utf-8")
+
+    assert "exact_schedule" in payload
+    assert "exact_admission" not in payload
+
+
+def test_legacy_exact_result_and_nontriviality_types_are_absent() -> None:
+    source = Path("uav_mec/exact.py").read_text(encoding="utf-8")
+    assert "class ExactResult" not in source
+    assert "class ExactNontriviality" not in source
 
 
 def test_exact_schedule_has_a_distinct_complete_certificate() -> None:
@@ -249,13 +453,14 @@ def test_exact_benchmark_rejects_an_incomplete_certificate(
         ),
     )
 
-    def capped_exact(snapshot, channel, cfg, max_heavy_tasks):
+    def capped_exact(snapshot, channel, cfg, max_heavy_tasks, *, audit):
         return exact_schedule(
             snapshot,
             channel,
             cfg,
             max_heavy_tasks=max_heavy_tasks,
             state_cap=1,
+            audit=audit,
         )
 
     monkeypatch.setattr(

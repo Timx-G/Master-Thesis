@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import time
+import tomllib
 from pathlib import Path
 
 import numpy as np
@@ -37,6 +38,60 @@ _EXPECTED_EXACT_METHOD_FACTOR_HASHES = {
     "full": "a64606644faf97fd313fd6d3c83a8bf30904ec3f71968888195dc24eb3942153",
     "exact": "3bf73f7b72b8a29d8595df22e4a60f45820a918247e008c01e38f3e4dbcb09b4",
 }
+_NONTRIVIALITY_THRESHOLD = 0.30
+
+
+def exact_claim_gate(
+    cpu_nontrivial_fraction: float,
+    schedule_nontrivial_fraction: float,
+    *,
+    threshold: float = _NONTRIVIALITY_THRESHOLD,
+) -> dict[str, bool]:
+    """Gate the two Exact performance interpretations independently."""
+    for name, value in (
+        ("cpu_nontrivial_fraction", cpu_nontrivial_fraction),
+        ("schedule_nontrivial_fraction", schedule_nontrivial_fraction),
+        ("threshold", threshold),
+    ):
+        if not isinstance(value, (int, float)) or not 0.0 <= float(value) <= 1.0:
+            raise ValueError(f"{name} must be in [0, 1]")
+    return {
+        "dd_optimality_interpretation": cpu_nontrivial_fraction >= threshold,
+        "iea_near_optimality_interpretation": (
+            schedule_nontrivial_fraction >= threshold
+        ),
+    }
+
+
+def _validated_nontriviality_thresholds(config_path: Path) -> tuple[float, float]:
+    raw = tomllib.loads(Path(config_path).read_text(encoding="utf-8"))
+    table = raw.get("nontriviality")
+    if not isinstance(table, dict):
+        raise ValueError("nontriviality table is required")
+    values = (
+        table.get("cpu_claim_threshold"),
+        table.get("schedule_claim_threshold"),
+    )
+    if values != (_NONTRIVIALITY_THRESHOLD, _NONTRIVIALITY_THRESHOLD):
+        raise ValueError("nontriviality thresholds must both equal 0.30")
+    return values
+
+
+def _conditional_gap_layers(
+    exact_objective: tuple[int, float, float],
+    heuristic_objective: tuple[int, float, float],
+) -> tuple[int, float | None, float | None]:
+    completion_gap = exact_objective[0] - heuristic_objective[0]
+    if completion_gap != 0:
+        return completion_gap, None, None
+    cpu_gap_hz = exact_objective[1] - heuristic_objective[1]
+    if cpu_gap_hz != 0.0:
+        return completion_gap, cpu_gap_hz, None
+    return (
+        completion_gap,
+        cpu_gap_hz,
+        exact_objective[2] - heuristic_objective[2],
+    )
 
 
 def _validated_exact_method_specs(
@@ -77,6 +132,9 @@ def run_exact_definition(
     seed_access: SeedAccessRecorder,
 ) -> None:
     full_spec, exact_spec = _validated_exact_method_specs(definition)
+    cpu_threshold, schedule_threshold = _validated_nontriviality_thresholds(
+        config_path
+    )
     if definition.scenario.num_users > 5:
         raise ValueError(
             "complete benchmark is frozen at no more than five users"
@@ -136,11 +194,13 @@ def run_exact_definition(
             )
 
             started = time.perf_counter()
+            nontriviality: dict[str, object] = {}
             exact = exact_schedule(
                 snapshot,
                 channel,
                 definition.evaluation,
                 max_heavy_tasks=5,
+                audit=nontriviality,
             )
             exact_runtime_s = time.perf_counter() - started
             if not exact.certificate.complete:
@@ -155,6 +215,9 @@ def run_exact_definition(
 
             slot_arrivals = len(full.arrived_task_ids)
             exact_slot_completed = exact.objective[0]
+            completion_gap, cpu_gap_hz, interference_gap_w = (
+                _conditional_gap_layers(exact.objective, full_objective)
+            )
             arrivals += slot_arrivals
             full_completed += full.completed_count
             exact_completed += exact_slot_completed
@@ -171,15 +234,16 @@ def run_exact_definition(
                     "arrivals": slot_arrivals,
                     "full_completed": full.completed_count,
                     "exact_completed": exact_slot_completed,
-                    "completion_gap": (
-                        exact_slot_completed - full.completed_count
-                    ),
+                    "completion_gap": completion_gap,
+                    "cpu_gap_hz": cpu_gap_hz,
+                    "interference_gap_w": interference_gap_w,
                     "full_runtime_s": full_runtime_s,
                     "exact_runtime_s": exact_runtime_s,
                     "evaluated_schedules": (
                         exact.certificate.raw_states_enumerated
                     ),
                     "complete_search": exact.certificate.complete,
+                    "certificate_complete": exact.certificate.complete,
                     "raw_states_enumerated": (
                         exact.certificate.raw_states_enumerated
                     ),
@@ -205,6 +269,16 @@ def run_exact_definition(
                     "schedule_nontrivial": (
                         exact.certificate.schedule_nontrivial
                     ),
+                    "cpu_overloaded_uav_ids": "|".join(
+                        str(value)
+                        for value in nontriviality["cpu_overloaded_uav_ids"]
+                    ),
+                    "full_service_closed_state_exists": nontriviality[
+                        "full_service_closed_state_exists"
+                    ],
+                    "nontriviality_reason": nontriviality[
+                        "nontriviality_reason"
+                    ],
                     "semantic_fingerprint": (
                         exact.certificate.semantic_fingerprint
                     ),
@@ -230,6 +304,12 @@ def run_exact_definition(
     )
     if len(gaps) == 0:
         raise ValueError("exact benchmark produced no slot outcomes")
+    cpu_nontrivial_fraction = float(
+        np.mean([bool(row["cpu_nontrivial"]) for row in rows])
+    )
+    schedule_nontrivial_fraction = float(
+        np.mean([bool(row["schedule_nontrivial"]) for row in rows])
+    )
     summary = {
         "run_id": definition.run_id,
         "result_schema": "exact_schedule",
@@ -258,6 +338,16 @@ def run_exact_definition(
         "optimal_slot_fraction": float(np.mean(gaps == 0.0)),
         "mean_completion_gap": float(np.mean(gaps)),
         "max_completion_gap": int(np.max(gaps)),
+        "cpu_nontrivial_fraction": cpu_nontrivial_fraction,
+        "schedule_nontrivial_fraction": schedule_nontrivial_fraction,
+        "nontriviality_thresholds": {
+            "cpu": cpu_threshold,
+            "schedule": schedule_threshold,
+        },
+        "claim_gates": exact_claim_gate(
+            cpu_nontrivial_fraction,
+            schedule_nontrivial_fraction,
+        ),
         "by_seed": seed_rows,
     }
     writer.write_csv(
@@ -272,10 +362,13 @@ def run_exact_definition(
             "full_completed",
             "exact_completed",
             "completion_gap",
+            "cpu_gap_hz",
+            "interference_gap_w",
             "full_runtime_s",
             "exact_runtime_s",
             "evaluated_schedules",
             "complete_search",
+            "certificate_complete",
             "raw_states_enumerated",
             "unique_closed_states",
             "gap_status",
@@ -287,6 +380,9 @@ def run_exact_definition(
             "interference_bound_gap",
             "cpu_nontrivial",
             "schedule_nontrivial",
+            "cpu_overloaded_uav_ids",
+            "full_service_closed_state_exists",
+            "nontriviality_reason",
             "semantic_fingerprint",
         ),
     )
