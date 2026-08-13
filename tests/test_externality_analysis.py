@@ -237,6 +237,11 @@ def test_realized_admission_and_decision_drive_allocated_cpu_fields() -> None:
     assert impact.allocated_cpu_after_hz == pytest.approx(600_000_000.0)
     assert impact.admitted_before and impact.admitted_after
     assert impact.completed_before and not impact.completed_after
+    assert certificate.completion_delta == -1
+    assert certificate.completion_delta == sum(
+        int(row.completed_after) - int(row.completed_before)
+        for row in certificate.task_impacts
+    )
     assert certificate.actual_allocated_cpu_delta_hz == pytest.approx(
         -200_000_000.0
     )
