@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
+from typing import Sequence
 
 import numpy as np
 from scipy import stats
@@ -25,15 +26,8 @@ def _finite_vector(
     minimum_size: int,
 ) -> np.ndarray:
     vector = np.asarray(values, dtype=float)
-    if (
-        vector.ndim != 1
-        or len(vector) < minimum_size
-        or not np.isfinite(vector).all()
-    ):
-        raise ValueError(
-            f"{name} must be a finite vector with at least "
-            f"{minimum_size} values"
-        )
+    if vector.ndim != 1 or len(vector) < minimum_size or not np.isfinite(vector).all():
+        raise ValueError(f"{name} must be a finite vector with at least " f"{minimum_size} values")
     return vector
 
 
@@ -56,6 +50,47 @@ def paired_bootstrap_ci(
         size=(resamples, len(values)),
     )
     means = values[indices].mean(axis=1)
+    low, high = np.quantile(means, [0.025, 0.975])
+    return float(low), float(high)
+
+
+def participant_clustered_bootstrap_ci(
+    differences: np.ndarray,
+    participant_ids: Sequence[str],
+    resamples: int = 10_000,
+    seed: int = 20260719,
+) -> tuple[float, float]:
+    """Return a 95% paired-mean CI resampled at participant level.
+
+    Each sampled participant contributes all of that participant's observations.
+    Repeatedly sampled participants contribute repeated copies of their complete
+    observation cluster, preserving unequal cluster sizes.
+    """
+
+    values = np.asarray(differences, dtype=float)
+    if values.ndim != 1 or not np.isfinite(values).all():
+        raise ValueError("differences must be a finite one-dimensional vector")
+    identifiers = tuple(participant_ids)
+    if len(identifiers) != len(values):
+        raise ValueError("participant_ids must match differences shape")
+    if any(not isinstance(identifier, str) or not identifier for identifier in identifiers):
+        raise ValueError("participant_ids must be non-empty strings")
+    unique = tuple(dict.fromkeys(identifiers))
+    if len(unique) < 2:
+        raise ValueError("at least two source participants are required")
+    if not isinstance(resamples, int) or isinstance(resamples, bool) or resamples <= 0:
+        raise ValueError("resamples must be a positive integer")
+
+    clusters = {
+        identifier: values[np.asarray([value == identifier for value in identifiers])]
+        for identifier in unique
+    }
+    rng = np.random.default_rng(seed)
+    selections = rng.integers(0, len(unique), size=(resamples, len(unique)))
+    means = np.empty(resamples, dtype=float)
+    for index, selected in enumerate(selections):
+        sampled = [clusters[unique[participant_index]] for participant_index in selected]
+        means[index] = float(np.concatenate(sampled).mean())
     low, high = np.quantile(means, [0.025, 0.975])
     return float(low), float(high)
 

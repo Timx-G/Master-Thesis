@@ -6,6 +6,7 @@ import argparse
 import csv
 import hashlib
 import json
+import math
 import os
 import platform
 import resource
@@ -22,13 +23,14 @@ from typing import Callable, Mapping, Sequence
 import numpy as np
 
 from .artifacts import RunArtifactWriter
-from .experiment import load_definition, run_definition
+from .experiment import _slot_method, load_definition, run_definition, thesis_method_specs
 from .experiment_registry import (
     ExperimentFamily,
     ExperimentRegistry,
     RegisteredCase,
     load_registry,
 )
+from .geolife_lock import load_trace_lock_snapshot
 from .model import NOMAChannel
 from .resource_snapshots import RadioGenerator, raw_snapshot_to_dict
 from .run_exact_benchmark import run_exact_definition
@@ -37,6 +39,11 @@ from .run_resource_experiment import (
     materialize_resource_generator_slot,
 )
 from .run_thesis_suite import build_registered_case_definitions
+from .run_trace_experiment import (
+    MaterializedLockedScenario,
+    _locked_experiment_trace,
+    materialize_calibration_scenarios,
+)
 from .runtime_audit import DescriptiveRuntimeAudit, descriptive_runtime_audit_to_dict
 from .seed_access import (
     SeedAccessRecorder,
@@ -44,6 +51,7 @@ from .seed_access import (
     development_permit,
 )
 from .trace import generate_trace
+from .simulation import run_outcome_episode
 
 
 class DevelopmentCalibrationCase(StrEnum):
@@ -438,16 +446,191 @@ def _exact_runtime_measurement(
         shutil.rmtree(temporary, ignore_errors=True)
 
 
-def _runtime_adapter_not_installed(
-    *, family: ExperimentFamily, case: RegisteredCase, **_kwargs: object
-) -> DescriptiveRuntimeAudit:
-    raise RuntimeError(
-        f"runtime calibration adapter is not installed for {family.name}/{case.case_id}"
+def _measure_materialized_trace_scenarios(
+    scenarios: Sequence[MaterializedLockedScenario],
+    *,
+    max_slots: int,
+    definition: object,
+    seed: int,
+) -> tuple[list[float], list[int], int, int, int, int]:
+    """Execute registered trace methods and return runtime/storage strata."""
+
+    if not hasattr(definition, "scenario"):
+        raise TypeError("trace calibration definition is invalid")
+    runtimes: list[float] = []
+    candidate_counts: list[int] = []
+    raw_bytes = 0
+    event_bytes = 0
+    cache_hits = 0
+    summary_rows: list[dict[str, object]] = []
+    for scenario in scenarios:
+        execution_started = time.perf_counter()
+        slot_count = min(len(scenario.timestamps_s), max_slots)
+        calibrated_scenario = replace(definition.scenario, num_slots=slot_count)
+        trace = _locked_experiment_trace(
+            scenario,
+            calibrated_scenario,
+            seed,
+            definition.csi_error_std,
+        )
+        task_by_id = {task.task_id: task for snapshot in trace.slots for task in snapshot.tasks}
+        runtime_by_slot = [0.0 for _ in range(slot_count)]
+        candidates_by_slot = [0 for _ in range(slot_count)]
+        for method in definition.methods:
+            events: list[dict[str, object]] = []
+            target = replace(
+                definition.evaluation,
+                allocation_policy=thesis_method_specs()[method].allocation_policy,
+            )
+            episode = run_outcome_episode(
+                trace,
+                _slot_method(
+                    method,
+                    calibrated_scenario,
+                    target,
+                    definition.max_iterations,
+                    events,
+                ),
+            )
+            for outcome in episode.outcomes:
+                runtime_by_slot[outcome.slot_index] += outcome.runtime_s
+                raw_bytes += (
+                    _json_bytes(
+                        {
+                            "scenario_id": scenario.scenario_id,
+                            "method": method,
+                            "slot": outcome.slot_index,
+                            "arrivals": len(outcome.arrived_task_ids),
+                            "completed": outcome.completed_count,
+                        }
+                    )
+                    + 1
+                )
+                for task_id in outcome.arrived_task_ids:
+                    task = task_by_id[task_id]
+                    raw_bytes += (
+                        _json_bytes(
+                            {
+                                "scenario_id": scenario.scenario_id,
+                                "method": method,
+                                "slot": outcome.slot_index,
+                                "task_id": task_id,
+                                "user_id": task.user_id,
+                                "data_bits": task.data_bits,
+                                "comp_cycles": task.comp_cycles,
+                                "deadline_s": task.deadline_s,
+                            }
+                        )
+                        + 1
+                    )
+            for event in events:
+                event_bytes += (
+                    _json_bytes(
+                        {
+                            "scenario_id": scenario.scenario_id,
+                            "method": method,
+                            **event,
+                        }
+                    )
+                    + 1
+                )
+                if event.get("move_type") == "termination":
+                    slot = int(event["slot"])
+                    candidates_by_slot[slot] += int(event.get("raw_move_count", 0))
+                    cache_hits += int(event.get("cache_hits", 0))
+        end_to_end_runtime = time.perf_counter() - execution_started
+        accounted_runtime = math.fsum(runtime_by_slot)
+        if runtime_by_slot:
+            runtime_by_slot[0] += max(0.0, end_to_end_runtime - accounted_runtime)
+        runtimes.extend(runtime_by_slot)
+        candidate_counts.extend(candidates_by_slot)
+        summary_rows.append(
+            {
+                "scenario_id": scenario.scenario_id,
+                "participant_id": scenario.participant_id,
+                "split": scenario.split,
+                "slot_count": slot_count,
+                "methods": list(definition.methods),
+            }
+        )
+    return (
+        runtimes,
+        candidate_counts,
+        raw_bytes,
+        _json_bytes(summary_rows) + 1,
+        event_bytes,
+        cache_hits,
     )
 
 
-# Deliberately one independently patchable adapter per registered family.  The
-# trace adapter is connected to the verified calibration-split loader in Task 7.
+def _trace_runtime_measurement(
+    *,
+    family: ExperimentFamily,
+    case: RegisteredCase,
+    seeds: tuple[int, ...],
+    max_slots: int,
+    workers: int,
+    trace_lock_path: Path | None,
+    seed_access: SeedAccessRecorder,
+) -> RuntimeCalibrationResult:
+    del workers
+    if family.name != "trace_driven" or case.case_id != "geolife_final":
+        raise ValueError("trace runtime adapter received an unregistered family or case")
+    if trace_lock_path is None:
+        raise ValueError("trace runtime adapter requires a trace lock")
+    lock_snapshot = load_trace_lock_snapshot(trace_lock_path)
+    definition = load_definition(family.config_path)
+    runtimes: list[float] = []
+    sample_counts: list[int] = []
+    raw_bytes = 0
+    summary_bytes = 0
+    event_bytes = 0
+    cache_hits = 0
+    cpu_started = time.process_time()
+    for seed in seeds:
+        materialize_started = time.perf_counter()
+        scenarios = materialize_calibration_scenarios(
+            trace_lock_path,
+            seed=seed,
+            seed_access=seed_access,
+            _lock_snapshot=lock_snapshot,
+        )
+        materialize_seconds = time.perf_counter() - materialize_started
+        measured, counts, raw_size, summary_size, event_size, measured_cache_hits = (
+            _measure_materialized_trace_scenarios(
+                scenarios,
+                max_slots=max_slots,
+                definition=definition,
+                seed=seed,
+            )
+        )
+        if measured:
+            measured[0] += materialize_seconds
+        runtimes.extend(measured)
+        sample_counts.extend(counts)
+        raw_bytes += raw_size
+        summary_bytes += summary_size
+        event_bytes += event_size
+        cache_hits += measured_cache_hits
+    measured_cpu_seconds = time.process_time() - cpu_started
+    peak_rss = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+    peak_memory_bytes = int(peak_rss if sys.platform == "darwin" else peak_rss * 1024)
+    return RuntimeCalibrationResult(
+        audit=_runtime_audit(
+            runtimes,
+            sample_counts,
+            cache_hits,
+            peak_memory_bytes=peak_memory_bytes,
+            log_bytes=event_bytes,
+            measured_cpu_seconds=measured_cpu_seconds,
+        ),
+        raw_bytes=raw_bytes,
+        summary_bytes=summary_bytes,
+        event_bytes=event_bytes,
+    )
+
+
+# Deliberately one independently patchable adapter per registered family.
 _RUNTIME_ADAPTERS: dict[str, RuntimeAdapter] = {
     "resource": _resource_runtime_measurement,
     "exact": _exact_runtime_measurement,
@@ -456,7 +639,7 @@ _RUNTIME_ADAPTERS: dict[str, RuntimeAdapter] = {
     "joint": _generic_runtime_measurement,
     "scaling": _generic_runtime_measurement,
     "robustness": _generic_runtime_measurement,
-    "trace_driven": _runtime_adapter_not_installed,
+    "trace_driven": _trace_runtime_measurement,
 }
 
 
@@ -474,16 +657,10 @@ def _validated_seeds(seeds: Sequence[int], registry: ExperimentRegistry) -> tupl
 
 
 def _validate_trace_lock(path: Path) -> str:
-    lock_path = Path(path)
-    if lock_path.is_symlink() or not lock_path.is_file():
-        raise ValueError("trace lock must be a regular non-symlink file")
-    try:
-        payload = json.loads(lock_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        raise ValueError("trace lock must be valid JSON") from exc
-    if not isinstance(payload, Mapping) or payload.get("split") != "calibration":
-        raise ValueError("development runtime trace lock must expose calibration split only")
-    return _sha256(lock_path)
+    snapshot = load_trace_lock_snapshot(path)
+    if not any(segment.split == "calibration" for segment in snapshot.lock.segments):
+        raise ValueError("development runtime trace lock must contain calibration scenarios")
+    return snapshot.sha256
 
 
 def _ledger_head(path: Path) -> str:
@@ -685,6 +862,8 @@ def run_development_calibration(
         payload = {"schema_version": 1, "rows": audit_rows}
         payload_name = "runtime_audit.json"
 
+    if trace_lock_path is not None and _validate_trace_lock(trace_lock_path) != trace_digest:
+        raise ValueError("trace lock changed during development calibration")
     return _publish_bundle(
         destination,
         payload_name=payload_name,

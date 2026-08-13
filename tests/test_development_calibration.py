@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import json
+import hashlib
+import zipfile
 from pathlib import Path
 
 import pytest
 
 from uav_mec.experiment_registry import load_registry
+from uav_mec.geolife_lock import build_trace_lock, load_and_verify_trace_lock
 from uav_mec.run_development_calibration import (
     DevelopmentCalibrationCase,
     main,
@@ -123,6 +126,10 @@ def test_runtime_development_calibration_emits_one_audit_row_per_registry_family
             )
         },
     )
+    monkeypatch.setattr(
+        "uav_mec.run_development_calibration._validate_trace_lock",
+        lambda _path: "f" * 64,
+    )
     trace_lock = tmp_path / "trace-lock.json"
     trace_lock.write_text('{"split":"calibration"}\n', encoding="utf-8")
     output = run_development_calibration(
@@ -142,6 +149,127 @@ def test_runtime_development_calibration_emits_one_audit_row_per_registry_family
     assert [(row["family"], row["case_id"]) for row in payload["rows"]] == expected
     assert [(family, case) for family, case, _seeds, _slots in calls] == expected
     assert all(seeds == (0, 1) and slots <= 20 for _, _, seeds, slots in calls)
+
+
+def _trace_lock_fixture(tmp_path: Path) -> Path:
+    archive = tmp_path / "geolife.zip"
+    header = (
+        "Geolife trajectory\nWGS 84\nAltitude is in Feet\nReserved 3\n"
+        "0,2,255,My Track,0,0,2,8421376\n0\n"
+    )
+    with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED) as bundle:
+        for participant, mode, minute in (
+            ("000", "walk", 53),
+            ("001", "bike", 54),
+            ("002", "walk", 55),
+        ):
+            bundle.writestr(
+                f"Data/{participant}/labels.txt",
+                "Start Time\tEnd Time\tTransportation Mode\n"
+                f"2008/10/23 02:{minute}:04\t2008/10/23 02:{minute}:14\t{mode}\n",
+            )
+            points = "".join(
+                f"39.984702,116.{318417 + 60 * index:06d},0,100,39744.12,"
+                f"2008-10-23,02:{minute}:{4 + 5 * index:02d}\n"
+                for index in range(3)
+            )
+            bundle.writestr(f"Data/{participant}/Trajectory/source.plt", header + points)
+    license_text = "Synthetic GeoLife test license."
+    license_sha = hashlib.sha256(license_text.encode()).hexdigest()
+    protocol = tmp_path / "protocol.toml"
+    protocol.write_text(
+        f"""schema_version = 2
+[dataset]
+version = "synthetic"
+source_url = "https://example.test/geolife"
+retrieved_on = "2026-08-04"
+license_text = "{license_text}"
+license_sha256 = "{license_sha}"
+[selection]
+accepted_modes = ["walk", "bike"]
+slot_seconds = 1.0
+minimum_segment_samples = 3
+max_segments_per_participant_mode = 1
+[splits]
+train = ["000"]
+calibration = ["001"]
+final = ["002"]
+[placement]
+area_size_m = 500.0
+translation_m = [250.0, 250.0]
+rotation_deg = 0.0
+[[final_groups]]
+group_id = "final"
+participants = ["002"]
+""",
+        encoding="utf-8",
+    )
+    lock_path = tmp_path / "trace-lock.json"
+    build_trace_lock(archive, protocol, REGISTRY, lock_path)
+    return lock_path
+
+
+def test_runtime_development_calibration_uses_only_geolife_calibration_split(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    lock_path = _trace_lock_fixture(tmp_path)
+    lock = load_and_verify_trace_lock(lock_path)
+    calibration_ids = {
+        segment.scenario_id for segment in lock.segments if segment.split == "calibration"
+    }
+    forbidden_ids = {
+        segment.scenario_id for segment in lock.segments if segment.split != "calibration"
+    }
+    observed: list[str] = []
+
+    def measure(scenarios, *, max_slots, definition, seed):
+        del max_slots, definition, seed
+        observed.extend(scenario.scenario_id for scenario in scenarios)
+        return (
+            [0.001 for _ in scenarios],
+            [len(row.timestamps_s) for row in scenarios],
+            1,
+            1,
+            1,
+            0,
+        )
+
+    monkeypatch.setattr(
+        "uav_mec.run_development_calibration._measure_materialized_trace_scenarios",
+        measure,
+    )
+    real_trace_adapter = __import__(
+        "uav_mec.run_development_calibration", fromlist=["_RUNTIME_ADAPTERS"]
+    )._RUNTIME_ADAPTERS["trace_driven"]
+    monkeypatch.setattr(
+        "uav_mec.run_development_calibration._RUNTIME_ADAPTERS",
+        {
+            family: real_trace_adapter if family == "trace_driven" else (lambda **_kwargs: _audit())
+            for family in (
+                "resource",
+                "exact",
+                "externality",
+                "main",
+                "joint",
+                "scaling",
+                "robustness",
+                "trace_driven",
+            )
+        },
+    )
+
+    run_development_calibration(
+        REGISTRY,
+        DevelopmentCalibrationCase.RUNTIME_CAPACITY,
+        (0,),
+        tmp_path / "runtime",
+        workers=1,
+        trace_lock_path=lock_path,
+        seed_access=_recorder(tmp_path),
+    )
+
+    assert set(observed) == calibration_ids
+    assert not forbidden_ids.intersection(observed)
 
 
 def test_runtime_development_calibration_requires_trace_lock_for_trace_driven(

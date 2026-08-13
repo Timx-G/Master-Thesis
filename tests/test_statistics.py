@@ -5,6 +5,7 @@ from uav_mec.statistics import (
     holm_adjust,
     paired_bootstrap_ci,
     paired_comparison,
+    participant_clustered_bootstrap_ci,
     rank_biserial,
 )
 
@@ -70,3 +71,36 @@ def test_rank_biserial_uses_absolute_rank_ties_and_ignores_zeros():
 def test_paired_comparison_rejects_unpaired_shapes():
     with pytest.raises(ValueError, match="same shape"):
         paired_comparison(np.array([1.0, 2.0]), np.array([1.0]))
+
+
+def test_participant_clustered_bootstrap_resamples_source_participants():
+    differences = np.asarray([10.0, 10.0, 10.0, 0.0])
+    participants = ("participant-a", "participant-a", "participant-a", "participant-b")
+
+    first = participant_clustered_bootstrap_ci(
+        differences, participants, resamples=20_000, seed=20260719
+    )
+    second = participant_clustered_bootstrap_ci(
+        differences, participants, resamples=20_000, seed=20260719
+    )
+
+    assert first == second
+    assert first == pytest.approx((0.0, 10.0))
+
+
+@pytest.mark.parametrize(
+    ("differences", "participants", "resamples"),
+    (
+        (np.asarray([1.0]), ("only",), 10),
+        (np.asarray([1.0, 2.0]), ("same", "same"), 10),
+        (np.asarray([1.0, 2.0]), ("a", ""), 10),
+        (np.asarray([1.0, 2.0]), ("a",), 10),
+        (np.asarray([1.0, np.nan]), ("a", "b"), 10),
+        (np.asarray([1.0, 2.0]), ("a", "b"), 0),
+    ),
+)
+def test_participant_clustered_bootstrap_rejects_invalid_inputs(
+    differences, participants, resamples
+):
+    with pytest.raises(ValueError):
+        participant_clustered_bootstrap_ci(differences, participants, resamples=resamples)
