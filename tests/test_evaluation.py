@@ -15,7 +15,7 @@ def config(
     gamma: float = 1.0,
     *,
     n_subcarriers: int = 1,
-    cpu_per_uav_hz: float = 4e9,
+    cpu_per_uav_hz: float | tuple[float, ...] = 4e9,
 ) -> EvaluationConfig:
     return EvaluationConfig(
         n_subcarriers=n_subcarriers,
@@ -123,6 +123,51 @@ def test_cpu_budgets_are_independent_on_actual_serving_uavs():
     assert outcome.completed_task_ids == (1, 2)
     assert all(decision.cpu_hz <= evaluation.cpu_per_uav_hz for decision in outcome.decisions)
     assert sum(decision.cpu_hz for decision in outcome.decisions) > evaluation.cpu_per_uav_hz
+
+
+def test_heterogeneous_cpu_budget_is_applied_by_actual_serving_uav():
+    tasks = (
+        Task(1, 0, 0, 1e6, 1.5e9, 0.8, 1e9),
+        Task(2, 1, 0, 1e6, 1.5e9, 0.8, 1e9),
+    )
+    snapshot = SlotSnapshot(0, tasks, np.full((2, 2), 1e-7), 2)
+    schedule = Schedule(
+        (
+            ScheduleEntry(1, 0, 0, 0, "solo"),
+            ScheduleEntry(2, 1, 1, 1, "solo"),
+        )
+    )
+    evaluation = config(
+        n_subcarriers=2,
+        cpu_per_uav_hz=(0.5e9, 2e9),
+    )
+
+    outcome = evaluate_schedule(
+        snapshot,
+        schedule,
+        NOMAChannel(ChannelConfig(), 100.0),
+        evaluation,
+    )
+
+    by_task = {decision.task_id: decision for decision in outcome.decisions}
+    assert not by_task[1].completed
+    assert by_task[2].completed
+    assert by_task[2].cpu_hz <= 2e9
+    assert outcome.total_mec_cpu_hz == pytest.approx(by_task[2].cpu_hz)
+
+
+def test_heterogeneous_cpu_budget_length_must_match_uav_count():
+    task = Task(1, 0, 0, 1e6, 1.5e9, 0.8, 1e9)
+    snapshot = SlotSnapshot(0, (task,), np.full((1, 2), 1e-7), 2)
+    schedule = Schedule((ScheduleEntry(1, 0, 0, 0, "solo"),))
+
+    with pytest.raises(ValueError, match="CPU budget vector"):
+        evaluate_schedule(
+            snapshot,
+            schedule,
+            NOMAChannel(ChannelConfig(), 100.0),
+            config(cpu_per_uav_hz=(4e9,)),
+        )
 
 
 def test_pair_below_hard_sic_threshold_is_rejected():

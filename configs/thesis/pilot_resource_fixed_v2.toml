@@ -1,0 +1,40 @@
+run_id = "pilot-resource-fixed-v2"
+event_log_level = "summary"
+seed_start = 1000
+seed_count = 100
+methods = ["fixed_radio_dd", "fixed_radio_edf"]
+
+[scenario]
+num_users = 45
+num_slots = 100
+num_uavs = 3
+num_clusters = 3
+n_subcarriers = 3
+f_per_uav = 4e9
+fixed_cluster_centers = true
+random_burst = false
+user_mobility = true
+
+[scenario.task]
+arrival_mode = "periodic"
+period_choices = [2, 2, 3]
+period_jitter_slots = 0
+data_min = 0.8e6
+data_max = 3.0e6
+comp_min = 800.0
+comp_max = 1500.0
+t_min = 0.6
+t_max = 1.0
+
+[evaluation]
+gamma_sic_min = 1.0
+sic_residual = 0.02
+allocation_policy = "deadline"
+cross_interference_scale = 1.0
+
+[trace]
+csi_error_std = 0.0
+
+[search]
+max_iterations = 50
+multistart_workers = 3

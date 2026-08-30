@@ -5,11 +5,26 @@ import re
 ACTIVE_PROSE = (
     Path("README.md"),
     Path("paper/main_v2.tex"),
+    Path("thesis/main.tex"),
     *sorted(Path("thesis/chapters").glob("*.tex")),
     Path("thesis/claims-matrix.md"),
     Path("defense/outline.md"),
     Path("defense/innovation-comparison.md"),
     Path("defense/risk-questions.md"),
+)
+
+APPROVED_THESIS_TITLE = (
+    "面向时限任务的多无人机移动边缘计算干扰感知调度与卸载资源分配方法研究"
+)
+ALGORITHM_ACRONYMS = ("EAD-JSRA", "IEA-CAP", "DD-MCAA")
+REPORT_SOURCES = tuple(
+    Path("deliverables/defense_2026/sources") / name
+    for name in (
+        "开题报告_内容草稿.md",
+        "开题报告_源稿.md",
+        "中期报告_内容草稿.md",
+        "中期报告_源稿.md",
+    )
 )
 
 
@@ -52,6 +67,44 @@ def test_professional_thesis_has_two_and_only_two_named_innovations():
     for acronym in ("EAD-JSRA", "IEA-CAP", "DD-MCAA"):
         assert acronym in comparison
     assert not re.search(r"\bFull method\b", comparison, flags=re.IGNORECASE)
+
+
+def test_approved_title_is_exact_in_active_thesis_and_report_sources():
+    title_sources = (Path("README.md"), Path("thesis/main.tex"), *REPORT_SOURCES)
+    for path in title_sources:
+        assert APPROVED_THESIS_TITLE in path.read_text(encoding="utf-8"), path
+
+
+def test_active_public_materials_name_the_algorithm_family_without_full_label():
+    groups = {
+        "README": (Path("README.md"),),
+        "paper": (Path("paper/main_v2.tex"),),
+        "thesis": (
+            Path("thesis/main.tex"),
+            *(
+                Path("thesis/chapters") / name
+                for name in (
+                    "01-introduction.tex",
+                    "04-interference-aware-pairing.tex",
+                    "05-deadline-allocation.tex",
+                    "06-implementation-experiments.tex",
+                    "08-conclusion.tex",
+                )
+            ),
+        ),
+        "defense": (
+            Path("defense/outline.md"),
+            Path("defense/innovation-comparison.md"),
+            Path("defense/risk-questions.md"),
+        ),
+        **{path.name: (path,) for path in REPORT_SOURCES},
+    }
+    for group, paths in groups.items():
+        text = "\n".join(path.read_text(encoding="utf-8") for path in paths)
+        for acronym in ALGORITHM_ACRONYMS:
+            assert acronym in text, (group, acronym)
+        assert not re.search(r"\bfull method\b", text, flags=re.IGNORECASE), group
+        assert not re.search(r"(?<![\w-])Full(?![\w-])", text), group
 
 
 def test_thesis_has_eight_chapters_and_uses_generated_evidence():

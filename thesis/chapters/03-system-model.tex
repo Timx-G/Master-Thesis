@@ -1,7 +1,7 @@
 \chapter{系统模型与问题定义}
 \section{时隙、任务与调度语义}
 系统包含 $K$ 架固定高度 UAV、$S$ 个可全频复用的子载波和 $N$ 个地面用户。时隙 $t$ 的到达集合记为 $\mathcal A_t$。任务 $i$ 具有唯一标识，并由
-$q_i=(D_i,C_i,T_i,f_i^{\mathrm{loc}})$ 表示。调度项
+$q_i=(D_i,C_i,a_i,d_i,f_i^{\mathrm{loc}})$ 表示，其中 $a_i$ 是到达时刻，$d_i$ 是绝对截止时刻，相对可用时限为 $T_i=d_i-a_i$。调度项
 $e_i=(i,u_i,s_i,r_i)$ 显式记录任务、用户、实际服务 UAV、子载波和 NOMA 角色。任务至多出现一次，每个 $(u,s)$ 块最多包含两项。
 
 \section{信道、全频复用与 SIC}
@@ -27,7 +27,17 @@ L_i^{\mathrm{edge}}&=\frac{\alpha_i(1+\rho)D_i}{R_i}+\frac{\alpha_iC_i}{f_i}.
 并行分支的完成时延为 $L_i=\max(L_i^{\mathrm{loc}},L_i^{\mathrm{edge}})$。每架 UAV 满足 $\sum_{i:u_i=k}f_i\le F_k$。
 
 \section{优化目标与约束}
-主目标是最大化满足 $L_i\le T_i$ 的任务数。为使搜索确定且不牺牲主目标，使用词典序目标
+定义任务按时完成指示量
+\begin{equation}
+y_i=\mathbb I\{a_i+L_i\le d_i\}=\mathbb I\{L_i\le T_i\}.
+\end{equation}
+对实验期间到达的唯一任务集合 $\mathcal A=\bigcup_t\mathcal A_t$，任务按时完成率定义为
+\begin{equation}
+\eta_{\mathrm{OTC}}=\frac{\sum_{i\in\mathcal A}y_i}{|\mathcal A|}\times100\%.
+\end{equation}
+该分母只包含唯一到达任务：同一失败任务不跨时隙重复计数，完成但超过 $d_i$ 的任务仍记为失败。该定义区别于吞吐量、平均时延和“最终完成率”，直接对应时限业务的服务成功比例。
+
+主目标是最大化 $\sum_i y_i$。为使搜索确定且不牺牲主目标，使用词典序目标
 \begin{equation}
 \Phi=(\text{完成数},\ \text{总裕量},\ -\text{跨 UAV 干扰}).
 \end{equation}

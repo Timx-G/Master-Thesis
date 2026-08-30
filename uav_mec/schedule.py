@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from collections.abc import Mapping
 
-from .domain import Schedule, ScheduleEntry, SlotSnapshot
+from .domain import Schedule, ScheduleEntry, SlotSnapshot, Task
 
 
 class ScheduleValidationError(ValueError):
@@ -104,4 +105,80 @@ def normalize_roles(schedule: Schedule, snapshot: SlotSnapshot) -> Schedule:
             )
         )
 
+    return Schedule(tuple(normalized))
+
+
+def normalize_roles_for_blocks(
+    schedule: Schedule,
+    snapshot: SlotSnapshot,
+    affected_blocks: tuple[tuple[int, int], ...],
+    *,
+    task_by_id: Mapping[int, Task] | None = None,
+    row_by_task: Mapping[int, int] | None = None,
+    trusted: bool = False,
+) -> Schedule:
+    """Normalize changed blocks while preserving an already-normalized remainder."""
+
+    affected = frozenset(affected_blocks)
+    if not affected:
+        raise ValueError("affected_blocks must be non-empty")
+    tasks = (
+        {task.task_id: task for task in snapshot.tasks}
+        if task_by_id is None
+        else task_by_id
+    )
+    rows = (
+        {task.task_id: row for row, task in enumerate(snapshot.tasks)}
+        if row_by_task is None
+        else row_by_task
+    )
+    changed: dict[tuple[int, int], list[ScheduleEntry]] = defaultdict(list)
+    normalized = []
+    for entry in schedule.entries:
+        block = (entry.serving_uav, entry.subcarrier)
+        if block not in affected:
+            normalized.append(entry)
+            continue
+        if not trusted:
+            task = tasks.get(entry.task_id)
+            if task is None or task.user_id != entry.user_id:
+                raise ScheduleValidationError(f"task/user mismatch for task {entry.task_id}")
+            if not 0 <= entry.serving_uav < snapshot.num_uavs:
+                raise ScheduleValidationError(f"invalid UAV {entry.serving_uav}")
+            if entry.subcarrier < 0:
+                raise ScheduleValidationError(f"invalid subcarrier {entry.subcarrier}")
+        changed[block].append(entry)
+
+    for (uav, subcarrier), entries in changed.items():
+        if len(entries) > 2:
+            raise ScheduleValidationError(f"capacity exceeded at {(uav, subcarrier)}")
+        if len(entries) == 1:
+            entry = entries[0]
+            normalized.append(
+                ScheduleEntry(entry.task_id, entry.user_id, uav, subcarrier, "solo")
+            )
+            continue
+        ordered = sorted(
+            entries,
+            key=lambda entry: (
+                -snapshot.channel_gains[rows[entry.task_id], uav],
+                entry.task_id,
+            ),
+        )
+        strong, weak = ordered
+        normalized.extend(
+            (
+                ScheduleEntry(strong.task_id, strong.user_id, uav, subcarrier, "strong"),
+                ScheduleEntry(weak.task_id, weak.user_id, uav, subcarrier, "weak"),
+            )
+        )
+
+    role_order = {"solo": 0, "strong": 0, "weak": 1}
+    normalized.sort(
+        key=lambda entry: (
+            entry.serving_uav,
+            entry.subcarrier,
+            role_order[entry.noma_role],
+        )
+    )
     return Schedule(tuple(normalized))

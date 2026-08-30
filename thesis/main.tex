@@ -7,14 +7,14 @@
 \newtheorem{proposition}{命题}[chapter]
 \newtheorem{theorem}{定理}[chapter]
 \input{../paper/generated_results.tex}
-\title{面向全频复用多无人机 NOMA-MEC 网络的干扰感知用户配对与截止时间资源分配研究}
+\title{面向时限任务的多无人机移动边缘计算干扰感知调度与卸载资源分配方法研究}
 \author{关铭锡}
 \date{2026年}
 \begin{document}
 \frontmatter
 \maketitle
 \chapter*{摘要}
-本文面向全频复用多无人机分组 NOMA-MEC 网络，研究跨无人机关联与用户配对造成的干扰外部性，以及任务截止时间约束下卸载比例和边缘算力的联合分配问题。本文形成两项相互独立且可组合的算法创新，并通过固定外生轨迹、未见随机种子、完整小规模枚举和可追溯实验产物进行验证。正式实验中，完整方法达到 \FullOnTimePercent{} 的按时完成率；跨无人机邻域的独立贡献为 \InnovationOneCrossGainPP{} 个百分点，截止时间分配的独立贡献为 \InnovationTwoGainPP{} 个百分点。所有最终调度的 SIC 违规计数为 \SICViolationCount{}。
+本文面向全频复用多无人机分组 NOMA-MEC 网络，研究跨无人机关联与用户配对造成的干扰外部性，以及任务截止时间约束下卸载比例和边缘算力的联合分配问题。本文形成外部性感知与截止时间驱动的联合调度资源分配算法（EAD-JSRA），其中包括干扰外部性感知的跨无人机关联配对算法（IEA-CAP）和截止时间驱动的最小成本准入分配算法（DD-MCAA）两项相互独立且可组合的算法创新，并通过固定外生轨迹、未见随机种子、完整小规模枚举和可追溯实验产物进行验证。正式实验中，完整方法达到 \FullOnTimePercent{} 的按时完成率；跨无人机邻域的独立贡献为 \InnovationOneCrossGainPP{} 个百分点，截止时间分配的独立贡献为 \InnovationTwoGainPP{} 个百分点。所有最终调度的 SIC 违规计数为 \SICViolationCount{}。
 \chapter*{Abstract}
 This professional-master thesis studies interference externalities in cross-UAV association and grouped-NOMA pairing, together with deadline-constrained offloading and MEC CPU allocation, under full frequency reuse. Two independently ablated algorithmic contributions are evaluated through immutable paired traces, unseen confirmatory seeds, complete small-instance enumeration, and checksum-audited artifacts.
 \tableofcontents

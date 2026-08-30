@@ -113,6 +113,8 @@ Thumbs.db
 results/
 artifacts/runs/
 artifacts/exploratory/
+artifacts/pilot/
+artifacts/smoke/
 !artifacts/canonical/
 !artifacts/canonical/**
 outputs/

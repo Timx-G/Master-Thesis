@@ -1,0 +1,78 @@
+candidate_sample_sizes = [50, 100, 200]
+
+[[families]]
+name = "resource"
+seed_start = 12000
+seed_count = 200
+num_slots = 100
+methods = ["fixed_radio_dd", "fixed_radio_edf", "fixed_radio_min_slack", "fixed_radio_exact"]
+
+[[families]]
+name = "externality"
+seed_start = 13000
+seed_count = 200
+num_slots = 100
+methods = ["full", "intra_global", "cross_bilateral"]
+
+[[families]]
+name = "main"
+seed_start = 14000
+seed_count = 200
+num_slots = 100
+methods = ["full", "intra_global", "cross_bilateral", "ia_greedy", "exchange_stable"]
+
+[[families]]
+name = "robustness"
+seed_start = 15000
+seed_count = 30
+num_slots = 50
+methods = ["full", "exchange_stable"]
+
+[[families]]
+name = "exact"
+seed_start = 16000
+seed_count = 50
+num_slots = 20
+methods = ["full", "exact"]
+
+[[families]]
+name = "joint"
+seed_start = 17000
+seed_count = 200
+num_slots = 100
+methods = ["exchange_edf", "exchange_dd", "iea_edf", "iea_dd"]
+
+[[families]]
+name = "scaling"
+seed_start = 18000
+seed_count = 30
+num_slots = 50
+methods = ["full", "exchange_stable"]
+
+[[hypotheses]]
+hypothesis_id = "H1"
+family = "main"
+treatment = "full"
+control = "intra_global"
+mde_pp = 0.5
+
+[[hypotheses]]
+hypothesis_id = "H2"
+family = "externality"
+treatment = "full"
+control = "cross_bilateral"
+mde_pp = 0.5
+
+[[hypotheses]]
+hypothesis_id = "H3"
+family = "resource"
+treatment = "fixed_radio_dd"
+control = "fixed_radio_edf"
+mde_pp = 2.0
+
+[[hypotheses]]
+hypothesis_id = "H4"
+family = "joint"
+treatment = "iea_dd"
+control = "exchange_edf"
+mde_pp = 2.0

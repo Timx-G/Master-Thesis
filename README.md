@@ -1,4 +1,4 @@
-# Full-Reuse Multi-UAV NOMA-MEC Thesis Project
+# 面向时限任务的多无人机移动边缘计算干扰感知调度与卸载资源分配方法研究
 
 ## Research Question
 
@@ -6,10 +6,12 @@ This professional-master project studies slot-level scheduling in a full-frequen
 
 ## Two Contributions
 
-1. **Interference-externality-aware cross-UAV association and pairing.** A feasible per-UAV MILP initializer is refined through Replace, Position, and CrossUAV neighborhoods under deterministic global first improvement.
-2. **Deadline-driven offloading and MEC allocation.** Minimum offload ratios and CPU requirements are derived from each task deadline; a sorted feasible prefix maximizes admitted-task cardinality per UAV.
+The overall method is the **Externality-Aware and Deadline-Driven Joint Scheduling and Resource Allocation algorithm (EAD-JSRA)**:
 
-The confirmatory full method reaches `\FullOnTimePercent`; generated values live in `paper/generated_results.tex`. Innovation 1 is a small but statistically stable improvement. Innovation 2 has a larger engineering effect.
+1. **Interference-Externality-Aware Cross-UAV Association and Pairing algorithm (IEA-CAP).** A feasible per-UAV MILP initializer is refined through Replace, Position, and CrossUAV neighborhoods under deterministic global first improvement.
+2. **Deadline-Driven Minimum-Cost Admission and Allocation algorithm (DD-MCAA).** Minimum offload ratios and CPU requirements are derived from each task deadline; a sorted feasible prefix maximizes admitted-task cardinality per UAV.
+
+Confirmatory EAD-JSRA reaches `\FullOnTimePercent`; generated values live in `paper/generated_results.tex`. IEA-CAP provides a small but statistically stable improvement, while DD-MCAA has a larger engineering effect.
 
 ## Trusted Data Flow
 
@@ -38,6 +40,10 @@ Every method receives identical task IDs and channels for a seed. Raw confirmato
 ```bash
 python -m pytest -q
 
+make smoke
+make exact-smoke
+make sharded-smoke
+
 python -m uav_mec.experiment \
   --config configs/thesis/smoke.toml \
   --output /tmp/uav-mec-smoke-$(date +%s)
@@ -55,7 +61,7 @@ tectonic -X compile paper/main_v2.tex --outdir build/paper --reruns 2
 tectonic -X compile thesis/main.tex --outdir build/thesis --reruns 2
 ```
 
-## Full Confirmatory Reproduction
+## EAD-JSRA Confirmatory Reproduction
 
 Outputs are fail-fast and non-overwriting. Use a new versioned directory when rerunning.
 
@@ -68,8 +74,34 @@ python -m uav_mec.run_exact_benchmark --config configs/thesis/confirmatory_exact
 python -m uav_mec.run_thesis_suite --suite mechanism --output artifacts/runs/confirmatory-v2/mechanism
 python -m uav_mec.run_thesis_suite --suite scalability --output artifacts/runs/confirmatory-v2/scalability
 python -m uav_mec.run_thesis_suite --suite robustness --output artifacts/runs/confirmatory-v2/robustness
+python -m uav_mec.experiment --config configs/thesis/confirmatory_main_v2.toml --output artifacts/runs/confirmatory-v2/main-reality-calibrated
+python -m uav_mec.run_thesis_suite --suite capacity --output artifacts/runs/confirmatory-v2/capacity --workers 1
 python -m uav_mec.analyze_results --main artifacts/runs/confirmatory-v2/main --pairing artifacts/runs/confirmatory-v2/pairing --resource artifacts/runs/confirmatory-v2/resource --exact artifacts/runs/confirmatory-v2/exact --output artifacts/runs/confirmatory-v2/analysis --require-thesis-gates
 ```
+
+Before a full capacity run, execute the same frozen cases with bounded seeds and slots. The
+resolved manifests record the shortened protocol, while the source configuration remains fixed at
+50 seeds and 100 slots.
+
+```bash
+python -m uav_mec.run_thesis_suite \
+  --suite capacity \
+  --output artifacts/exploratory/capacity-dry-run \
+  --workers 1 \
+  --seed-count 2 \
+  --development-seed-start 42 \
+  --num-slots 3
+```
+
+The reality-calibrated main case uses `K=3`, `N=45`, three subcarriers, and two-user NOMA.
+The capacity suite scans `N={30,45,60}` at `K=3` and preserves 15 registered users per UAV for
+`(K,N)={(2,30),(3,45),(4,60),(5,75)}`. Its checksummed analysis is written to
+`analysis/capacity_metrics.json` inside the suite output.
+
+The registered v2 protocols use three deterministic multi-start worker processes inside each
+slot. Keep suite-level workers at one for runtime audits so outer case parallelism does not distort
+the reported online P50/P95. Long confirmatory definitions can be resumed by seed with
+`python -m uav_mec.run_shards --config <config> --output <new-dir> --shard-size 1`.
 
 Publish only after all gates pass, using `python -m uav_mec.publish_canonical --help` and a new canonical version.
 

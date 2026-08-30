@@ -5,7 +5,12 @@ import pytest
 
 from uav_mec.analyze_results import verify_checksums
 from uav_mec.artifacts import RunArtifactWriter
-from uav_mec.publish_canonical import publish_canonical
+from uav_mec.publish_canonical import (
+    V2_REQUIRED_FAMILIES,
+    V2_REQUIRED_HARD_GATES,
+    publish_canonical,
+    publish_canonical_v2,
+)
 
 
 def source_bundle(path: Path, run_id: str) -> None:
@@ -72,4 +77,79 @@ def test_publisher_refuses_failed_evidence_gates(tmp_path: Path):
             analysis,
             suite_roots,
             tmp_path / "canonical-v1",
+        )
+
+
+def make_v2_sources(tmp_path: Path, *, failed_gate: str | None = None):
+    families = {}
+    for name in sorted(V2_REQUIRED_FAMILIES):
+        path = tmp_path / f"v2-{name}"
+        source_bundle(path, name)
+        families[name] = path
+
+    analysis = tmp_path / "v2-analysis"
+    writer = RunArtifactWriter(analysis)
+    hard_gates = {name: True for name in V2_REQUIRED_HARD_GATES}
+    if failed_gate is not None:
+        hard_gates[failed_gate] = False
+    writer.write_json("statistics.json", {"hypotheses": {}})
+    writer.write_json("metrics.json", {})
+    writer.write_json(
+        "acceptance.json",
+        {
+            "all_gates_pass": failed_gate is None,
+            "hard_gates": hard_gates,
+            "claims": [
+                {
+                    "claim_id": "H1",
+                    "status": "supported",
+                    "evidence": "statistics/H1",
+                }
+            ],
+        },
+    )
+    writer.finalize({"schema_version": 2})
+    return families, analysis
+
+
+def test_v2_publisher_requires_all_families_and_writes_claim_matrix(
+    tmp_path: Path,
+):
+    families, analysis = make_v2_sources(tmp_path)
+    output = tmp_path / "canonical-v2"
+
+    publish_canonical_v2(families, analysis, output)
+
+    index = json.loads((output / "index.json").read_text(encoding="utf-8"))
+    assert index["schema_version"] == 2
+    assert set(index["families"]) == V2_REQUIRED_FAMILIES
+    assert (output / "claim_matrix.csv").read_text(encoding="utf-8") == (
+        "claim_id,evidence,status\nH1,statistics/H1,supported\n"
+    )
+    assert not list(output.rglob("tasks.csv"))
+    assert not list(output.rglob("slots.csv"))
+    verify_checksums(output)
+
+
+def test_v2_publisher_refuses_missing_family(tmp_path: Path):
+    families, analysis = make_v2_sources(tmp_path)
+    families.pop("trace")
+
+    with pytest.raises(ValueError, match="expected exactly these inputs"):
+        publish_canonical_v2(
+            families,
+            analysis,
+            tmp_path / "canonical-v2",
+        )
+
+
+def test_v2_publisher_refuses_failed_or_missing_hard_gate(tmp_path: Path):
+    gate = next(iter(V2_REQUIRED_HARD_GATES))
+    families, analysis = make_v2_sources(tmp_path, failed_gate=gate)
+
+    with pytest.raises(RuntimeError, match="failed hard evidence gates"):
+        publish_canonical_v2(
+            families,
+            analysis,
+            tmp_path / "canonical-v2-failed",
         )

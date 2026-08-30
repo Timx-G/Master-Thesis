@@ -1,0 +1,31 @@
+run_id = "smoke-exact"
+seed_start = 142
+seed_count = 1
+methods = ["full", "exact"]
+
+[scenario]
+num_users = 5
+num_slots = 2
+num_uavs = 2
+num_clusters = 3
+n_subcarriers = 2
+fixed_cluster_centers = true
+random_burst = false
+user_mobility = true
+
+[scenario.task]
+arrival_mode = "periodic"
+period_choices = [2, 2, 3]
+period_jitter_slots = 0
+
+[evaluation]
+gamma_sic_min = 1.0
+sic_residual = 0.02
+allocation_policy = "deadline"
+cross_interference_scale = 1.0
+
+[trace]
+csi_error_std = 0.0
+
+[search]
+max_iterations = 20

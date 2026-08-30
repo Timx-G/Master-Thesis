@@ -55,35 +55,40 @@ def noise_power_w(
 # Configuration dataclasses
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class UAVConfig:
     """UAV physical parameters."""
-    height: float = 100.0           # fixed altitude (m)
-    v_max: float = 20.0             # max horizontal speed (m/s)
-    f_uav: float = 8e9              # MEC computing capacity (cycles/s); K=1 scenario uses full 8GHz
+
+    height: float = 100.0  # fixed altitude (m)
+    v_max: float = 20.0  # max horizontal speed (m/s)
+    f_uav: float = 8e9  # MEC computing capacity (cycles/s); K=1 scenario uses full 8GHz
     # Note: multi-UAV experiments (K=2) use ScenarioConfig.f_per_uav=4e9/UAV (total=8GHz split)
     # Simplified flight power: P_fly = c1 + c2 * v^2
-    c1: float = 80.0                # constant hovering power (W)
-    c2: float = 0.12                # velocity-dependent coefficient (W/(m/s)^2)
-    dt: float = 1.0                 # time-slot duration (s)
+    c1: float = 80.0  # constant hovering power (W)
+    c2: float = 0.12  # velocity-dependent coefficient (W/(m/s)^2)
+    dt: float = 1.0  # time-slot duration (s)
 
 
 @dataclass
 class ChannelConfig:
     """Air-to-ground NOMA channel parameters."""
-    bandwidth: float = 5e6          # total bandwidth (Hz, 5 MHz LTE single carrier)
+
+    bandwidth: float = 5e6  # total bandwidth (Hz, 5 MHz LTE single carrier)
     environment: str = "urban"
     noise_psd_dbm_hz: float = -174.0  # thermal noise power spectral density (dBm/Hz)
-    noise_figure_db: float = 7.0    # Receiver noise figure (dB); NF=7 dB is mid-range for UAV receivers
+    noise_figure_db: float = (
+        7.0  # Receiver noise figure (dB); NF=7 dB is mid-range for UAV receivers
+    )
     # LoS probability: P_LoS = 1 / (1 + a * exp(-b * (theta - a)))
-    a_los: float = 9.61             # environment param a (Urban, Al-Hourani 2014 Table I)
-    b_los: float = 0.16             # environment param b
+    a_los: float = 9.61  # environment param a (Urban, Al-Hourani 2014 Table I)
+    b_los: float = 0.16  # environment param b
     # Path-loss
-    fc: float = 2e9                 # carrier frequency (Hz)
-    eta_los: float = 1.0            # additional LoS loss (dB)
-    eta_nlos: float = 20.0          # additional NLoS loss (dB)
+    fc: float = 2e9  # carrier frequency (Hz)
+    eta_los: float = 1.0  # additional LoS loss (dB)
+    eta_nlos: float = 20.0  # additional NLoS loss (dB)
     # NOMA power
-    p_max: float = 0.2              # max device transmit power (W, 23 dBm)
+    p_max: float = 0.2  # max device transmit power (W, 23 dBm)
 
     def __post_init__(self) -> None:
         if not isinstance(self.environment, str) or not self.environment.strip():
@@ -93,92 +98,145 @@ class ChannelConfig:
 @dataclass
 class TaskConfig:
     """Computation task parameters."""
-    arrival_prob: float = 0.8       # per-slot task arrival probability (dense IoT)
-    data_min: float = 400e3         # min data size (bits) = 50 KB
-    data_max: float = 2000e3        # max data size (bits) = 250 KB
-    comp_min: float = 500.0         # min computation density (cycles/bit)
-    comp_max: float = 1000.0        # max computation density (cycles/bit)
-    t_max: float = 0.8              # deadline (s) — Phase 0 calibrated (Greedy=70%, gap=8.9pp)
-    f_local: float = 1e9            # local CPU frequency (cycles/s, 1 GHz)
-    kappa: float = 1e-27            # energy coefficient for local computing
-    result_ratio: float = 0.1       # result-to-input ratio (result download size / input upload size)
+
+    arrival_prob: float = 0.8  # per-slot task arrival probability (dense IoT)
+    data_min: float = 400e3  # min data size (bits) = 50 KB
+    data_max: float = 2000e3  # max data size (bits) = 250 KB
+    comp_min: float = 500.0  # min computation density (cycles/bit)
+    comp_max: float = 1000.0  # max computation density (cycles/bit)
+    t_max: float = 0.8  # deadline (s) — Phase 0 calibrated (Greedy=70%, gap=8.9pp)
+    t_min: Optional[float] = None  # optional heterogeneous-deadline lower bound
+    f_local: float = 1e9  # local CPU frequency (cycles/s, 1 GHz)
+    kappa: float = 1e-27  # energy coefficient for local computing
+    result_ratio: float = 0.1  # result-to-input ratio (result download size / input upload size)
+    arrival_mode: str = "bernoulli"
+    period_choices: tuple[int, ...] = (2, 2, 3)
+    period_jitter_slots: int = 0
+
+    def __post_init__(self) -> None:
+        if self.arrival_mode not in {"bernoulli", "periodic"}:
+            raise ValueError("arrival_mode must be bernoulli or periodic")
+        if not isinstance(self.period_choices, (tuple, list)) or not self.period_choices:
+            raise ValueError("period_choices must be a non-empty integer sequence")
+        if any(
+            not isinstance(period, int)
+            or isinstance(period, bool)
+            or period <= 0
+            for period in self.period_choices
+        ):
+            raise ValueError("period_choices must contain positive integers")
+        self.period_choices = tuple(self.period_choices)
+        if (
+            not isinstance(self.period_jitter_slots, int)
+            or isinstance(self.period_jitter_slots, bool)
+            or not 0 <= self.period_jitter_slots <= 1
+        ):
+            raise ValueError("period_jitter_slots must be zero or one")
+        if any(period <= self.period_jitter_slots for period in self.period_choices):
+            raise ValueError("each period must exceed period_jitter_slots")
+        if self.t_min is not None and (not math.isfinite(self.t_max) or self.t_max <= 0.0):
+            raise ValueError("t_max must be positive and finite when t_min is set")
+        if self.t_min is not None and (
+            not math.isfinite(self.t_min) or self.t_min <= 0.0 or self.t_min > self.t_max
+        ):
+            raise ValueError("t_min must be positive, finite, and no greater than t_max")
 
 
 @dataclass
 class ScenarioConfig:
     """Top-level scenario parameters."""
+
     num_users: int = 20
-    area_size: float = 800.0        # square area side (m)  [V3: 800m for multi-UAV]
-    num_slots: int = 100            # episode length T
+    area_size: float = 800.0  # square area side (m)  [V3: 800m for multi-UAV]
+    num_slots: int = 100  # episode length T
     seed: Optional[int] = None
     # V2: clustered users
-    num_clusters: int = 3           # number of user hotspots
-    cluster_std: float = 50.0       # std of Gaussian clusters (m)
+    num_clusters: int = 3  # number of user hotspots
+    cluster_std: float = 50.0  # std of Gaussian clusters (m)
     fixed_cluster_centers: bool = True  # use deterministic cluster layout for reproducibility
+    cluster_layout: str = "default"  # default or two-UAV equal-gain overlap layout
     # V2: battery budget
     battery_budget: float = 9000.0  # UAV battery budget (J): hover=8000J, tight for movement
     # V2: task queue
-    max_queue_age: int = 3          # max slots a task can wait before timeout
+    max_queue_age: int = 3  # max slots a task can wait before timeout
     # V2: dynamic burst pattern
-    dynamic_burst: bool = False     # enable rotating cluster bursts
-    burst_cycle: int = 20           # slots per burst phase (legacy deterministic)
-    burst_rate: float = 0.9         # task arrival rate in bursting cluster
-    cool_rate: float = 0.2          # task arrival rate in cooling clusters
+    dynamic_burst: bool = False  # enable rotating cluster bursts
+    burst_cycle: int = 20  # slots per burst phase (legacy deterministic)
+    burst_rate: float = 0.9  # task arrival rate in bursting cluster
+    cool_rate: float = 0.2  # task arrival rate in cooling clusters
     # V3 (Phase 0B): non-stationary random burst
-    random_burst: bool = False      # True = random period U[min,max] + random cluster
-    burst_period_min: int = 8       # min slots between burst switches
-    burst_period_max: int = 15      # max slots between burst switches
+    random_burst: bool = False  # True = random period U[min,max] + random cluster
+    burst_period_min: int = 8  # min slots between burst switches
+    burst_period_max: int = 15  # max slots between burst switches
     # V3 (Phase 0B): user mobility
-    user_mobility: bool = False     # enable user random walk
-    user_speed: float = 2.0         # user movement speed (m/s)
+    user_mobility: bool = False  # enable user random walk
+    user_speed: float = 2.0  # user movement speed (m/s)
     # Multi-UAV
-    num_uavs: int = 2              # K=2 cooperative UAVs
-    f_per_uav: float = 4e9         # MEC compute per UAV (total=K*f=8GHz)
-    collision_dist: float = 30.0   # minimum inter-UAV distance (m)
-    collision_penalty: float = 5.0 # reward penalty for collision
+    num_uavs: int = 2  # K=2 cooperative UAVs
+    f_per_uav: float = 4e9  # MEC compute per UAV (total=K*f=8GHz)
+    collision_dist: float = 30.0  # minimum inter-UAV distance (m)
+    collision_penalty: float = 5.0  # reward penalty for collision
     # Grouped NOMA (Phase 0B+): equal-width subcarriers with 2-user NOMA pairs
-    n_subcarriers: int = 3         # number of OFDMA subcarriers sharing total channel bandwidth
-    users_per_sub: int = 2         # NOMA users per subcarrier (pair size)
+    n_subcarriers: int = 3  # number of OFDMA subcarriers sharing total channel bandwidth
+    users_per_sub: int = 2  # NOMA users per subcarrier (pair size)
     uav: UAVConfig = field(default_factory=UAVConfig)
     channel: ChannelConfig = field(default_factory=ChannelConfig)
     task: TaskConfig = field(default_factory=TaskConfig)
 
 
 # Fixed cluster layouts for reproducible experiments.
-FIXED_CLUSTER_CENTERS_3 = np.array([
-    [200.0, 200.0],   # Cluster 0: lower-left
-    [600.0, 200.0],   # Cluster 1: lower-right
-    [400.0, 600.0],   # Cluster 2: upper-center
-])
+FIXED_CLUSTER_CENTERS_3 = np.array(
+    [
+        [200.0, 200.0],  # Cluster 0: lower-left
+        [600.0, 200.0],  # Cluster 1: lower-right
+        [400.0, 600.0],  # Cluster 2: upper-center
+    ]
+)
 
-FIXED_CLUSTER_CENTERS_4 = np.array([
-    [200.0, 200.0],   # Cluster 0: lower-left
-    [600.0, 200.0],   # Cluster 1: lower-right
-    [200.0, 600.0],   # Cluster 2: upper-left
-    [600.0, 600.0],   # Cluster 3: upper-right
-])
+FIXED_CLUSTER_CENTERS_4 = np.array(
+    [
+        [200.0, 200.0],  # Cluster 0: lower-left
+        [600.0, 200.0],  # Cluster 1: lower-right
+        [200.0, 600.0],  # Cluster 2: upper-left
+        [600.0, 600.0],  # Cluster 3: upper-right
+    ]
+)
 
 # UAV hover positions per K (one per cluster, at cluster center)
-FIXED_CLUSTER_CENTERS_5 = np.array([
-    [160.0, 160.0],   # Cluster 0: lower-left
-    [640.0, 160.0],   # Cluster 1: lower-right
-    [160.0, 640.0],   # Cluster 2: upper-left
-    [640.0, 640.0],   # Cluster 3: upper-right
-    [400.0, 400.0],   # Cluster 4: center
-])
+FIXED_CLUSTER_CENTERS_5 = np.array(
+    [
+        [160.0, 160.0],  # Cluster 0: lower-left
+        [640.0, 160.0],  # Cluster 1: lower-right
+        [160.0, 640.0],  # Cluster 2: upper-left
+        [640.0, 640.0],  # Cluster 3: upper-right
+        [400.0, 400.0],  # Cluster 4: center
+    ]
+)
 
 UAV_HOVER_POSITIONS = {
-    1: [(400.0, 400.0)],                         # center of 800x800 area
-    2: [(267.0, 333.0), (533.0, 267.0)],       # optimized spread for 3 clusters
+    1: [(400.0, 400.0)],  # center of 800x800 area
+    2: [(267.0, 333.0), (533.0, 267.0)],  # optimized spread for 3 clusters
     3: [(200.0, 200.0), (600.0, 200.0), (400.0, 600.0)],  # one per cluster
-    4: [(200.0, 200.0), (600.0, 200.0), (200.0, 600.0), (600.0, 600.0)],  # one per cluster (4 clusters)
-    5: [(160.0, 160.0), (640.0, 160.0), (160.0, 640.0), (640.0, 640.0), (400.0, 400.0)],  # one per cluster (5 clusters)
+    4: [
+        (200.0, 200.0),
+        (600.0, 200.0),
+        (200.0, 600.0),
+        (600.0, 600.0),
+    ],  # one per cluster (4 clusters)
+    5: [
+        (160.0, 160.0),
+        (640.0, 160.0),
+        (160.0, 640.0),
+        (640.0, 640.0),
+        (400.0, 400.0),
+    ],  # one per cluster (5 clusters)
 }
 
 
 # ---------------------------------------------------------------------------
 # UAV flight model
 # ---------------------------------------------------------------------------
+
 
 class UAVModel:
     """UAV flight dynamics (fixed altitude, 2-D horizontal movement)."""
@@ -229,13 +287,14 @@ class UAVModel:
         P_fly = c1 + c2 * v^2,  E = P_fly * dt
         """
         v = math.hypot(dx, dy) / self.cfg.dt
-        p_fly = self.cfg.c1 + self.cfg.c2 * v ** 2
+        p_fly = self.cfg.c1 + self.cfg.c2 * v**2
         return p_fly * self.cfg.dt
 
 
 # ---------------------------------------------------------------------------
 # NOMA air-to-ground channel
 # ---------------------------------------------------------------------------
+
 
 class NOMAChannel:
     """Air-to-ground channel with NOMA uplink (SIC decoding)."""
@@ -288,8 +347,9 @@ class NOMAChannel:
         if d_horizontal < 1e-3:
             return 1.0
         theta_deg = math.degrees(math.atan2(self.H, d_horizontal))
-        p_los = 1.0 / (1.0 + self.cfg.a_los *
-                        math.exp(-self.cfg.b_los * (theta_deg - self.cfg.a_los)))
+        p_los = 1.0 / (
+            1.0 + self.cfg.a_los * math.exp(-self.cfg.b_los * (theta_deg - self.cfg.a_los))
+        )
         return p_los
 
     def path_loss(self, d_horizontal: float) -> float:
@@ -298,15 +358,9 @@ class NOMAChannel:
             raise ValueError("d_horizontal must be finite and non-negative")
         self._validate_carrier_frequency()
         d_3d = math.hypot(d_horizontal, self.H)
-        fspl_db = 20.0 * math.log10(
-            4.0 * math.pi * self.cfg.fc * d_3d / self.c
-        )
+        fspl_db = 20.0 * math.log10(4.0 * math.pi * self.cfg.fc * d_3d / self.c)
         p_los = self._los_probability(d_horizontal)
-        mean_loss_db = (
-            fspl_db
-            + p_los * self.cfg.eta_los
-            + (1.0 - p_los) * self.cfg.eta_nlos
-        )
+        mean_loss_db = fspl_db + p_los * self.cfg.eta_los + (1.0 - p_los) * self.cfg.eta_nlos
         return 10.0 ** (-mean_loss_db / 10.0)
 
     # -- NOMA rates ---------------------------------------------------------
@@ -332,7 +386,7 @@ class NOMAChannel:
             h[i] = self.path_loss(d_h)
 
         received = powers * h
-        order = np.argsort(-received)   # descending
+        order = np.argsort(-received)  # descending
 
         rates = np.zeros(N)
         B = self.cfg.bandwidth
@@ -374,7 +428,6 @@ class NOMAChannel:
 
         return rates
 
-
     def compute_multi_uav_ofdma_rates(
         self,
         uav_positions: list,
@@ -390,15 +443,13 @@ class NOMAChannel:
         bw_per_uav = self.cfg.bandwidth / K
 
         for k in range(K):
-            users_k = [i for i in range(N)
-                       if user_assignment[i] == k and powers[i] > 1e-6]
+            users_k = [i for i in range(N) if user_assignment[i] == k and powers[i] > 1e-6]
             if not users_k:
                 continue
             bw_per_user = bw_per_uav / len(users_k)
             noise_per_user = self.noise_for_bandwidth(bw_per_user)
             for i in users_k:
-                d_h = np.linalg.norm(
-                    np.array(uav_positions[k][:2]) - user_positions[i])
+                d_h = np.linalg.norm(np.array(uav_positions[k][:2]) - user_positions[i])
                 h_i = self.path_loss(d_h)
                 snr = powers[i] * h_i / noise_per_user
                 snr = max(snr, 1e-10)
@@ -408,12 +459,12 @@ class NOMAChannel:
 
     def compute_grouped_noma_rates(
         self,
-        uav_positions: list,        # [(x1,y1,H), (x2,y2,H)]
-        user_positions: np.ndarray, # (N,2)
-        user_assignment: np.ndarray, # (N,) which UAV serves user i
-        active_mask: np.ndarray,    # (N,) bool: has active task
-        n_sub: int = 5,             # number of OFDMA subcarriers
-        users_per_sub: int = 2,     # users per NOMA pair
+        uav_positions: list,  # [(x1,y1,H), (x2,y2,H)]
+        user_positions: np.ndarray,  # (N,2)
+        user_assignment: np.ndarray,  # (N,) which UAV serves user i
+        active_mask: np.ndarray,  # (N,) bool: has active task
+        n_sub: int = 5,  # number of OFDMA subcarriers
+        users_per_sub: int = 2,  # users per NOMA pair
         sic_eps: float = 0.02,
     ) -> tuple:
         """Grouped NOMA: OFDMA subcarriers + 2-user NOMA pairs.
@@ -443,18 +494,16 @@ class NOMAChannel:
             if not active_mask[i]:
                 continue
             for k in range(K):
-                d_h = np.linalg.norm(
-                    np.array(uav_positions[k][:2]) - user_positions[i])
+                d_h = np.linalg.norm(np.array(uav_positions[k][:2]) - user_positions[i])
                 h[i][k] = self.path_loss(d_h)
 
         # Per-UAV: select top users by channel gain, form pairs
-        uav_served = {}   # k -> list of served user indices (ordered)
-        uav_pairs = {}    # k -> list of (strong_user, weak_user) tuples
+        uav_served = {}  # k -> list of served user indices (ordered)
+        uav_pairs = {}  # k -> list of (strong_user, weak_user) tuples
 
         for k in range(K):
             # Active users assigned to this UAV
-            candidates = [i for i in range(N)
-                          if user_assignment[i] == k and active_mask[i]]
+            candidates = [i for i in range(N) if user_assignment[i] == k and active_mask[i]]
             if not candidates:
                 uav_served[k] = []
                 uav_pairs[k] = []
@@ -474,7 +523,7 @@ class NOMAChannel:
             n_sel = len(selected)
             pairs = []
             for p in range(n_sel // 2):
-                i_strong = selected[p]            # high gain
+                i_strong = selected[p]  # high gain
                 i_weak = selected[n_sel - 1 - p]  # low gain
                 pairs.append((i_strong, i_weak))
             # If odd number of users, last one is solo
@@ -525,17 +574,16 @@ class NOMAChannel:
                     if i_strong is not None:
                         recv = p_max * h[i_strong][k]
                         sinr = recv / (cross_interf + noise_sub)
-                        rates[i_strong] = bw_sub * math.log2(
-                            1 + max(sinr, 1e-10))
+                        rates[i_strong] = bw_sub * math.log2(1 + max(sinr, 1e-10))
 
         return rates, served
 
     def compute_multi_uav_rates(
         self,
-        uav_positions: list,        # [(x1,y1,H), (x2,y2,H)]
-        user_positions: np.ndarray, # (N,2)
-        powers: np.ndarray,         # (N,) transmit powers
-        user_assignment: np.ndarray, # (N,) which UAV serves user i (0 or 1)
+        uav_positions: list,  # [(x1,y1,H), (x2,y2,H)]
+        user_positions: np.ndarray,  # (N,2)
+        powers: np.ndarray,  # (N,) transmit powers
+        user_assignment: np.ndarray,  # (N,) which UAV serves user i (0 or 1)
         sic_eps: float = 0.02,
     ) -> np.ndarray:
         """Compute rates with inter-UAV interference (shared frequency band).
@@ -554,14 +602,12 @@ class NOMAChannel:
         h = np.zeros((N, K))
         for i in range(N):
             for k in range(K):
-                d_h = np.linalg.norm(
-                    np.array(uav_positions[k][:2]) - user_positions[i])
+                d_h = np.linalg.norm(np.array(uav_positions[k][:2]) - user_positions[i])
                 h[i][k] = self.path_loss(d_h)
 
         # For each UAV, compute NOMA rates for its assigned users
         for k in range(K):
-            users_k = [i for i in range(N) if user_assignment[i] == k
-                       and powers[i] > 1e-6]
+            users_k = [i for i in range(N) if user_assignment[i] == k and powers[i] > 1e-6]
             if not users_k:
                 continue
 
@@ -598,6 +644,7 @@ class NOMAChannel:
 # Task generator
 # ---------------------------------------------------------------------------
 
+
 class TaskGenerator:
     """Stochastic computation task generation per user per slot."""
 
@@ -633,6 +680,7 @@ class TaskGenerator:
 # Utility: local and offload computation metrics
 # ---------------------------------------------------------------------------
 
+
 def local_delay(comp_cycles: float, f_local: float) -> float:
     """Local computation delay (s)."""
     if comp_cycles <= 0:
@@ -644,7 +692,7 @@ def local_energy(comp_cycles: float, f_local: float, kappa: float) -> float:
     """Local computation energy (J).  E = kappa * f^2 * C."""
     if comp_cycles <= 0:
         return 0.0
-    return kappa * (f_local ** 2) * comp_cycles
+    return kappa * (f_local**2) * comp_cycles
 
 
 def offload_delay(
@@ -699,8 +747,9 @@ if __name__ == "__main__":
     powers = np.full(cfg.num_users, cfg.channel.p_max)
     rates = ch.compute_rates(uav.position, user_pos, powers)
     print(f"\nNOMA rates (Mbps): {rates / 1e6}")
-    print(f"  min={rates.min()/1e6:.2f}, max={rates.max()/1e6:.2f}, "
-          f"mean={rates.mean()/1e6:.2f}")
+    print(
+        f"  min={rates.min()/1e6:.2f}, max={rates.max()/1e6:.2f}, " f"mean={rates.mean()/1e6:.2f}"
+    )
 
     # -- Tasks --
     tg = TaskGenerator(cfg.task, rng)
@@ -716,8 +765,10 @@ if __name__ == "__main__":
             f_alloc = cfg.uav.f_uav / max(active, 1)
             t_off = offload_delay(d, c, rates[i], f_alloc)
             e_off = offload_energy(d, powers[i], rates[i])
-            print(f"  User {i}: D={d/1e3:.0f}KB, C={c:.0f}cyc | "
-                  f"local: {t_loc:.3f}s/{e_loc:.6f}J | "
-                  f"offload: {t_off:.3f}s/{e_off:.6f}J")
+            print(
+                f"  User {i}: D={d/1e3:.0f}KB, C={c:.0f}cyc | "
+                f"local: {t_loc:.3f}s/{e_loc:.6f}J | "
+                f"offload: {t_off:.3f}s/{e_off:.6f}J"
+            )
 
     print("\nmodel.py: ALL TESTS PASSED")

@@ -37,12 +37,29 @@ def test_exact_benchmark_never_reports_heuristic_above_optimum(
         for row in rows
     )
     assert all(int(row["evaluated_schedules"]) > 0 for row in rows)
+    assert all(row["cardinality_optimal"] in {"True", "False"} for row in rows)
+    assert all(row["lexicographic_optimal"] in {"True", "False"} for row in rows)
+    for row in rows:
+        if row["cardinality_optimal"] == "True":
+            assert row["cpu_gap_hz"] != ""
+        else:
+            assert row["cpu_gap_hz"] == ""
+        if row["cpu_layer_optimal"] == "True":
+            assert row["interference_gap_w"] != ""
+        else:
+            assert row["interference_gap_w"] == ""
 
     summary = json.loads(
         (output / "summary.json").read_text(encoding="utf-8")
     )
     assert 0.0 <= summary["optimal_slot_fraction"] <= 1.0
+    assert summary["optimal_slot_fraction"] == summary[
+        "lexicographic_optimal_slot_fraction"
+    ]
+    assert 0.0 <= summary["cardinality_optimal_slot_fraction"] <= 1.0
+    assert 0.0 <= summary["nontrivial_slot_fraction"] <= 1.0
     assert summary["mean_completion_gap"] >= 0.0
+    assert summary["optimality_metric"] == "quantized lexicographic Phi"
     manifest = json.loads(
         (output / "manifest.json").read_text(encoding="utf-8")
     )

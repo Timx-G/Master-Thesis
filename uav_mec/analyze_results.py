@@ -104,6 +104,16 @@ def _is_true(value: str) -> bool:
     return _parse_bool(value, "CSV value")
 
 
+def _cpu_budgets(raw: object, num_uavs: int) -> tuple[float, ...]:
+    values = raw if isinstance(raw, (list, tuple)) else [raw] * num_uavs
+    if len(values) != num_uavs:
+        raise ValueError("CPU budget vector length must equal num_uavs")
+    budgets = tuple(float(value) for value in values)
+    if any(not math.isfinite(value) or value <= 0.0 for value in budgets):
+        raise ValueError("CPU budgets must be positive and finite")
+    return budgets
+
+
 def validate_bundle(bundle: Bundle) -> dict[str, object]:
     summary_methods = bundle.summary.get("methods")
     if not isinstance(summary_methods, dict) or not summary_methods:
@@ -122,6 +132,9 @@ def validate_bundle(bundle: Bundle) -> dict[str, object]:
         "full",
         "full_fixed_half",
         "full_crossing",
+        "full_edf_min_cpu",
+        "full_min_slack_min_cpu",
+        "full_exact_oracle",
     }
     statuses = bundle.summary.get("initializer_status_counts", {})
     if initializer_methods.intersection(methods) and not statuses:
@@ -144,6 +157,9 @@ def validate_bundle(bundle: Bundle) -> dict[str, object]:
         "full",
         "full_fixed_half",
         "full_crossing",
+        "full_edf_min_cpu",
+        "full_min_slack_min_cpu",
+        "full_exact_oracle",
     }
     terminations = bundle.summary.get("search_termination_counts", {})
     if search_methods.intersection(methods) and not terminations:
@@ -222,7 +238,10 @@ def validate_bundle(bundle: Bundle) -> dict[str, object]:
         raise ValueError("manifest lacks resolved_definition")
     scenario = resolved["scenario"]
     num_uavs = int(scenario["num_uavs"])
-    cpu_budget = float(resolved["evaluation"]["cpu_per_uav_hz"])
+    cpu_budgets = _cpu_budgets(
+        resolved["evaluation"]["cpu_per_uav_hz"],
+        num_uavs,
+    )
 
     for row in bundle.tasks:
         method = row["method"]
@@ -296,7 +315,7 @@ def validate_bundle(bundle: Bundle) -> dict[str, object]:
     exceeded = {
         key: value
         for key, value in cpu_by_pool.items()
-        if value > cpu_budget + 1e-6
+        if value > cpu_budgets[key[3]] + 1e-6
     }
     if exceeded:
         raise ValueError(f"CPU budget exceeded: {exceeded}")
@@ -336,6 +355,19 @@ COMPARISONS = (
     ("innovation1_acceptance", "pairing", "full", "cross_bilateral"),
     ("innovation2_deadline", "resource", "full", "full_crossing"),
     ("resource_fixed_half", "resource", "full", "full_fixed_half"),
+    ("resource_edf_min_cpu", "resource", "full", "full_edf_min_cpu"),
+    (
+        "resource_min_slack_min_cpu",
+        "resource",
+        "full",
+        "full_min_slack_min_cpu",
+    ),
+    (
+        "resource_exact_oracle",
+        "resource",
+        "full",
+        "full_exact_oracle",
+    ),
     ("baseline_greedy", "main", "full", "greedy"),
     ("baseline_ia_greedy", "main", "full", "ia_greedy"),
     ("baseline_ilp", "main", "full", "ilp"),
@@ -400,7 +432,11 @@ def bundle_metrics(bundle: Bundle) -> dict[str, dict[str, float]]:
     seeds = tuple(int(seed) for seed in bundle.summary["seeds"])
     resolved = bundle.manifest["resolved_definition"]
     scenario = resolved["scenario"]
-    cpu_budget = float(resolved["evaluation"]["cpu_per_uav_hz"])
+    num_uavs = int(scenario["num_uavs"])
+    cpu_budgets = _cpu_budgets(
+        resolved["evaluation"]["cpu_per_uav_hz"],
+        num_uavs,
+    )
     metrics: dict[str, dict[str, float]] = {}
     for method in methods:
         seed_metrics = []
@@ -432,8 +468,7 @@ def bundle_metrics(bundle: Bundle) -> dict[str, dict[str, float]]:
             )
             denominator = (
                 int(scenario["num_slots"])
-                * int(scenario["num_uavs"])
-                * cpu_budget
+                * sum(cpu_budgets)
             )
             on_time_rate = (
                 sum(completed) / len(completed) if completed else 0.0

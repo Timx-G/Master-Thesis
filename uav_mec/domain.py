@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Literal
 
 import numpy as np
@@ -98,11 +98,16 @@ class Task:
     comp_cycles: float
     deadline_s: float
     local_cpu_hz: float
+    job_index: int = 0
 
     def __post_init__(self) -> None:
         quantities = (self.data_bits, self.comp_cycles, self.deadline_s, self.local_cpu_hz)
         if any(not math.isfinite(quantity) or quantity <= 0 for quantity in quantities):
             raise ValueError("task quantities must be positive and finite")
+        if not isinstance(self.job_index, int) or isinstance(self.job_index, bool):
+            raise ValueError("job_index must be an integer")
+        if self.job_index < 0:
+            raise ValueError("job_index must be non-negative")
 
     @property
     def local_delay_s(self) -> float:
@@ -129,24 +134,34 @@ class ScheduleEntry:
 @dataclass(frozen=True, slots=True)
 class Schedule:
     entries: tuple[ScheduleEntry, ...] = ()
+    _stable_key: tuple[tuple[int, int, int, int, str], ...] | None = field(
+        init=False,
+        repr=False,
+        compare=False,
+        default=None,
+    )
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "entries", tuple(self.entries))
+        entries = tuple(self.entries)
+        object.__setattr__(self, "entries", entries)
 
     def stable_key(self) -> tuple[tuple[int, int, int, int, str], ...]:
-        return tuple(
-            sorted(
-                (
-                    entry.serving_uav,
-                    entry.subcarrier,
-                    entry.user_id,
-                    entry.task_id,
-                    entry.noma_role,
+        key = self._stable_key
+        if key is None:
+            key = tuple(
+                sorted(
+                    (
+                        entry.serving_uav,
+                        entry.subcarrier,
+                        entry.user_id,
+                        entry.task_id,
+                        entry.noma_role,
+                    )
+                    for entry in self.entries
                 )
-                for entry in self.entries
             )
-        )
-
+            object.__setattr__(self, "_stable_key", key)
+        return key
 
 @dataclass(frozen=True, slots=True, eq=False)
 class SlotSnapshot:
@@ -247,6 +262,7 @@ class SlotOutcome:
     total_slack_s: float
     total_cross_interference_w: float
     runtime_s: float = 0.0
+    total_mec_cpu_hz: float = 0.0
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "arrived_task_ids", tuple(self.arrived_task_ids))

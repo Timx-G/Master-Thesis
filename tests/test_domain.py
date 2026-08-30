@@ -68,12 +68,29 @@ def test_task_rejects_non_positive_and_non_finite_quantities(field_name):
             Task(1, 0, 0, **invalid_quantities)
 
 
+@pytest.mark.parametrize("job_index", (-1, 1.5, True))
+def test_task_rejects_invalid_job_index(job_index):
+    with pytest.raises(ValueError, match="job_index"):
+        Task(1, 0, 0, 1.0, 1.0, 1.0, 1.0, job_index=job_index)
+
+
 def test_schedule_key_is_independent_of_input_order():
     a = ScheduleEntry(7, 7, 1, 0, "weak")
     b = ScheduleEntry(2, 2, 0, 1, "solo")
     expected = ((0, 1, 2, 2, "solo"), (1, 0, 7, 7, "weak"))
     assert Schedule((a, b)).stable_key() == expected
     assert Schedule((b, a)).stable_key() == expected
+
+
+def test_schedule_reuses_its_immutable_stable_key():
+    schedule = Schedule(
+        (
+            ScheduleEntry(7, 7, 1, 0, "weak"),
+            ScheduleEntry(2, 2, 0, 1, "solo"),
+        )
+    )
+
+    assert schedule.stable_key() is schedule.stable_key()
 
 
 def test_schedule_copies_entries_to_a_tuple():

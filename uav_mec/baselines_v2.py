@@ -19,8 +19,11 @@ from .domain import (
 from .evaluation import (
     EvaluationConfig,
     InfeasibleScheduleError,
+    build_evaluation_context,
     build_outcome_from_rates,
     evaluate_schedule,
+    evaluate_schedule_incremental,
+    score_schedule_incremental,
 )
 from .model import NOMAChannel
 from .schedule import normalize_roles
@@ -221,6 +224,7 @@ def ia_greedy_schedule(
     task_by_id = {task.task_id: task for task in snapshot.tasks}
     current = Schedule()
     current_outcome = evaluate_schedule(snapshot, current, channel, cfg)
+    evaluation_context = build_evaluation_context(snapshot, channel, cfg)
     used: set[int] = set()
 
     for subcarrier in range(cfg.n_subcarriers):
@@ -264,14 +268,24 @@ def ia_greedy_schedule(
                     snapshot,
                 )
                 try:
-                    outcome = evaluate_schedule(snapshot, trial, channel, cfg)
+                    score = score_schedule_incremental(
+                        snapshot,
+                        current,
+                        current_outcome,
+                        trial,
+                        ((uav, subcarrier),),
+                        channel,
+                        cfg,
+                        validate_structure=False,
+                        context=evaluation_context,
+                        retain_rates=False,
+                    )
                 except InfeasibleScheduleError:
                     continue
                 feasible.append(
                     (
-                        network_objective(outcome),
+                        network_objective(score),
                         trial.stable_key(),
-                        outcome,
                         trial,
                     )
                 )
@@ -287,7 +301,17 @@ def ia_greedy_schedule(
                 ),
             )
             if best[0] > network_objective(current_outcome):
-                current_outcome = best[2]
-                current = best[3]
+                trial = best[2]
+                current_outcome = evaluate_schedule_incremental(
+                    snapshot,
+                    current,
+                    current_outcome,
+                    trial,
+                    ((uav, subcarrier),),
+                    channel,
+                    cfg,
+                    validate_structure=False,
+                )
+                current = trial
                 used = {entry.task_id for entry in current.entries}
     return current

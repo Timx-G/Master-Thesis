@@ -118,6 +118,62 @@ def test_cpu_budget_violation_is_a_hard_validation_failure():
         )
 
 
+def test_validation_supports_per_uav_cpu_budget_vector():
+    value = bundle()
+    manifest = copy.deepcopy(value.manifest)
+    manifest["resolved_definition"]["evaluation"]["cpu_per_uav_hz"] = [
+        6e9
+    ]
+
+    result = validate_bundle(
+        Bundle(
+            value.name,
+            value.path,
+            manifest,
+            value.summary,
+            value.tasks,
+            value.slots,
+        )
+    )
+
+    assert result["cpu_budget_violations"] == 0
+
+
+def test_strong_resource_method_requires_initializer_evidence():
+    value = bundle()
+    method = "full_edf_min_cpu"
+    tasks = [
+        row | {"method": method}
+        for row in copy.deepcopy(value.tasks)
+        if row["method"] == "full"
+    ]
+    slots = [
+        row | {"method": method}
+        for row in copy.deepcopy(value.slots)
+        if row["method"] == "full"
+    ]
+    summary = {
+        "seeds": list(range(4)),
+        "initializer_status_counts": {},
+        "search_termination_counts": {},
+        "methods": {
+            method: {"on_time_rate_by_seed": [1.0] * 4},
+        },
+    }
+
+    with pytest.raises(ValueError, match="initializer status"):
+        validate_bundle(
+            Bundle(
+                "resource_strong",
+                None,
+                value.manifest,
+                summary,
+                tasks,
+                slots,
+            )
+        )
+
+
 def test_positive_paired_effect_has_ci_and_holm_fields():
     report = comparison_report({"pairing": bundle().summary})
     result = report["innovation1_cross"]
@@ -125,6 +181,30 @@ def test_positive_paired_effect_has_ci_and_holm_fields():
     assert result["mean_difference_pp"] == pytest.approx(50.0)
     assert result["ci_low_pp"] > 0.0
     assert 0.0 <= result["p_holm"] <= 1.0
+
+
+def test_strong_resource_comparisons_include_classic_and_exact_controls():
+    methods = {
+        "full": {"on_time_rate_by_seed": [0.8, 0.82, 0.84, 0.86]},
+        "full_edf_min_cpu": {
+            "on_time_rate_by_seed": [0.7, 0.72, 0.74, 0.76]
+        },
+        "full_min_slack_min_cpu": {
+            "on_time_rate_by_seed": [0.6, 0.62, 0.64, 0.66]
+        },
+        "full_exact_oracle": {
+            "on_time_rate_by_seed": [0.8, 0.82, 0.84, 0.86]
+        },
+    }
+
+    report = comparison_report(
+        {"resource": {"methods": methods}}
+    )
+
+    assert report["resource_edf_min_cpu"]["mean_difference_pp"] == pytest.approx(10.0)
+    assert report["resource_min_slack_min_cpu"]["mean_difference_pp"] == pytest.approx(20.0)
+    assert report["resource_exact_oracle"]["mean_difference_pp"] == 0.0
+    assert report["resource_exact_oracle"]["p_raw"] == 1.0
 
 
 def test_checksum_verification_rejects_unlisted_files(tmp_path: Path):

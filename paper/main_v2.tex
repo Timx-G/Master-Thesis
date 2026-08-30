@@ -18,14 +18,16 @@
 
 \begin{abstract}
 Full-frequency-reuse multi-UAV NOMA-MEC systems couple user association and pairing through
-cross-UAV interference while sharing finite edge CPU under per-task deadlines. We first develop
-an interference-externality-aware scheduler whose Replace, Position, and CrossUAV neighborhoods
+cross-UAV interference while sharing finite edge CPU under per-task deadlines. Our Externality-Aware
+and Deadline-Driven Joint Scheduling and Resource Allocation algorithm (EAD-JSRA) first applies an
+Interference-Externality-Aware Cross-UAV Association and Pairing algorithm (IEA-CAP), whose Replace, Position, and CrossUAV neighborhoods
 recompute the actual serving channel, hard SIC feasibility, cross-UAV interference, and per-UAV
-MEC load under a deterministic global first-improvement rule. We then derive the minimum offload
-ratio and minimum MEC frequency required by each deadline and use their ordered prefix to maximize
+MEC load under a deterministic global first-improvement rule. Its Deadline-Driven Minimum-Cost
+Admission and Allocation algorithm (DD-MCAA) then derives the minimum offload
+ratio and minimum MEC frequency required by each deadline and uses their ordered prefix to maximize
 the number of completed tasks under each UAV CPU budget. A unified simulator counts every arriving
 task once and evaluates all methods on identical immutable traces. Across \ConfirmatorySeedCount{}
-unseen seeds, the full method reaches \FullOnTimePercent{} on-time completion; the isolated
+unseen seeds, EAD-JSRA reaches \FullOnTimePercent{} on-time completion; the isolated
 cross-UAV and deadline-allocation contributions are \InnovationOneCrossGainPP{} and
 \InnovationTwoGainPP{} percentage points, respectively. The final schedules contain
 \SICViolationCount{} SIC violations, and the measured $N=20$ scheduling P95 is
@@ -98,7 +100,11 @@ With offload ratio $\alpha_i$ and MEC allocation $f_i$, completion delay is
  L_i=\max\left\{\frac{(1-\alpha_i)C_i}{f_i^{\mathrm{loc}}},
  \frac{\alpha_i(1+\rho)D_i}{R_i}+\frac{\alpha_iC_i}{f_i}\right\}.
 \end{equation}
-The primary objective is the number of tasks with $L_i\le T_i$. Deterministic tie breakers maximize
+If $a_i$ and $d_i$ are the arrival and absolute deadline, the unique-task on-time indicator is
+$y_i=\mathbb I\{a_i+L_i\le d_i\}$. Over all unique arrivals $\mathcal A$, the reported on-time
+completion rate is $\sum_{i\in\mathcal A}y_i/|\mathcal A|$; a late completion remains a miss and
+failed tasks are not reinserted into the denominator. The primary objective is the number of tasks
+with $L_i\le T_i=d_i-a_i$. Deterministic tie breakers maximize
 total slack and then minimize cross-UAV interference. Every UAV satisfies
 $\sum_i f_i\le F_k$.
 
@@ -166,7 +172,7 @@ error, SIC residual and threshold, CPU, deadline, and task load. A complete smal
 enumeration is used only as an empirical reference.
 
 \section{Results and Mechanism Analysis}
-The full method reaches \FullOnTimePercent{} with a 95\% bootstrap interval
+EAD-JSRA reaches \FullOnTimePercent{} with a 95\% bootstrap interval
 [\FullOnTimeCILowPercent{}, \FullOnTimeCIHighPercent{}]. Against the predeclared strongest
 controlled baseline, exchange-stable matching, the gain is \StrongBaselineGainPP{} percentage
 points with interval [\StrongBaselineCILowPP{}, \StrongBaselineCIHighPP{}]. Figure
@@ -220,9 +226,9 @@ count is \SICViolationCount{}. The measured $N=20$ scheduling P95 is
 \resizebox{\columnwidth}{!}{\input{generated_robustness.tex}}
 \end{table}
 
-The interference-control curve shows that all methods degrade as coupling increases, while the full
-method remains above exchange-stable at all three declared levels; the gap is not monotone.
-Scalability results show degradation with $N$ and saturation as $K$ grows. At $K=1$ the full method
+The interference-control curve shows that all methods degrade as coupling increases, while
+EAD-JSRA remains above exchange-stable at all three declared levels; the gap is not monotone.
+Scalability results show degradation with $N$ and saturation as $K$ grows. At $K=1$, EAD-JSRA
 is slightly below exchange-stable, and at $K=5$ they tie, so strict dominance is not claimed outside
 the multi-UAV main setting.
 

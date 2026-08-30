@@ -35,3 +35,11 @@ def test_trusted_core_ranges_remain_python311_compatible():
     assert "numpy>=1.26,<2.5" in core
     assert "matplotlib>=3.8,<3.11" in core
     assert "scipy>=1.11,<1.18" in core
+
+
+def test_makefile_prefers_the_locked_python_environment_when_available():
+    makefile = Path("Makefile").read_text(encoding="utf-8")
+
+    assert "$(wildcard .venv311/bin/python)" in makefile
+    assert ".venv311/bin/python" in makefile
+    assert "python3" in makefile

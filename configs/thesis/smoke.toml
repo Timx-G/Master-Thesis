@@ -8,8 +8,13 @@ num_slots = 3
 num_uavs = 2
 num_clusters = 3
 n_subcarriers = 2
-random_burst = true
+random_burst = false
 user_mobility = true
+
+[scenario.task]
+arrival_mode = "periodic"
+period_choices = [2, 2, 3]
+period_jitter_slots = 0
 
 [evaluation]
 gamma_sic_min = 1.0

@@ -10,6 +10,7 @@ from uav_mec.resource_allocation import (
     RequirementReason,
     ResourceRequirement,
     required_resources,
+    screening_required_resources,
 )
 
 
@@ -36,6 +37,33 @@ def test_heavy_task_uses_minimum_offload_and_cpu():
     assert req.feasible
 
 
+def test_screening_formula_matches_quantized_requirement_in_registered_range():
+    rng = np.random.default_rng(20260717)
+    for task_id in range(1000):
+        data_bits = float(rng.uniform(0.8e6, 3.0e6))
+        comp_cycles = data_bits * float(rng.uniform(800.0, 1500.0))
+        task = Task(
+            task_id,
+            task_id,
+            0,
+            data_bits,
+            comp_cycles,
+            float(rng.uniform(0.6, 1.0)),
+            1e9,
+        )
+        rate_bps = float(rng.uniform(0.5e6, 30e6))
+
+        exact = required_resources(task, rate_bps, 0.1)
+        screening = screening_required_resources(task, rate_bps, 0.1)
+
+        assert screening.feasible == exact.feasible
+        assert screening.local_only == exact.local_only
+        assert screening.reason is exact.reason
+        assert screening.alpha == exact.alpha
+        if exact.feasible:
+            assert round(screening.cpu_hz) == round(exact.cpu_hz)
+
+
 def test_link_is_infeasible_when_transmission_alone_exceeds_deadline():
     req = required_resources(make_task(2_000_000_000.0), rate_bps=100_000.0, result_ratio=0.1)
     assert not req.feasible
@@ -45,6 +73,15 @@ def test_link_is_infeasible_when_transmission_alone_exceeds_deadline():
 def test_negative_result_ratio_is_rejected():
     with pytest.raises(ValueError, match="result_ratio"):
         required_resources(make_task(1_200_000_000.0), rate_bps=4_000_000.0, result_ratio=-0.1)
+
+
+def test_required_resources_reuses_identical_pure_derivation():
+    task = make_task(1_200_000_000.0)
+
+    first = required_resources(task, 4_000_000.0, 0.1)
+    second = required_resources(task, 4_000_000.0, 0.1)
+
+    assert second is first
 
 
 @pytest.mark.parametrize("unused_rate", [0.0, -1.0, math.nan, math.inf])

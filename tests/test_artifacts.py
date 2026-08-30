@@ -69,3 +69,40 @@ def test_empty_csv_requires_explicit_fieldnames(tmp_path: Path):
     writer.write_csv("valid-empty.csv", [], fieldnames=["task_id"])
 
     assert (tmp_path / "run/valid-empty.csv").read_text() == "task_id\n"
+
+
+def test_streaming_writers_remain_atomic_and_accept_incremental_rows(
+    tmp_path: Path,
+):
+    writer = RunArtifactWriter(tmp_path / "run")
+
+    with writer.open_csv(
+        "tasks.csv",
+        fieldnames=("task_id", "completed"),
+    ) as write_task:
+        write_task({"task_id": 1, "completed": True})
+        assert not (tmp_path / "run/tasks.csv").exists()
+        write_task({"task_id": 2, "completed": False})
+    with writer.open_jsonl("events.jsonl") as write_event:
+        write_event({"event": "start", "slot": 0})
+        assert not (tmp_path / "run/events.jsonl").exists()
+
+    assert (tmp_path / "run/tasks.csv").read_text() == ("task_id,completed\n1,True\n2,False\n")
+    assert json.loads((tmp_path / "run/events.jsonl").read_text().strip()) == {
+        "event": "start",
+        "slot": 0,
+    }
+
+
+def test_streaming_writer_removes_temporary_file_after_failure(
+    tmp_path: Path,
+):
+    writer = RunArtifactWriter(tmp_path / "run")
+
+    with pytest.raises(RuntimeError, match="stop"):
+        with writer.open_jsonl("events.jsonl") as write_event:
+            write_event({"event": "partial"})
+            raise RuntimeError("stop")
+
+    assert not (tmp_path / "run/events.jsonl").exists()
+    assert list((tmp_path / "run").glob(".events.jsonl.*")) == []

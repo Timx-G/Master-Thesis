@@ -4,6 +4,7 @@ import re
 
 import pytest
 
+import uav_mec.generate_figures_v2 as figure_generator
 from uav_mec.generate_figures_v2 import generate_assets, method_mean_ci
 
 
@@ -147,3 +148,53 @@ def test_generator_refuses_failed_evidence_gates(tmp_path: Path):
             tmp_path / "statistics.tex",
             tmp_path / "robustness.tex",
         )
+
+
+def test_public_display_mapping_keeps_full_as_internal_key_only():
+    assert "full" in figure_generator.METHOD_DISPLAY_LABELS
+    assert (
+        figure_generator.METHOD_DISPLAY_LABELS["full"]
+        == "EAD-JSRA (Proposed)"
+    )
+    assert "Full" not in figure_generator.METHOD_DISPLAY_LABELS["full"]
+
+
+def test_generated_charts_and_tables_use_ead_jsra_public_label(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    root = tmp_path / "canonical"
+    make_canonical(root)
+    captured_labels: list[tuple[str, ...]] = []
+
+    def capture_bar(
+        summary: dict,
+        methods: tuple[str, ...],
+        labels: tuple[str, ...],
+        output: Path,
+    ) -> None:
+        captured_labels.append(labels)
+
+    monkeypatch.setattr(figure_generator, "_bar_figure", capture_bar)
+    generate_assets(
+        root,
+        tmp_path / "figures",
+        tmp_path / "generated_results.tex",
+        tmp_path / "generated_statistics.tex",
+        tmp_path / "generated_robustness.tex",
+    )
+
+    flattened = "\n".join(label for labels in captured_labels for label in labels)
+    assert "EAD-JSRA (Proposed)" in flattened
+    assert "Cross/Global\nEAD-JSRA" in flattened
+    assert "Deadline/Min-CPU\nEAD-JSRA" in flattened
+    assert not re.search(r"(?<![\w-])Full(?![\w-])", flattened)
+
+    statistics = (tmp_path / "generated_statistics.tex").read_text(
+        encoding="utf-8"
+    )
+    robustness = (tmp_path / "generated_robustness.tex").read_text(
+        encoding="utf-8"
+    )
+    assert "EAD-JSRA (Proposed)" in statistics
+    assert "EAD-JSRA (Proposed)" in robustness
+    assert not re.search(r"(?<![A-Za-z])full(?![A-Za-z])", statistics)

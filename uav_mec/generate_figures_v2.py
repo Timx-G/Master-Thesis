@@ -44,6 +44,23 @@ plt.rcParams.update({
 HATCHES = ['///', '\\\\\\', 'xxx', '...', '+++', 'ooo', '|||', '---']
 COLORS = ['#2166ac', '#4393c3', '#92c5de', '#d1e5f0', '#fddbc7', '#f4a582', '#d6604d', '#b2182b']
 
+# Canonical experiment keys stay stable in JSON; only this mapping is public.
+METHOD_DISPLAY_LABELS = {
+    "exchange_stable": "Exchange-Stable",
+    "fair_ofdma": "Fair OFDMA",
+    "full": "EAD-JSRA (Proposed)",
+    "greedy": "Greedy",
+    "ia_greedy": "IA-Greedy",
+    "ilp": "Per-UAV ILP",
+    "intra_global": "Intra-Global",
+    "local_only": "Local-Only",
+}
+
+
+def method_display_label(method: str) -> str:
+    """Return a publication label without exposing an internal method key."""
+    return METHOD_DISPLAY_LABELS.get(method, method.replace("_", " ").title())
+
 
 def load_json(name):
     p = Path(__file__).parent.parent / "results" / name
@@ -614,7 +631,7 @@ def _suite_figure(
             labels,
             means,
             yerr=errors,
-            label=method.replace("_", " ").title(),
+            label=method_display_label(method),
             color=color,
             marker=marker,
             capsize=3,
@@ -631,7 +648,7 @@ def _suite_table(root: Path, index: dict) -> str:
     lines = [
         "\\begin{tabular}{lrr}",
         "\\toprule",
-        "Case & Exchange-Stable (\\%) & Proposed (\\%) \\\\",
+        "Case & Exchange-Stable (\\%) & EAD-JSRA (Proposed) (\\%) \\\\",
         "\\midrule",
     ]
     for case, relative in sorted(robustness.items()):
@@ -680,7 +697,7 @@ def _statistics_table(statistics: dict, metrics: dict) -> str:
         )
     )
     for method, value in metrics["main"].items():
-        escaped_method = method.replace("_", "\\_")
+        escaped_method = method_display_label(method).replace("_", "\\_")
         lines.append(
             f"{escaped_method} & {100.0 * value['on_time_rate']:.2f} & "
             f"{100.0 * value['drop_rate']:.2f} & "
@@ -721,7 +738,7 @@ def generate_assets(
         summaries["main"],
         tuple(summaries["main"]["methods"]),
         tuple(
-            name.replace("_", " ").title()
+            method_display_label(name)
             for name in summaries["main"]["methods"]
         ),
         figures_dir / "main_on_time",
@@ -729,13 +746,22 @@ def generate_assets(
     _bar_figure(
         summaries["pairing"],
         ("intra_bilateral", "cross_bilateral", "intra_global", "full"),
-        ("Intra/Bilateral", "Cross/Bilateral", "Intra/Global", "Cross/Global"),
+        (
+            "Intra/Bilateral",
+            "Cross/Bilateral",
+            "Intra/Global",
+            "Cross/Global\nEAD-JSRA",
+        ),
         figures_dir / "pairing_ablation",
     )
     _bar_figure(
         summaries["resource"],
         ("full_fixed_half", "full_crossing", "full"),
-        ("Fixed 0.5 / Equal", "Crossing / Equal", "Deadline / Min-CPU"),
+        (
+            "Fixed 0.5 / Equal",
+            "Crossing / Equal",
+            "Deadline/Min-CPU\nEAD-JSRA",
+        ),
         figures_dir / "resource_ablation",
     )
 

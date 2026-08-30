@@ -70,6 +70,7 @@ def run_exact_definition(
                 str(event["reason"])
                 for event in events
                 if event.get("move_type") == "initialization"
+                and event.get("initializer_id") == "per_uav_ilp"
             )
             search_terminations.extend(
                 str(event["reason"])
@@ -91,6 +92,31 @@ def run_exact_definition(
                 )
 
             slot_arrivals = len(full.arrived_task_ids)
+            offload_arrivals = sum(task.requires_offload for task in snapshot.tasks)
+            exact_offload_completed = sum(
+                decision.completed and decision.alpha > 0.0
+                for decision in exact.outcome.decisions
+            )
+            full_objective = network_objective(full)
+            exact_objective = network_objective(exact.outcome)
+            completion_gap = exact.outcome.completed_count - full.completed_count
+            cardinality_optimal = completion_gap == 0
+            cpu_gap_hz = (
+                full.total_mec_cpu_hz - exact.outcome.total_mec_cpu_hz
+                if cardinality_optimal
+                else None
+            )
+            cpu_layer_optimal = (
+                cardinality_optimal
+                and full_objective[:2] == exact_objective[:2]
+            )
+            interference_gap_w = (
+                full.total_cross_interference_w
+                - exact.outcome.total_cross_interference_w
+                if cpu_layer_optimal
+                else None
+            )
+            lexicographic_optimal = full_objective == exact_objective
             arrivals += slot_arrivals
             full_completed += full.completed_count
             exact_completed += exact.outcome.completed_count
@@ -101,10 +127,19 @@ def run_exact_definition(
                     "arrivals": slot_arrivals,
                     "full_completed": full.completed_count,
                     "exact_completed": exact.outcome.completed_count,
-                    "completion_gap": (
-                        exact.outcome.completed_count
-                        - full.completed_count
-                    ),
+                    "completion_gap": completion_gap,
+                    "cardinality_optimal": cardinality_optimal,
+                    "full_cpu_hz": full.total_mec_cpu_hz,
+                    "exact_cpu_hz": exact.outcome.total_mec_cpu_hz,
+                    "cpu_gap_hz": cpu_gap_hz,
+                    "cpu_layer_optimal": cpu_layer_optimal,
+                    "full_interference_w": full.total_cross_interference_w,
+                    "exact_interference_w": exact.outcome.total_cross_interference_w,
+                    "interference_gap_w": interference_gap_w,
+                    "lexicographic_optimal": lexicographic_optimal,
+                    "offload_arrivals": offload_arrivals,
+                    "exact_offload_completed": exact_offload_completed,
+                    "nontrivial": exact_offload_completed < offload_arrivals,
                     "full_runtime_s": full_runtime_s,
                     "exact_runtime_s": exact_runtime_s,
                     "evaluated_schedules": exact.evaluated_schedules,
@@ -131,10 +166,22 @@ def run_exact_definition(
     )
     if len(gaps) == 0:
         raise ValueError("exact benchmark produced no slot outcomes")
+    cardinality_optimal = np.asarray(
+        [bool(row["cardinality_optimal"]) for row in rows],
+        dtype=bool,
+    )
+    lexicographic_optimal = np.asarray(
+        [bool(row["lexicographic_optimal"]) for row in rows],
+        dtype=bool,
+    )
+    nontrivial = np.asarray(
+        [bool(row["nontrivial"]) for row in rows],
+        dtype=bool,
+    )
     summary = {
         "run_id": definition.run_id,
         "seeds": list(definition.seeds),
-        "optimality_metric": "completed task count per slot",
+        "optimality_metric": "quantized lexicographic Phi",
         "initializer_status_counts": {
             status: initializer_statuses.count(status)
             for status in sorted(set(initializer_statuses))
@@ -143,7 +190,14 @@ def run_exact_definition(
             status: search_terminations.count(status)
             for status in sorted(set(search_terminations))
         },
-        "optimal_slot_fraction": float(np.mean(gaps == 0.0)),
+        "optimal_slot_fraction": float(np.mean(lexicographic_optimal)),
+        "lexicographic_optimal_slot_fraction": float(
+            np.mean(lexicographic_optimal)
+        ),
+        "cardinality_optimal_slot_fraction": float(
+            np.mean(cardinality_optimal)
+        ),
+        "nontrivial_slot_fraction": float(np.mean(nontrivial)),
         "mean_completion_gap": float(np.mean(gaps)),
         "max_completion_gap": int(np.max(gaps)),
         "by_seed": seed_rows,
@@ -158,6 +212,18 @@ def run_exact_definition(
             "full_completed",
             "exact_completed",
             "completion_gap",
+            "cardinality_optimal",
+            "full_cpu_hz",
+            "exact_cpu_hz",
+            "cpu_gap_hz",
+            "cpu_layer_optimal",
+            "full_interference_w",
+            "exact_interference_w",
+            "interference_gap_w",
+            "lexicographic_optimal",
+            "offload_arrivals",
+            "exact_offload_completed",
+            "nontrivial",
             "full_runtime_s",
             "exact_runtime_s",
             "evaluated_schedules",
@@ -179,7 +245,7 @@ def run_exact_definition(
                 "all unscheduled or UAV/subcarrier assignments "
                 "with block capacity two"
             ),
-            "optimality_metric": "completed task count per slot",
+            "optimality_metric": "quantized lexicographic Phi",
             "solver": {
                 "name": "scipy.optimize.milp/HiGHS",
                 "package_version": scipy.__version__,
